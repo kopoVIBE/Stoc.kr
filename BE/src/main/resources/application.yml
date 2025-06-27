@@ -5,9 +5,9 @@ spring:
   # DATABASE
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/stockr_db?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: jdbc:mysql://stockr-mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
 
   jpa:
     hibernate:
@@ -18,29 +18,62 @@ spring:
         format_sql: true # SQL 쿼리를 예쁘게 포맷팅
         dialect: org.hibernate.dialect.MySQLDialect
 
-#  # MONGODB
-#  data:
-#    mongodb:
-#      uri: mongodb://localhost:27017/stock_data
-#
-#  # REDIS
-#  redis:
-#    host: localhost
-#    port: 6379
-#
-#  # KAFKA
-#  kafka:
-#    bootstrap-servers: localhost:9092
-#    consumer:
-#      group-id: stockr-group
-#      auto-offset-reset: earliest
-#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#    producer:
-#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  # MONGODB
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@stockr-mongodb:27017/${MONGO_DATABASE}?authSource=admin
+    # REDIS
+    redis:
+      host: stockr-redis
+      port: 6379
+      password: ${REDIS_PASSWORD}
+      timeout: 5000
+      connect-timeout: 5000
+      client-type: lettuce
+      client-name: stockr-redis
+      database: 0
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+        cluster:
+          refresh:
+            period: 1000
+            adaptive: true
+
+  # KAFKA
+  kafka:
+    bootstrap-servers: stockr-kafka:29092
+    consumer:
+      group-id: stockr-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # WebSocket
+  websocket:
+    allowed-origins: "*"
+    endpoint: /ws
+    topic-prefix: /topic
+    application-prefix: /app
+
+  config:
+    activate:
+      on-profile: test
 
 logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
+    com.stockr.be: debug
+    org.springframework.data.redis: debug
+    io.lettuce.core: debug
