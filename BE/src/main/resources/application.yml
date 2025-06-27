@@ -1,0 +1,46 @@
+server:
+  port: 8080
+
+spring:
+  # DATABASE
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/stockr_db?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 애플리케이션 실행 시 엔티티에 맞춰 테이블 스키마 자동 변경
+    show-sql: true # 실행되는 SQL 쿼리를 로그로 출력
+    properties:
+      hibernate:
+        format_sql: true # SQL 쿼리를 예쁘게 포맷팅
+        dialect: org.hibernate.dialect.MySQLDialect
+
+#  # MONGODB
+#  data:
+#    mongodb:
+#      uri: mongodb://localhost:27017/stock_data
+#
+#  # REDIS
+#  redis:
+#    host: localhost
+#    port: 6379
+#
+#  # KAFKA
+#  kafka:
+#    bootstrap-servers: localhost:9092
+#    consumer:
+#      group-id: stockr-group
+#      auto-offset-reset: earliest
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
