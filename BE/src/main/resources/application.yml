@@ -72,6 +72,9 @@ spring:
 
 logging:
   level:
+    com.stockr: DEBUG
+    org.springframework.web: INFO
+    org.springframework.web.socket: DEBUG
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
     com.stockr.be: debug
