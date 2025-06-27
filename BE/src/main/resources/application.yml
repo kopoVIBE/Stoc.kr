@@ -5,9 +5,9 @@ spring:
   # DATABASE
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASSWORD}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:13306}/${MYSQL_DATABASE:stockr}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:stockr}
+    password: ${MYSQL_PASSWORD:stockr123!}
 
   jpa:
     hibernate:
@@ -18,16 +18,16 @@ spring:
         format_sql: true # SQL 쿼리를 예쁘게 포맷팅
         dialect: org.hibernate.dialect.MySQLDialect
 
-  #  # MONGODB
+  # MONGODB
   data:
     mongodb:
-      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/${MONGO_DATABASE}?authSource=admin
+      uri: mongodb://${MONGO_USER:stockr}:${MONGO_PASSWORD:stockr123!}@${MONGO_HOST:localhost}:${MONGO_PORT:27117}/${MONGO_DATABASE:stockr}?authSource=admin
 
-  #  # REDIS
+  # REDIS
   redis:
-    host: localhost
-    port: 6379
-    password: ${REDIS_PASSWORD}
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:16379}
+    password: ${REDIS_PASSWORD:stockr123!}
     timeout: 3000
     lettuce:
       pool:
@@ -36,15 +36,9 @@ spring:
         min-idle: 0
         max-wait: -1ms
 
-  #  # KAFKA
+  # KAFKA
   kafka:
-    bootstrap-servers: localhost:9092
-    security:
-      protocol: SASL_PLAINTEXT
-    sasl:
-      mechanism: PLAIN
-      jaas:
-        config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_ADMIN_USERNAME}' password='${KAFKA_ADMIN_PASSWORD}';
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
     consumer:
       group-id: stockr-group
       auto-offset-reset: earliest
@@ -52,16 +46,9 @@ spring:
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
         spring.json.trusted.packages: "*"
-        security.protocol: SASL_PLAINTEXT
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_ADMIN_USERNAME}' password='${KAFKA_ADMIN_PASSWORD}';
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      properties:
-        security.protocol: SASL_PLAINTEXT
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_ADMIN_USERNAME}' password='${KAFKA_ADMIN_PASSWORD}';
 
   #  # WebSocket
   websocket:
