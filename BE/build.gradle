@@ -30,7 +30,19 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.springframework.kafka:spring-kafka'
-	
+	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+
+	// Spring Security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// JWT (JJWT - io.jsonwebtoken)
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// 비밀번호 암호화 (BCrypt)
+	implementation 'org.springframework.security:spring-security-crypto'
+
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	
