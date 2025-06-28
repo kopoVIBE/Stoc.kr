@@ -1,6 +1,10 @@
 server:
   port: 8080
 
+jwt:
+  secret: StockrSuperSecretKeyForJwtMustBeAtLeast256BitsLong!
+  expiration: 86400000
+
 spring:
   # DATABASE
   datasource:
