@@ -18,10 +18,10 @@ public class StockPriceDto {
     public static StockPriceDto from(StockPrice stockPrice) {
         return StockPriceDto.builder()
                 .ticker(stockPrice.getTicker())
-                .stockCode(stockPrice.getTicker()) // ticker를 stockCode로도 사용
+                .stockCode(stockPrice.getTicker())
                 .price(stockPrice.getPrice())
                 .volume(stockPrice.getVolume())
-                .timestamp(Long.parseLong(stockPrice.getTimestamp().toString()))
+                .timestamp(stockPrice.getTimestamp().toEpochMilli())
                 .build();
     }
 }
