@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.2.2'
+	id 'org.springframework.boot' version '3.2.3'
 	id 'io.spring.dependency-management' version '1.1.4'
 }
 
@@ -33,8 +33,9 @@ dependencies {
 	implementation 'org.webjars:stomp-websocket:2.3.4'
 	
 	// Redis
-	implementation 'io.lettuce:lettuce-core'
-	
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
 	// JSON
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	

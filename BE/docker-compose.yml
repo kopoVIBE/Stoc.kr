@@ -146,6 +146,8 @@ services:
       - kafka
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
       MYSQL_HOST: mysql
@@ -158,10 +160,32 @@ services:
       MONGO_DATABASE: ${MONGO_DATABASE}
       MONGO_USER: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+  # Python Realtime Stock Price Service
+  # realtime-stock:
+  #   image: python:3.9-slim
+  #   container_name: stockr-realtime
+  #   depends_on:
+  #     - redis
+  #     - app
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - WEBSOCKET_URL=ws://app:8080/ws
+  #     - KIS_APP_KEY=${KIS_APP_KEY}
+  #     - KIS_APP_SECRET=${KIS_APP_SECRET}
+  #     - KIS_ACCOUNT_CODE=${KIS_ACCOUNT_CODE}
+  #     - KIS_PRODUCT_CODE=${KIS_PRODUCT_CODE}
+  #   volumes:
+  #     - ../realtime_stock:/app
+  #   working_dir: /app
+  #   command: >
+  #     bash -c "pip install -r requirements.txt &&
+  #              python stock_realtime.py"
 
 volumes:
   mysql_data:
