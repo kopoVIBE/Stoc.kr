@@ -8,11 +8,11 @@ import java.time.Instant;
 @Builder
 public class StockPrice {
     private final String ticker;
-    private final double price;
-    private final double volume;
+    private final long price;
+    private final long volume;
     private final Instant timestamp;
 
-    public static StockPrice of(String ticker, double price, double volume) {
+    public static StockPrice of(String ticker, long price, long volume) {
         return StockPrice.builder()
                 .ticker(ticker)
                 .price(price)
