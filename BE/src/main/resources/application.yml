@@ -21,9 +21,15 @@ spring:
     mongodb:
       uri: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@stockr-mongodb:27017/${MONGO_DATABASE}?authSource=admin
     redis:
-      host: ${REDIS_HOST}
+#      host: ${REDIS_HOST}
+      host: localhost
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: false
+      lettuce:
+        pool:
+          enabled: true
 
   # KAFKA
   kafka:
