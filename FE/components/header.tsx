@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
-import Image from "next/image"
-import { Button } from "./ui/button"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { Button } from "./ui/button";
 
 export default function Header() {
-  const pathname = usePathname()
-  const router = useRouter()
+  const pathname = usePathname();
+  const router = useRouter();
 
   if (pathname === "/login") {
-    return null // 로그인 페이지에서는 헤더를 숨깁니다.
+    return null; // 로그인 페이지에서는 헤더를 숨깁니다.
   }
 
   const navLinks = [
@@ -21,19 +21,24 @@ export default function Header() {
     { href: "/news", label: "뉴스" },
     { href: "/community", label: "커뮤니티" },
     { href: "/my-page", label: "내 정보" },
-  ]
+  ];
 
   const handleLogout = () => {
     // In a real app, you'd clear auth tokens here
-    router.push("/login")
-  }
+    router.push("/login");
+  };
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/stockr_green.png" alt="Stoc.kr logo" width={40} height={40} />
+            <Image
+              src="/stockr_green.svg"
+              alt="Stoc.kr logo"
+              width={40}
+              height={40}
+            />
             <span className="text-xl font-bold text-primary">Stoc.kr</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-8">
@@ -43,7 +48,7 @@ export default function Header() {
                 href={link.href}
                 className={cn(
                   "text-base font-medium text-gray-500 hover:text-gray-900",
-                  pathname === link.href && "text-gray-900",
+                  pathname === link.href && "text-gray-900"
                 )}
               >
                 {link.label}
@@ -59,5 +64,5 @@ export default function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }

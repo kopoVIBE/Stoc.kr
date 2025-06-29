@@ -1,8 +1,15 @@
-import { Heart } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
+import { Heart } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 const favoriteStocks = [
   {
@@ -50,7 +57,7 @@ const favoriteStocks = [
     isUp: false,
     logo: "/placeholder.svg?height=32&width=32",
   },
-]
+];
 
 const recommendedStocks = [
   {
@@ -101,12 +108,40 @@ const recommendedStocks = [
     volume: "1,043,174주",
     logo: "/placeholder.svg?height=32&width=32",
   },
-]
+];
 
 const communityPosts = [
-  { id: 1, title: "지금은 올라가지만 언제까지 갈지...", author: "투자하는개미", time: "21시간 전" },
-  { id: 2, title: "카카오페이가 결국에는...", author: "지켜보는개미", time: "9시간 전" },
-]
+  {
+    id: 1,
+    title: "지금은 올라가지만 언제까지 갈지...",
+    author: "투자하는개미",
+    time: "21시간 전",
+  },
+  {
+    id: 2,
+    title: "카카오페이가 결국에는...",
+    author: "지켜보는개미",
+    time: "9시간 전",
+  },
+];
+
+interface Stock {
+  id: number;
+  name: string;
+  price: string;
+  change: string;
+  changeValue: string;
+  isUp: boolean;
+  logo?: string;
+  category?: string;
+  marketCap?: string;
+  volume?: string;
+}
+
+interface StockTableProps {
+  stocks: Stock[];
+  isRecommended: boolean;
+}
 
 export default function HomePage() {
   return (
@@ -117,7 +152,9 @@ export default function HomePage() {
           <CardHeader>
             <CardTitle className="flex items-baseline gap-4">
               <span>User1님의 관심 종목</span>
-              <span className="text-sm font-normal text-gray-500">오늘 08:50 기준</span>
+              <span className="text-sm font-normal text-gray-500">
+                오늘 08:50 기준
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -130,7 +167,9 @@ export default function HomePage() {
           <CardHeader>
             <CardTitle className="flex items-baseline gap-4">
               <span>User1님을 위한 추천 종목</span>
-              <span className="text-sm font-normal text-gray-500">오늘 08:50 기준</span>
+              <span className="text-sm font-normal text-gray-500">
+                오늘 08:50 기준
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -150,11 +189,13 @@ export default function HomePage() {
               원하는 조건의 주식을 골라보세요
             </div>
             <div className="flex flex-wrap gap-2">
-              {["시가총액", "거래량", "PER", "인기순위", "연관순위"].map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
+              {["시가총액", "거래량", "PER", "인기순위", "연관순위"].map(
+                (tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
+                )
+              )}
             </div>
           </CardContent>
         </Card>
@@ -165,19 +206,29 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle className="flex items-baseline gap-4">
                 <span>지금 뜨는 카테고리</span>
-                <span className="text-sm font-normal text-gray-500">오늘 08:50 기준</span>
+                <span className="text-sm font-normal text-gray-500">
+                  오늘 08:50 기준
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex justify-around items-end">
               <div className="text-center">
                 <div className="text-lg font-bold">2위</div>
-                <img src="/placeholder.svg?height=80&width=80" alt="Mask" className="w-20 h-20 mx-auto" />
+                <img
+                  src="/placeholder.svg?height=80&width=80"
+                  alt="Mask"
+                  className="w-20 h-20 mx-auto"
+                />
                 <div className="font-semibold">마스크</div>
                 <div className="text-sm text-red-500">-2.5%</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold">1위</div>
-                <img src="/placeholder.svg?height=100&width=100" alt="Plant" className="w-24 h-24 mx-auto" />
+                <img
+                  src="/placeholder.svg?height=100&width=100"
+                  alt="Plant"
+                  className="w-24 h-24 mx-auto"
+                />
                 <div className="font-semibold">캐릭터</div>
                 <div className="text-sm text-green-500">+3.7%</div>
               </div>
@@ -187,7 +238,9 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle className="flex items-baseline gap-4">
                 <span>인기 급상승 커뮤니티</span>
-                <span className="text-sm font-normal text-gray-500">오늘 17:28 기준</span>
+                <span className="text-sm font-normal text-gray-500">
+                  오늘 17:28 기준
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -204,10 +257,10 @@ export default function HomePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-function StockTable({ stocks, isRecommended }) {
+function StockTable({ stocks, isRecommended }: StockTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -216,8 +269,16 @@ function StockTable({ stocks, isRecommended }) {
           <TableHead>종목명</TableHead>
           <TableHead className="text-right">현재가</TableHead>
           <TableHead className="text-right">등락률</TableHead>
-          {isRecommended && <TableHead className="hidden sm:table-cell text-right">시가총액</TableHead>}
-          {isRecommended && <TableHead className="hidden lg:table-cell text-right">거래량</TableHead>}
+          {isRecommended && (
+            <TableHead className="hidden sm:table-cell text-right">
+              시가총액
+            </TableHead>
+          )}
+          {isRecommended && (
+            <TableHead className="hidden lg:table-cell text-right">
+              거래량
+            </TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -232,21 +293,39 @@ function StockTable({ stocks, isRecommended }) {
             <TableCell>
               <Link href={`/stocks/${stock.id}`} className="hover:underline">
                 <div className="flex items-center gap-2">
-                  <img src={stock.logo || "/placeholder.svg"} alt={stock.name} className="w-8 h-8 rounded-full" />
+                  <img
+                    src={stock.logo || "/placeholder.svg"}
+                    alt={stock.name}
+                    className="w-8 h-8 rounded-full"
+                  />
                   <span className="font-semibold">{stock.name}</span>
                 </div>
               </Link>
             </TableCell>
-            <TableCell className="text-right font-semibold">{stock.price}</TableCell>
-            <TableCell className={`text-right ${stock.isUp ? "text-red-500" : "text-blue-500"}`}>
+            <TableCell className="text-right font-semibold">
+              {stock.price}
+            </TableCell>
+            <TableCell
+              className={`text-right ${
+                stock.isUp ? "text-red-500" : "text-blue-500"
+              }`}
+            >
               <div>{stock.change}</div>
               <div className="text-xs">{stock.changeValue}</div>
             </TableCell>
-            {isRecommended && <TableCell className="hidden sm:table-cell text-right">{stock.marketCap}</TableCell>}
-            {isRecommended && <TableCell className="hidden lg:table-cell text-right">{stock.volume}</TableCell>}
+            {isRecommended && (
+              <TableCell className="hidden sm:table-cell text-right">
+                {stock.marketCap}
+              </TableCell>
+            )}
+            {isRecommended && (
+              <TableCell className="hidden lg:table-cell text-right">
+                {stock.volume}
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }
