@@ -7,6 +7,8 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 import pykis
+import websocket
+import threading
 
 # 로깅 설정
 logging.basicConfig(
@@ -21,7 +23,7 @@ load_dotenv()
 # Redis 설정
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-SPRING_API_URL = os.getenv('SPRING_API_URL', 'http://localhost:8080/api/price')
+WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws')
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'kis_token.json')
 
 class StockRealtime:
@@ -34,6 +36,8 @@ class StockRealtime:
             decode_responses=True
         )
         self.is_running = False
+        self.ws = None
+        self._initialize_websocket()
         
     def _validate_env_vars(self):
         """환경 변수 유효성 검사"""
@@ -146,16 +150,72 @@ class StockRealtime:
         except Exception as e:
             logger.error(f"Error saving token: {e}")
             
+    def _initialize_websocket(self):
+        """WebSocket 연결 초기화"""
+        def on_message(ws, message):
+            logger.info(f"Received message: {message}")
+
+        def on_error(ws, error):
+            logger.error(f"WebSocket error: {error}")
+
+        def on_close(ws, close_status_code, close_msg):
+            logger.info("WebSocket connection closed")
+
+        def on_open(ws):
+            logger.info("WebSocket connection established")
+            # STOMP 프로토콜 연결
+            connect_frame = {
+                "command": "CONNECT",
+                "headers": {
+                    "accept-version": "1.1,1.0",
+                    "heart-beat": "10000,10000"
+                }
+            }
+            ws.send(json.dumps(connect_frame))
+
+        self.ws = websocket.WebSocketApp(
+            WEBSOCKET_URL,
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close,
+            on_open=on_open
+        )
+        
+        # WebSocket 연결을 별도 스레드에서 실행
+        websocket_thread = threading.Thread(target=self.ws.run_forever)
+        websocket_thread.daemon = True
+        websocket_thread.start()
+
+    def send_stock_data(self, data):
+        """WebSocket을 통해 데이터 전송"""
+        if self.ws and self.ws.sock and self.ws.sock.connected:
+            # STOMP 프로토콜 메시지 포맷
+            message_frame = {
+                "command": "SEND",
+                "headers": {
+                    "destination": "/app/stock/price",
+                    "content-type": "application/json"
+                },
+                "body": data
+            }
+            try:
+                self.ws.send(json.dumps(message_frame))
+                logger.info("Data sent via WebSocket")
+            except Exception as e:
+                logger.error(f"Failed to send data via WebSocket: {e}")
+        else:
+            logger.warning("WebSocket is not connected")
+            self._initialize_websocket()
+
     def start(self):
         """실시간 데이터 수집 시작"""
         try:
             self.is_running = True
             logger.info("Starting real-time data collection...")
             
-            # 삼성전자 실시간 시세 조회
             while self.is_running:
                 try:
-                    # 현재가 조회 (정수값으로 반환됨)
+                    # 현재가 조회
                     current_price = self.kis_client.get_kr_current_price("005930")
                     
                     # 현재 시간
@@ -164,18 +224,15 @@ class StockRealtime:
                     # 데이터 가공
                     data = {
                         "symbol": "005930",
-                        "price": current_price,  # 직접 정수값 사용
+                        "price": current_price,
                         "timestamp": now
                     }
                     
-                    # Redis에 저장
-                    self.redis_client.set("stock:005930", json.dumps(data))
+                    # WebSocket으로 데이터 전송
+                    self.send_stock_data(data)
                     
-                    # Spring 서버로 전송
-                    try:
-                        requests.post(SPRING_API_URL, json=data)
-                    except requests.exceptions.RequestException as e:
-                        logger.error(f"Failed to send data to Spring server: {e}")
+                    # Redis에 저장 (백업용)
+                    self.redis_client.set("stock:005930", json.dumps(data))
                     
                     # 로그 출력
                     logger.info(f"[{now}] 삼성전자 현재가: {data['price']}원")
@@ -194,6 +251,8 @@ class StockRealtime:
     def stop(self):
         """실시간 데이터 수집 중지"""
         self.is_running = False
+        if self.ws:
+            self.ws.close()
         logger.info("Real-time data collection stopped.")
 
 if __name__ == "__main__":
