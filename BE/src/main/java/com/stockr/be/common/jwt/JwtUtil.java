@@ -6,6 +6,8 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
+
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
@@ -18,11 +20,9 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${jwt.secret}") String secretKey,
                    @Value("${jwt.expiration}") long expirationTime) {
-        String encoded = Base64.getEncoder().encodeToString(secretKey.getBytes());
-        this.key = Keys.hmacShaKeyFor(encoded.getBytes());
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
         this.expirationTime = expirationTime;
     }
-
 
     public String createToken(String email) {
         Date now = new Date();
