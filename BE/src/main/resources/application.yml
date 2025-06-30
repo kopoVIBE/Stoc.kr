@@ -23,7 +23,12 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
   data:
     mongodb:
-      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27117/${MONGO_DATABASE}?authSource=admin
+      host: localhost
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGO_DATABASE}
+      username: ${MONGO_INITDB_ROOT_USERNAME}
+      password: ${MONGO_INITDB_ROOT_PASSWORD}
+      authentication-database: admin
     redis:
 #      host: ${REDIS_HOST}
       host: localhost
