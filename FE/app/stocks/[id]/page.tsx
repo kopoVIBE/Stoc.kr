@@ -158,8 +158,10 @@ export default function StockDetailPage({
                 ref={(el) => setTabRef(el, index)}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "py-3 font-semibold",
-                  activeTab === tab.id ? "text-black" : "text-gray-500"
+                  "py-3",
+                  activeTab === tab.id
+                    ? "text-black font-semibold"
+                    : "text-gray-500"
                 )}
               >
                 {tab.label}
