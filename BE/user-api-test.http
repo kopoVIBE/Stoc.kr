@@ -3,7 +3,7 @@ POST http://localhost:8080/api/users/signup
 Content-Type: application/json
 
 {
-  "email": "testuser@example.com",
+  "email": "testuser2@example.com",
   "password": "Test",
   "name": "테스트유저",
   "phone": "010-1234-5678",
@@ -18,7 +18,7 @@ POST http://localhost:8080/api/users/signup
 Content-Type: application/json
 
 {
-  "email": "testuser@example.com",
+  "email": "testuser3@example.com",
   "password": "Test1234!",
   "name": "테스트유저",
   "phone": "010-1234-5678",
@@ -33,6 +33,27 @@ POST http://localhost:8080/api/users/login
 Content-Type: application/json
 
 {
-  "email": "testuser@example.com",
+  "email": "testuser3@example.com",
   "password": "Test1234!"
 }
+
+
+### 🙋 내 정보(me) 조회
+GET http://localhost:8080/api/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs
+
+
+
+### 계좌 생성
+POST http://localhost:8080/api/accounts
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs
+
+{
+  "bankName": "카카오뱅크",
+  "accountNumber": "1901234"
+}
+
+### 계좌 조회
+GET http://localhost:8080/api/accounts
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs

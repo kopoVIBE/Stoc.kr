@@ -5,9 +5,11 @@ import com.stockr.be.user.domain.User;
 import com.stockr.be.user.dto.LoginRequestDto;
 import com.stockr.be.user.dto.SignupRequestDto;
 import com.stockr.be.user.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.regex.Pattern;
 
@@ -95,5 +97,13 @@ public class UserService {
      */
     private boolean isValidPassword(String password) {
         return Pattern.matches("^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$", password);
+    }
+
+    @Transactional
+    public void updateInvestmentStyle(Long userId, String investmentStyle) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        user.setInvestmentStyle(investmentStyle);
+        userRepository.save(user);
     }
 }

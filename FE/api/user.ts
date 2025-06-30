@@ -24,5 +24,19 @@ export const signup = async (data: SignupData) => {
 
 export const login = async (data: LoginData) => {
     const res = await axiosInstance.post('/api/users/login', data);
-    return res.data; // "Bearer ..." 문자열
+    return res.data.replace(/^Bearer\s/, ''); // ✅ "Bearer " 제거
 };
+
+export const getMyInfo = async () => {
+  const res = await axiosInstance.get('/api/users/me');
+  return res.data;
+};
+
+export const updateInvestmentStyle = async (investmentStyle: string) => {
+  const res = await axiosInstance.put('/api/users/me/investment-style', {
+    investmentStyle
+  });
+  return res.data;
+};
+
+
