@@ -1,7 +1,7 @@
-package com.stockr.be.config;
+package com.stockr.be.global.config;
 
-import com.stockr.be.common.jwt.JwtAuthFilter;
-import com.stockr.be.common.jwt.JwtUtil;
+import com.stockr.be.global.jwt.JwtAuthFilter;
+import com.stockr.be.global.jwt.JwtUtil;
 import com.stockr.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
