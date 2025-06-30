@@ -1,15 +1,17 @@
 package com.stockr.be.config;
 
-import com.stockr.be.common.jwt.JwtAuthFilter;
-import com.stockr.be.common.jwt.JwtUtil;
-import com.stockr.be.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.stockr.be.global.jwt.JwtAuthFilter;
+import com.stockr.be.global.jwt.JwtUtil;
+import com.stockr.be.user.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @RequiredArgsConstructor
