@@ -4,7 +4,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@/components/ui/tabs";
 import { Tabs } from "@/components/ui/tabs";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ import { CandlestickChart } from "@/components/candlestick-chart";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import dynamic from "next/dynamic";
+import { Stock, stockApi } from "@/api/stock";
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
 interface PriceHistoryItem {
   time: string;
@@ -81,15 +83,33 @@ interface UnderlineStyle {
   width?: number;
 }
 
-export default function StockDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default function StockDetailPage({ params }: PageProps) {
+  const { id } = use(params);
+  const [stock, setStock] = useState<Stock | null>(null);
+  const realTimePrice = useStockWebSocket(id);
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState<UnderlineStyle>({});
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const data = await stockApi.getStock(id);
+        setStock(data);
+      } catch (error) {
+        console.error("Failed to fetch stock:", error);
+      }
+    };
+
+    fetchStock();
+  }, [id]);
 
   useEffect(() => {
     setMounted(true);
@@ -112,9 +132,7 @@ export default function StockDetailPage({
     tabRefs.current[index] = el;
   };
 
-  if (!mounted) {
-    return null;
-  }
+  if (!stock) return <div>Loading...</div>;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50/50 p-4 rounded-lg">
@@ -128,12 +146,13 @@ export default function StockDetailPage({
               className="w-12 h-12 rounded-md"
             />
             <div>
-              <h1 className="text-xl font-bold">삼성전자 005930</h1>
+              <h1 className="text-xl font-bold">
+                {stock.name} ({stock.ticker})
+              </h1>
               <p className="text-2xl font-bold">
-                60,800원{" "}
-                <span className="text-red-500 text-lg">
-                  어제보다 +600원 (0.9%)
-                </span>
+                현재가:{" "}
+                {(realTimePrice?.price || stock.currentPrice).toLocaleString()}
+                원
               </p>
             </div>
           </div>
@@ -174,7 +193,7 @@ export default function StockDetailPage({
           />
         </div>
         <div className="pt-4">
-          {activeTab === "price" && <PriceTabContent />}
+          {activeTab === "price" && <PriceTabContent ticker={id} />}
           {activeTab === "info" && <InfoTabContent />}
           {activeTab === "recommend" && <RecommendTabContent />}
         </div>
@@ -216,7 +235,25 @@ export default function StockDetailPage({
   );
 }
 
-function PriceTabContent() {
+function PriceTabContent({ ticker }: { ticker: string }) {
+  const [stock, setStock] = useState<Stock | null>(null);
+  const realTimePrice = useStockWebSocket(ticker);
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const data = await stockApi.getStock(ticker);
+        setStock(data);
+      } catch (error) {
+        console.error("Failed to fetch stock:", error);
+      }
+    };
+
+    fetchStock();
+  }, [ticker]);
+
+  if (!stock) return <div>Loading...</div>;
+
   return (
     <Card>
       <CardContent className="p-4">
