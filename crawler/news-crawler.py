@@ -21,7 +21,8 @@ soup = BeautifulSoup(response.text, 'html.parser')
 
 headlines = soup.select('.articleSubject')
 article_links = [h.find('a')['href'] for h in headlines] # List Comprehension으로 더 간결하게
-
+start_time = time.time()
+print("크롤링을 시작합니다...")
 print(f"수집된 기사 링크 수: {len(article_links)}")
 
 # 2. 각 기사 링크에 접속하여 상세 정보 수집 (Selenium)
@@ -35,7 +36,7 @@ options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Apple
 driver = webdriver.Chrome(options=options)
 
 print("\n--- 기사 상세 정보 수집 시작 ---")
-for link in article_links[:3]: # 테스트를 위해 3개만 먼저 해봅니다.
+for link in article_links[:20]:
     try:
         full_url = urljoin(base_url, link)
         driver.get(full_url)
@@ -92,3 +93,8 @@ driver.quit() # 모든 작업이 끝나면 브라우저 종료
 print("\n--- 최종 수집 데이터 ---")
 # 수집된 데이터를 예쁘게 출력
 print(json.dumps(news_data, indent=2, ensure_ascii=False))
+
+end_time = time.time()
+elapsed_time = end_time - start_time
+print("\n--- 성능 측정 결과 ---")
+print(f"총 소요 시간: {elapsed_time:.2f}초")
