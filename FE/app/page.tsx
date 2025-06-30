@@ -1,3 +1,5 @@
+"use client";
+
 import { Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 const favoriteStocks = [
   {
@@ -144,6 +147,15 @@ interface StockTableProps {
 }
 
 export default function HomePage() {
+  const [currentTime, setCurrentTime] = useState<string>("");
+
+  useEffect(() => {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    setCurrentTime(`${hours}:${minutes}`);
+  }, []);
+
   return (
     <div className="space-y-12">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -153,7 +165,7 @@ export default function HomePage() {
             <CardTitle className="flex items-baseline gap-4">
               <span>User1님의 관심 종목</span>
               <span className="text-sm font-normal text-gray-500">
-                오늘 08:50 기준
+                {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
               </span>
             </CardTitle>
           </CardHeader>
@@ -168,7 +180,7 @@ export default function HomePage() {
             <CardTitle className="flex items-baseline gap-4">
               <span>User1님을 위한 추천 종목</span>
               <span className="text-sm font-normal text-gray-500">
-                오늘 08:50 기준
+                {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
               </span>
             </CardTitle>
           </CardHeader>
