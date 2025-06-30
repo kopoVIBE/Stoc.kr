@@ -91,6 +91,7 @@ export default function LoginPage() {
         const token = await login({ email: form.email, password: form.password });
         localStorage.setItem("token", token);
         alert("로그인 성공!");
+        router.push("/");
       } else {
         await signup({
           email: form.email,
@@ -100,11 +101,18 @@ export default function LoginPage() {
           birthDate: form.birth,
           genderCode: form.genderCode,
           gender: form.gender,
-          investmentStyle: "기본", // 필요 시 사용자 선택으로 수정
+          investmentStyle: "기본",
         });
-        alert("회원가입 성공!");
+        
+        // 기존 토큰 제거
+        localStorage.removeItem("token");
+        
+        alert("회원가입 성공! 로그인해주세요.");
+        
+        // 현재 페이지에서 로그인 모드로 전환
+        setIsLogin(true);
+        return;
       }
-      router.push("/");
     } catch (err) {
       alert("처리에 실패했습니다.");
     }

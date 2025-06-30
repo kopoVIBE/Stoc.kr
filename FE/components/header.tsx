@@ -3,13 +3,43 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { Button } from "./ui/button";
+import { getMyInfo } from "@/api/user";
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 로그인 상태 확인 및 사용자 정보 가져오기
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        setIsLoggedIn(false);
+        setUser(null);
+        return;
+      }
+
+      try {
+        const userData = await getMyInfo();
+        setUser(userData);
+        setIsLoggedIn(true);
+      } catch (error) {
+        // 토큰이 유효하지 않은 경우
+        localStorage.removeItem("token");
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    };
+
+    checkAuthStatus();
+  }, [pathname]); // pathname이 변경될 때마다 체크
 
   if (pathname === "/login") {
     return null; // 로그인 페이지에서는 헤더를 숨깁니다.
@@ -24,7 +54,13 @@ export default function Header() {
   ];
 
   const handleLogout = () => {
-    // In a real app, you'd clear auth tokens here
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+    setUser(null);
+    router.push("/login");
+  };
+
+  const handleLogin = () => {
     router.push("/login");
   };
 
@@ -56,10 +92,18 @@ export default function Header() {
             ))}
           </nav>
           <div className="hidden md:flex items-center gap-4">
-            <span className="text-base font-medium">User1님</span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              로그아웃
-            </Button>
+            {isLoggedIn ? (
+              <>
+                <span className="text-base font-medium">{user?.name}님</span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  로그아웃
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={handleLogin}>
+                로그인
+              </Button>
+            )}
           </div>
         </div>
       </div>
