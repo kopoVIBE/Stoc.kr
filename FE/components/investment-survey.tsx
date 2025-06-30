@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { getMyInfo, updateInvestmentStyle } from "@/api/user";
 
 interface SurveyOption {
   text: string;
@@ -33,6 +34,7 @@ interface InvestmentType {
 interface InvestmentSurveyProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 interface SurveyAnswers {
@@ -136,6 +138,7 @@ const investmentTypes: InvestmentType[] = [
 export default function InvestmentSurvey({
   isOpen,
   onClose,
+  onSuccess,
 }: InvestmentSurveyProps) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
@@ -143,6 +146,22 @@ export default function InvestmentSurvey({
   const [resultType, setResultType] = useState<InvestmentType>(
     investmentTypes[0]
   );
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const userInfo = await getMyInfo();
+        setUserName(userInfo.name);
+      } catch (error) {
+        console.error("사용자 정보 가져오기 실패:", error);
+      }
+    };
+
+    if (isOpen) {
+      fetchUserInfo();
+    }
+  }, [isOpen]);
 
   const handleCheckboxChange = (checked: boolean, optionText: string) => {
     const currentAnswers = (answers[step] as string[]) || [];
@@ -185,7 +204,19 @@ export default function InvestmentSurvey({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    if (showResult) {
+      try {
+        await updateInvestmentStyle(resultType.name);
+        if (onSuccess) {
+          onSuccess();
+        }
+      } catch (error) {
+        console.error("투자 성향 저장 실패:", error);
+        alert("투자 성향 저장에 실패했습니다.");
+      }
+    }
+    
     setStep(0);
     setAnswers({});
     setShowResult(false);
@@ -261,7 +292,7 @@ export default function InvestmentSurvey({
           <>
             <DialogHeader>
               <DialogTitle className="text-center text-xl">
-                홍길동님의 투자자 성향은
+                {userName}님의 투자자 성향은
                 <br />
                 <span className="text-primary">{resultType.name}</span>이에요
               </DialogTitle>
@@ -297,7 +328,6 @@ export default function InvestmentSurvey({
               </div>
             </div>
             <DialogFooter className="sm:justify-between">
-              <Button variant="ghost">내 답변 보기</Button>
               <Button onClick={handleClose}>다음</Button>
             </DialogFooter>
           </>
