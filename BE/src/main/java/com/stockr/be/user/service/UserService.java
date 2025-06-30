@@ -1,17 +1,15 @@
 package com.stockr.be.user.service;
 
-import java.util.regex.Pattern;
-
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import com.stockr.be.global.jwt.JwtUtil;
 import com.stockr.be.user.domain.User;
 import com.stockr.be.user.dto.LoginRequestDto;
 import com.stockr.be.user.dto.SignupRequestDto;
 import com.stockr.be.user.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor

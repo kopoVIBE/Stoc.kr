@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
         public static ErrorResponse of(ErrorCode errorCode) {
             return new ErrorResponse(
                     errorCode.getCode(),
-                    errorCode.getMessage(),
+                    errorCode.getDefaultMessage(),
                     LocalDateTime.now()
             );
         }
