@@ -21,33 +21,19 @@ spring:
       hibernate:
         format_sql: true # SQL 쿼리를 예쁘게 포맷팅
         dialect: org.hibernate.dialect.MySQLDialect
-
-  # MONGODB
   data:
     mongodb:
       uri: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@stockr-mongodb:27017/${MONGO_DATABASE}?authSource=admin
-    # REDIS
     redis:
-      host: stockr-redis
-      port: 6379
+#      host: ${REDIS_HOST}
+      host: localhost
+      port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
-      timeout: 5000
-      connect-timeout: 5000
-      client-type: lettuce
-      client-name: stockr-redis
-      database: 0
+      ssl:
+        enabled: false
       lettuce:
         pool:
           enabled: true
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
-        shutdown-timeout: 100ms
-        cluster:
-          refresh:
-            period: 1000
-            adaptive: true
 
   # KAFKA
   kafka:
@@ -70,12 +56,17 @@ spring:
     topic-prefix: /topic
     application-prefix: /app
 
-  config:
-    activate:
-      on-profile: test
+  # config:
+  #   activate:
+  #     on-profile: test
 
 logging:
   level:
+    com.stockr: DEBUG
+    org.springframework.web: INFO
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG # STOMP 메시지 로깅
+    org.springframework.web.socket.messaging: TRACE # WebSocket 상세 로깅
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
     com.stockr.be: debug

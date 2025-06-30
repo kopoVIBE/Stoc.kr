@@ -1,50 +1,120 @@
-"use client"
+"use client";
 
-import { TabsContent } from "@/components/ui/tabs"
+import { TabsContent } from "@/components/ui/tabs";
+import { TabsTrigger } from "@/components/ui/tabs";
+import { TabsList } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Heart, Minus, Plus, Info } from "lucide-react";
+import { CandlestickChart } from "@/components/candlestick-chart";
+import { cn } from "@/lib/utils";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import dynamic from "next/dynamic";
 
-import { TabsTrigger } from "@/components/ui/tabs"
+interface PriceHistoryItem {
+  time: string;
+  price: string;
+  change: string;
+  volume: string;
+  isUp: boolean;
+}
 
-import { TabsList } from "@/components/ui/tabs"
+interface TabItem {
+  id: string;
+  label: string;
+}
 
-import { Tabs } from "@/components/ui/tabs"
+const priceHistory: PriceHistoryItem[] = [
+  {
+    time: "19:59:59",
+    price: "60,800원",
+    change: "+0.99%",
+    volume: "25,560,423",
+    isUp: true,
+  },
+  {
+    time: "19:59:59",
+    price: "60,900원",
+    change: "+1.16%",
+    volume: "25,559,723",
+    isUp: true,
+  },
+  {
+    time: "19:59:59",
+    price: "60,800원",
+    change: "+0.99%",
+    volume: "25,559,693",
+    isUp: true,
+  },
+];
 
-import { useState, useRef, useLayoutEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Heart, Minus, Plus, Info } from "lucide-react"
-import { CandlestickChart } from "@/components/candlestick-chart"
-import { cn } from "@/lib/utils"
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
-
-const priceHistory = [
-  { time: "19:59:59", price: "60,800원", change: "+0.99%", volume: "25,560,423", isUp: true },
-  { time: "19:59:59", price: "60,900원", change: "+1.16%", volume: "25,559,723", isUp: true },
-  { time: "19:59:59", price: "60,800원", change: "+0.99%", volume: "25,559,693", isUp: true },
-]
-
-const tabs = [
+const tabs: TabItem[] = [
   { id: "price", label: "실시간 시세" },
   { id: "info", label: "종목 정보" },
   { id: "recommend", label: "관련 종목 추천" },
-]
+];
 
-export default function StockDetailPage({ params }: { params: { id: string } }) {
-  const [activeTab, setActiveTab] = useState("price")
-  const [underlineStyle, setUnderlineStyle] = useState({})
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+// 클라이언트 사이드에서만 렌더링되는 컴포넌트
+const ClientSideChart = dynamic(
+  () =>
+    import("@/components/candlestick-chart").then(
+      (mod) => mod.CandlestickChart
+    ),
+  {
+    ssr: false,
+  }
+);
 
-  useLayoutEffect(() => {
-    const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab)
-    const activeTabRef = tabRefs.current[activeTabIndex]
-    if (activeTabRef) {
-      setUnderlineStyle({
-        left: activeTabRef.offsetLeft,
-        width: activeTabRef.offsetWidth,
-      })
+interface UnderlineStyle {
+  left?: number;
+  width?: number;
+}
+
+export default function StockDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [activeTab, setActiveTab] = useState("price");
+  const [underlineStyle, setUnderlineStyle] = useState<UnderlineStyle>({});
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
+      const activeTabRef = tabRefs.current[activeTabIndex];
+      if (activeTabRef) {
+        setUnderlineStyle({
+          left: activeTabRef.offsetLeft,
+          width: activeTabRef.offsetWidth,
+        });
+      }
     }
-  }, [activeTab])
+  }, [activeTab, mounted]);
+
+  const setTabRef = (el: HTMLButtonElement | null, index: number) => {
+    tabRefs.current[index] = el;
+  };
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50/50 p-4 rounded-lg">
@@ -52,11 +122,18 @@ export default function StockDetailPage({ params }: { params: { id: string } }) 
         {/* Stock Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/samsung-logo.png" alt="Samsung" className="w-12 h-12 rounded-md" />
+            <img
+              src="/samsung-logo.png"
+              alt="Samsung"
+              className="w-12 h-12 rounded-md"
+            />
             <div>
               <h1 className="text-xl font-bold">삼성전자 005930</h1>
               <p className="text-2xl font-bold">
-                60,800원 <span className="text-red-500 text-lg">어제보다 +600원 (0.9%)</span>
+                60,800원{" "}
+                <span className="text-red-500 text-lg">
+                  어제보다 +600원 (0.9%)
+                </span>
               </p>
             </div>
           </div>
@@ -78,15 +155,21 @@ export default function StockDetailPage({ params }: { params: { id: string } }) 
             {tabs.map((tab, index) => (
               <button
                 key={tab.id}
-                ref={(el) => (tabRefs.current[index] = el)}
+                ref={(el) => setTabRef(el, index)}
                 onClick={() => setActiveTab(tab.id)}
-                className={cn("py-3 font-semibold", activeTab === tab.id ? "text-black" : "text-gray-500")}
+                className={cn(
+                  "py-3 font-semibold",
+                  activeTab === tab.id ? "text-black" : "text-gray-500"
+                )}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-          <div className="absolute bottom-[-2px] h-1 bg-black transition-all duration-300" style={underlineStyle} />
+          <div
+            className="absolute bottom-[-2px] h-1 bg-black transition-all duration-300"
+            style={underlineStyle}
+          />
         </div>
         <div className="pt-4">
           {activeTab === "price" && <PriceTabContent />}
@@ -115,7 +198,9 @@ export default function StockDetailPage({ params }: { params: { id: string } }) 
                 <OrderForm type="buy" />
               </TabsContent>
               <TabsContent value="sell" className="mt-4 space-y-4">
-                <div className="p-2 bg-blue-50 text-blue-800 rounded-lg text-xs">보유 주식을 매도할 수 있습니다</div>
+                <div className="p-2 bg-blue-50 text-blue-800 rounded-lg text-xs">
+                  보유 주식을 매도할 수 있습니다
+                </div>
                 <OrderForm type="sell" />
               </TabsContent>
               <TabsContent value="wait" className="mt-4 space-y-4">
@@ -126,7 +211,7 @@ export default function StockDetailPage({ params }: { params: { id: string } }) 
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 function PriceTabContent() {
@@ -146,13 +231,23 @@ function PriceTabContent() {
           <TableBody>
             {priceHistory.map((item, i) => (
               <TableRow key={i}>
-                <TableCell className={`font-semibold ${item.isUp ? "text-red-500" : "text-blue-500"}`}>
+                <TableCell
+                  className={`font-semibold ${
+                    item.isUp ? "text-red-500" : "text-blue-500"
+                  }`}
+                >
                   {item.price}
                 </TableCell>
-                <TableCell className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}>
+                <TableCell
+                  className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}
+                >
                   {i === 1 ? 30 : i === 2 ? 1 : 700}
                 </TableCell>
-                <TableCell className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}>{item.change}</TableCell>
+                <TableCell
+                  className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}
+                >
+                  {item.change}
+                </TableCell>
                 <TableCell>{item.volume}</TableCell>
                 <TableCell>{item.time}</TableCell>
               </TableRow>
@@ -161,17 +256,20 @@ function PriceTabContent() {
         </Table>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 const salesData = [
-  { name: "TV, 모니터, 냉장고, 세탁기, 에어컨, 스마트폰, 네트워크시스템, PC 등", value: 58.1 },
+  {
+    name: "TV, 모니터, 냉장고, 세탁기, 에어컨, 스마트폰, 네트워크시스템, PC 등",
+    value: 58.1,
+  },
   { name: "DRAM, NAND Flash, 모바일AP 등", value: 36.9 },
   { name: "스마트폰용 OLED패널 등", value: 9.7 },
   { name: "디지털 콕핏, 카오디오, 포터블 스피커 등", value: 4.7 },
   { name: "부문간 내부거래 제거 등", value: -9.5 },
-]
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
+];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
 function InfoTabContent() {
   return (
@@ -179,13 +277,26 @@ function InfoTabContent() {
       <CardContent className="p-6 space-y-8">
         <div>
           <h3 className="text-lg font-semibold">매출·산업 구성</h3>
-          <p className="text-sm text-gray-500">24년 12월 기준 (출처: FnGuide 및 기업 IR자료)</p>
+          <p className="text-sm text-gray-500">
+            24년 12월 기준 (출처: FnGuide 및 기업 IR자료)
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 items-center">
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
-                <Pie data={salesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">
+                <Pie
+                  data={salesData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                >
                   {salesData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -199,7 +310,10 @@ function InfoTabContent() {
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   ></span>
                   <span>
-                    {entry.name} <span className="ml-auto font-semibold">{entry.value}%</span>
+                    {entry.name}{" "}
+                    <span className="ml-auto font-semibold">
+                      {entry.value}%
+                    </span>
                   </span>
                 </li>
               ))}
@@ -229,7 +343,7 @@ function InfoTabContent() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 const recommendedStocks = [
@@ -266,7 +380,7 @@ const recommendedStocks = [
     marketCap: "619.1억원",
     volume: "353,222주",
   },
-]
+];
 
 function RecommendTabContent() {
   return (
@@ -287,10 +401,13 @@ function RecommendTabContent() {
             {recommendedStocks.map((stock, index) => (
               <TableRow key={stock.id}>
                 <TableCell className="font-semibold flex items-center gap-2">
-                  <span className="font-bold text-primary">{index + 1}</span> {stock.name}
+                  <span className="font-bold text-primary">{index + 1}</span>{" "}
+                  {stock.name}
                 </TableCell>
                 <TableCell>{stock.price}</TableCell>
-                <TableCell className={stock.isUp ? "text-red-500" : "text-blue-500"}>
+                <TableCell
+                  className={stock.isUp ? "text-red-500" : "text-blue-500"}
+                >
                   <div>{stock.change}</div>
                   <div className="text-xs">{stock.changeValue}</div>
                 </TableCell>
@@ -303,15 +420,17 @@ function RecommendTabContent() {
         </Table>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function OrderForm({ type }: { type: "buy" | "sell" }) {
-  const [price, setPrice] = useState(81200)
+  const [price, setPrice] = useState(81200);
   return (
     <div className="space-y-4">
       <div>
-        <label className="font-semibold text-xs">{type === "buy" ? "구매" : "매도"} 가격</label>
+        <label className="font-semibold text-xs">
+          {type === "buy" ? "구매" : "매도"} 가격
+        </label>
         <Tabs defaultValue="fixed" className="w-full mt-1">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="fixed">지정가</TabsTrigger>
@@ -327,7 +446,11 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
           >
             <Minus className="w-4 h-4" />
           </Button>
-          <Input value={`${price.toLocaleString()} 원`} className="text-center font-bold text-base h-9" readOnly />
+          <Input
+            value={`${price.toLocaleString()} 원`}
+            className="text-center font-bold text-base h-9"
+            readOnly
+          />
           <Button
             variant="outline"
             size="icon"
@@ -339,20 +462,35 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
         </div>
       </div>
       <div>
-        <label className="font-semibold text-xs">수량 {type === "sell" && "(보유: 0주)"}</label>
+        <label className="font-semibold text-xs">
+          수량 {type === "sell" && "(보유: 0주)"}
+        </label>
         <div className="flex items-center gap-2 mt-1">
-          <Button variant="outline" size="icon" className="h-8 w-8 bg-transparent">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 bg-transparent"
+          >
             <Minus className="w-4 h-4" />
           </Button>
           <Input placeholder="수량 입력" className="text-center h-9" />
-          <Button variant="outline" size="icon" className="h-8 w-8 bg-transparent">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 bg-transparent"
+          >
             <Plus className="w-4 h-4" />
           </Button>
         </div>
         {type === "buy" && (
           <div className="grid grid-cols-4 gap-2 mt-2">
             {["10%", "25%", "50%", "최대"].map((p) => (
-              <Button key={p} variant="outline" size="sm" className="text-xs h-7 bg-transparent">
+              <Button
+                key={p}
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 bg-transparent"
+              >
                 {p}
               </Button>
             ))}
@@ -361,17 +499,22 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
       </div>
       <div className="space-y-1 text-xs border-t pt-3 mt-3">
         <div className="flex justify-between">
-          <span>{type === "buy" ? "구매가능 금액" : "예상 매도 금액"}</span> <span>0원</span>
+          <span>{type === "buy" ? "구매가능 금액" : "예상 매도 금액"}</span>{" "}
+          <span>0원</span>
         </div>
         <div className="flex justify-between">
           <span>총 주문 금액</span> <span>0원</span>
         </div>
       </div>
       <Button
-        className={`w-full h-10 text-base ${type === "buy" ? "bg-primary hover:bg-primary/90" : "bg-blue-600 hover:bg-blue-700"}`}
+        className={`w-full h-10 text-base ${
+          type === "buy"
+            ? "bg-primary hover:bg-primary/90"
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
       >
         {type === "buy" ? "매수 주문하기" : "매도 주문하기"}
       </Button>
     </div>
-  )
+  );
 }
