@@ -92,7 +92,7 @@ interface PageProps {
 export default function StockDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const [stock, setStock] = useState<Stock | null>(null);
-  const realTimePrice = useStockWebSocket(id);
+  const realTimePrice = useStockWebSocket([id]);
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState<UnderlineStyle>({});
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -151,7 +151,9 @@ export default function StockDetailPage({ params }: PageProps) {
               </h1>
               <p className="text-2xl font-bold">
                 현재가:{" "}
-                {(realTimePrice?.price || stock.currentPrice).toLocaleString()}
+                {(
+                  realTimePrice?.stockPrices?.[id] || stock?.currentPrice
+                ).toLocaleString()}
                 원
               </p>
             </div>
@@ -237,7 +239,7 @@ export default function StockDetailPage({ params }: PageProps) {
 
 function PriceTabContent({ ticker }: { ticker: string }) {
   const [stock, setStock] = useState<Stock | null>(null);
-  const realTimePrice = useStockWebSocket(ticker);
+  const realTimePrice = useStockWebSocket([ticker]);
 
   useEffect(() => {
     const fetchStock = async () => {

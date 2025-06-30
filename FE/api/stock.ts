@@ -39,4 +39,8 @@ export const stockApi = {
     const response = await axiosInstance.get("/api/stocks");
     return response.data;
   },
+  getStock: async (ticker: string): Promise<Stock> => {
+    const response = await axiosInstance.get(`/api/stocks/${ticker}`);
+    return response.data;
+  },
 };
