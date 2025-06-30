@@ -17,7 +17,6 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
-
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
 
