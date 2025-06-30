@@ -26,5 +26,17 @@ public class User {
     private String name;  // 사용자 이름
 
     @Column(length = 20)
+    private String phone;  // 사용자 전화번호 (010-1234-5678 형식)
+
+    @Column(length = 6)
+    private String birthDate;  // 생년월일 (주민번호 앞자리 YYMMDD)
+
+    @Column(length = 1)
+    private String genderCode;  // 주민번호 뒷자리 1자리 (1~4)
+
+    @Column(length = 10)
+    private String gender;  // 성별 (남자 / 여자)
+
+    @Column(length = 20)
     private String investmentStyle;  // 투자 성향
 }
