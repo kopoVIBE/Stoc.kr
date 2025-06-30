@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, Phone, User } from "lucide-react";
+import { signup, login } from "@/api/user";
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,10 +27,12 @@ export default function LoginPage() {
   const [valid, setValid] = useState<{ [key: string]: boolean }>({});
   const [showPassword, setShowPassword] = useState(false);
 
+  // 실시간 유효성 검사
   useEffect(() => {
     const errs: { [key: string]: string } = {};
     const valids: { [key: string]: boolean } = {};
 
+    // 이메일 형식
     if (!form.email) {
       valids.email = false;
     } else if (!form.email.match(/^\S+@\S+\.\S+$/)) {
@@ -39,6 +42,7 @@ export default function LoginPage() {
       valids.email = true;
     }
 
+    // 비밀번호 형식 (영문 + 숫자 8자 이상)
     if (!form.password) {
       valids.password = false;
     } else if (!form.password.match(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+]{8,}$/)) {
@@ -48,6 +52,7 @@ export default function LoginPage() {
       valids.password = true;
     }
 
+    // 전화번호 형식
     if (!form.phone) {
       valids.phone = false;
     } else if (!form.phone.match(/^010-\d{4}-\d{4}$/)) {
@@ -57,6 +62,7 @@ export default function LoginPage() {
       valids.phone = true;
     }
 
+    // 주민등록번호 앞 6자리와 성별코드 1자리
     if ((form.birth && !form.birth.match(/^\d{6}$/)) || (form.genderCode && !form.genderCode.match(/^[1-4]$/))) {
       errs.birth = "주민번호 형식이 일치하지 않습니다.";
       valids.birth = false;
@@ -75,11 +81,33 @@ export default function LoginPage() {
     setForm({ ...form, [id]: value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 제출 처리 (회원가입 or 로그인)
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Object.keys(errors).length > 0) return;
-    console.log("회원가입 데이터:", form);
-    router.push("/");
+
+    try {
+      if (isLogin) {
+        const token = await login({ email: form.email, password: form.password });
+        localStorage.setItem("token", token);
+        alert("로그인 성공!");
+      } else {
+        await signup({
+          email: form.email,
+          password: form.password,
+          name: form.name,
+          phone: form.phone,
+          birthDate: form.birth,
+          genderCode: form.genderCode,
+          gender: form.gender,
+          investmentStyle: "기본", // 필요 시 사용자 선택으로 수정
+        });
+        alert("회원가입 성공!");
+      }
+      router.push("/");
+    } catch (err) {
+      alert("처리에 실패했습니다.");
+    }
   };
 
   return (
@@ -101,6 +129,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="w-full space-y-4">
               {!isLogin && (
                   <>
+                    {/* 이름 */}
                     <div className="space-y-2">
                       <label htmlFor="name" className="text-sm font-medium text-gray-600">이름</label>
                       <div className="relative">
@@ -109,6 +138,7 @@ export default function LoginPage() {
                       </div>
                     </div>
 
+                    {/* 전화번호 */}
                     <div className="space-y-2">
                       <label htmlFor="phone" className="text-sm font-medium text-gray-600">전화번호</label>
                       <div className="relative">
@@ -119,6 +149,7 @@ export default function LoginPage() {
                       {form.phone && (valid.phone ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.phone}</p>)}
                     </div>
 
+                    {/* 주민번호 앞자리 + 성별코드 */}
                     <div className="flex space-x-2 items-end">
                       <div className="space-y-2 w-2/3">
                         <label htmlFor="birth" className="text-sm font-medium text-gray-600">주민번호 앞자리</label>
@@ -133,6 +164,7 @@ export default function LoginPage() {
                   </>
               )}
 
+              {/* 이메일 */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-600">이메일</label>
                 <div className="relative">
@@ -142,6 +174,7 @@ export default function LoginPage() {
                 {form.email && (valid.email ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.email}</p>)}
               </div>
 
+              {/* 비밀번호 */}
               <div className="space-y-2 relative">
                 <label htmlFor="password" className="text-sm font-medium text-gray-600">비밀번호</label>
                 <div className="relative">
@@ -162,6 +195,7 @@ export default function LoginPage() {
                 {form.password && (valid.password ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.password}</p>)}
               </div>
 
+              {/* 제출 버튼 */}
               <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
                 {isLogin ? "로그인" : "회원가입"}
               </Button>
