@@ -1,5 +1,6 @@
 package com.stockr.be.global.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,13 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(ErrorCode.INVALID_INPUT_VALUE, e.getMessage()));
     }
 
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException e) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage())); // 또는 STOCK_NOT_FOUND 등
+    }
+
     // 처리되지 않은 모든 예외를 처리하는 핸들러
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
@@ -45,6 +53,10 @@ public class GlobalExceptionHandler {
 
         public HttpStatus getStatus() {
             return errorCode.getHttpStatus();
+        }
+
+        public String getDefaultMessage() {
+            return errorCode.getDefaultMessage();
         }
     }
 }
