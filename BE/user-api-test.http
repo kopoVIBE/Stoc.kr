@@ -1,0 +1,38 @@
+### ✅ 회원가입 요청 (실패 예시: 비밀번호 형식 불일치)
+POST http://localhost:8080/api/users/signup
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Test",
+  "name": "테스트유저",
+  "phone": "010-1234-5678",
+  "birthDate": "990101",
+  "genderCode": "1",
+  "gender": "남자",
+  "investmentStyle": "공격형"
+}
+
+### ✅ 회원가입 요청 (성공 예시)
+POST http://localhost:8080/api/users/signup
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Test1234!",
+  "name": "테스트유저",
+  "phone": "010-1234-5678",
+  "birthDate": "990101",
+  "genderCode": "1",
+  "gender": "남자",
+  "investmentStyle": "공격형"
+}
+
+### 🔐 로그인 요청 (JWT 발급)
+POST http://localhost:8080/api/users/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Test1234!"
+}
