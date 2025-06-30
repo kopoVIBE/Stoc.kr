@@ -1,6 +1,6 @@
 package com.stockr.be.user.service;
 
-import com.stockr.be.common.jwt.JwtUtil;
+import com.stockr.be.global.jwt.JwtUtil;
 import com.stockr.be.user.domain.User;
 import com.stockr.be.user.dto.LoginRequestDto;
 import com.stockr.be.user.dto.SignupRequestDto;

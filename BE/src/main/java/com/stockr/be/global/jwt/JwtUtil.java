@@ -1,11 +1,12 @@
-package com.stockr.be.common.jwt;
+package com.stockr.be.global.jwt;
 
-import io.github.cdimascio.dotenv.Dotenv;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
