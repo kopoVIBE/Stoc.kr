@@ -1,4 +1,4 @@
-package com.stockr.be.common.jwt;
+package com.stockr.be.global.jwt;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import io.jsonwebtoken.*;

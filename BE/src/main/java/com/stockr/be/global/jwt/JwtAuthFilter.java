@@ -1,4 +1,4 @@
-package com.stockr.be.common.jwt;
+package com.stockr.be.global.jwt;
 
 import com.stockr.be.user.domain.User;
 import com.stockr.be.user.repository.UserRepository;
@@ -15,7 +15,6 @@ import java.io.IOException;
 
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
-
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
 
