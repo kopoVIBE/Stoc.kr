@@ -6,6 +6,7 @@ import time
 import json # Gemini 결과 파싱을 위해 미리 import 합니다.
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 # Selenium 관련 라이브러리
 from selenium import webdriver
@@ -38,6 +39,7 @@ for link in article_links[:3]: # 테스트를 위해 3개만 먼저 해봅니다
     try:
         full_url = urljoin(base_url, link)
         driver.get(full_url)
+        final_url = driver.current_url
 
         # 제목이 나타날 때까지 최대 10초 대기
         WebDriverWait(driver, 10).until(
@@ -47,19 +49,43 @@ for link in article_links[:3]: # 테스트를 위해 3개만 먼저 해봅니다
         html_article = driver.page_source
         soup_article = BeautifulSoup(html_article, 'html.parser')
 
+        # 1. title (기존과 동일)
         title = soup_article.select_one('#title_area span').text
-        content = soup_article.select_one('#dic_area').text.strip()
+
+        # 2. content (기존과 동일)
+        content_element = soup_article.select_one('#dic_area')
+        content = str(content_element)
+        
+        # 3. source (신규 추가)
+        # 'alt' 속성에서 언론사 이름을 가져옴. 만약 태그가 없으면 'N/A'로 처리.
+        source_element = soup_article.select_one('.media_end_head_top_logo_img')
+        source = source_element['alt'] if source_element else 'N/A'
+
+        # 4. published_at (신규 추가)
+        # 날짜/시간 텍스트를 가져와서 DB 형식에 맞게 변환
+        datetime_str = soup_article.select_one('.media_end_head_info_datestamp_time')['data-date-time']
+        # '2024-05-21 17:20:00' 과 같은 문자열을 datetime 객체로 변환
+        published_at_dt = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+
+        # 5. crawled_at (신규 추가)
+        # 현재 시각을 기록
+        crawled_at_dt = datetime.now()
         
         # news_data 리스트에 딕셔너리 형태로 저장 (append 부분 완성)
         news_data.append({
             'title': title,
             'content': content,
-            'url': full_url
+            'url': final_url,
+            # DB에 저장하기 편하도록 문자열 형태로 변환
+            'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'crawled_at': crawled_at_dt.strftime('%Y-%m-%d %H:%M:%S')
         })
-        print(f"✅ '{title[:30]}...' 기사 수집 성공")
+        print(f"✅ '{title[:30]}...' 기사 수집 성공 (언론사: {source})")
 
     except Exception as e:
         print(f"❌ 처리 중 예외 발생: {e}")
+
+    time.sleep(1)  # 너무 빠른 요청을 방지하기 위해 1초 대기
 
 driver.quit() # 모든 작업이 끝나면 브라우저 종료
 
