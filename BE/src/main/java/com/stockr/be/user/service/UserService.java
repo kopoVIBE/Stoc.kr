@@ -106,4 +106,94 @@ public class UserService {
         user.setInvestmentStyle(investmentStyle);
         userRepository.save(user);
     }
+
+    /**
+     * 사용자 이름 수정
+     * @param userId 사용자 ID
+     * @param name 새로운 이름
+     */
+    @Transactional
+    public void updateName(Long userId, String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("이름을 입력해주세요.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        user.setName(name.trim());
+        userRepository.save(user);
+    }
+
+    /**
+     * 사용자 전화번호 수정
+     * @param userId 사용자 ID
+     * @param phone 새로운 전화번호
+     */
+    @Transactional
+    public void updatePhone(Long userId, String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            throw new IllegalArgumentException("전화번호를 입력해주세요.");
+        }
+
+        // 전화번호 형식 검증
+        if (!isValidPhone(phone)) {
+            throw new IllegalArgumentException("전화번호 형식이 일치하지 않습니다.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        user.setPhone(phone);
+        userRepository.save(user);
+    }
+
+    /**
+     * 사용자 비밀번호 수정
+     * @param userId 사용자 ID
+     * @param currentPassword 현재 비밀번호
+     * @param newPassword 새로운 비밀번호
+     */
+    @Transactional
+    public void updatePassword(Long userId, String currentPassword, String newPassword) {
+        if (currentPassword == null || currentPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("현재 비밀번호를 입력해주세요.");
+        }
+
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("새 비밀번호를 입력해주세요.");
+        }
+
+        // 새 비밀번호 형식 검증
+        if (!isValidPassword(newPassword)) {
+            throw new IllegalArgumentException("비밀번호는 8~20자, 영문/숫자/특수문자를 포함해야 합니다.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 현재 비밀번호 확인
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 새 비밀번호와 현재 비밀번호가 같은지 확인
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+        }
+
+        // 새 비밀번호 암호화 및 저장
+        String encodedNewPassword = passwordEncoder.encode(newPassword);
+        user.setPassword(encodedNewPassword);
+        userRepository.save(user);
+    }
+
+    /**
+     * 전화번호 형식 검증 (010-XXXX-XXXX)
+     * @param phone 입력된 전화번호
+     * @return 유효 여부
+     */
+    private boolean isValidPhone(String phone) {
+        return Pattern.matches("^010-\\d{4}-\\d{4}$", phone);
+    }
 }

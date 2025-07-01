@@ -10,8 +10,9 @@ import { useSearchParams } from "next/navigation"
 import DepositModal from "@/components/deposit-modal"
 import WithdrawModal from "@/components/withdraw-modal"
 import CreateAccountModal from "@/components/create-account-modal"
+import EditProfileModal from "@/components/edit-profile-modal"
 import { getAccount } from "@/api/account"
-import { getMyInfo } from "@/api/user" // 👈 사용자 정보 API
+import { getMyInfo } from "@/api/user" 
 
 export default function MyPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -22,6 +23,7 @@ export default function MyPage() {
   const [isDepositOpen, setIsDepositOpen] = useState(false)
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false)
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const searchParams = useSearchParams()
 
   const fetchData = async () => {
@@ -84,7 +86,11 @@ export default function MyPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-start">
           <h1 className="text-2xl font-bold">내 정보</h1>
-          <Button variant="link" className="text-gray-500">
+          <Button 
+            variant="link" 
+            className="text-gray-500"
+            onClick={() => setIsEditProfileOpen(true)}
+          >
             정보 수정
           </Button>
         </div>
@@ -95,7 +101,7 @@ export default function MyPage() {
               {[
                 { label: "이름", value: userInfo?.name },
                 { label: "휴대폰 번호", value: userInfo?.phone },
-                { label: "이메일 주소", value: userInfo?.email },
+                { label: "이메일", value: userInfo?.email },
                 { label: "생년월일", value: userInfo?.birthDate },
                 { label: "성별", value: userInfo?.gender }
               ].map((item) => (
@@ -155,12 +161,20 @@ export default function MyPage() {
         isOpen={isSurveyOpen} 
         onClose={() => setIsSurveyOpen(false)}
         onSuccess={() => {
-          // 투자 성향 업데이트 후 사용자 정보 다시 가져오기
           fetchData();
         }}
       />
       <DepositModal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} />
       <WithdrawModal isOpen={isWithdrawOpen} onClose={() => setIsWithdrawOpen(false)} />
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        onSuccess={() => {
+          setIsEditProfileOpen(false)
+          fetchData()
+        }}
+        userInfo={userInfo}
+      />
     </>
   )
 }
