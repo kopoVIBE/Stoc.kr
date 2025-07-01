@@ -21,16 +21,24 @@ public class UserController {
 
     // 회원가입 엔드포인트
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody SignupRequestDto requestDto) {
-        userService.signup(requestDto);
-        return ResponseEntity.ok("회원가입이 완료되었습니다.");
+    public ResponseEntity<?> signup(@RequestBody SignupRequestDto requestDto) {
+        try {
+            userService.signup(requestDto);
+            return ResponseEntity.ok().body(Map.of("success", true, "message", "회원가입이 완료되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
     // 로그인 엔드포인트
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequestDto requestDto) {
-        String token = userService.login(requestDto);
-        return ResponseEntity.ok("Bearer " + token);
+    public ResponseEntity<?> login(@RequestBody LoginRequestDto requestDto) {
+        try {
+            String token = userService.login(requestDto);
+            return ResponseEntity.ok().body(Map.of("success", true, "token", "Bearer " + token));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
     @GetMapping("/me")

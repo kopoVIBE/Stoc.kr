@@ -19,12 +19,22 @@ interface LoginData {
 
 export const signup = async (data: SignupData) => {
     const res = await axiosInstance.post('/api/users/signup', data);
+    
+    if (!res.data.success) {
+        throw new Error(res.data.message);
+    }
+    
     return res.data;
 };
 
 export const login = async (data: LoginData) => {
     const res = await axiosInstance.post('/api/users/login', data);
-    return res.data.replace(/^Bearer\s/, ''); // ✅ "Bearer " 제거
+    
+    if (!res.data.success) {
+        throw new Error(res.data.message);
+    }
+    
+    return res.data.token.replace(/^Bearer\s/, ''); // "Bearer " 제거
 };
 
 export const getMyInfo = async () => {

@@ -201,12 +201,9 @@ export default function LoginPage() {
           investmentStyle: "기본",
         });
         
-        // 기존 토큰 제거
         localStorage.removeItem("token");
-        
         alert("회원가입이 완료되었습니다! 로그인해주세요.");
         
-        // 현재 페이지에서 로그인 모드로 전환 + 폼 초기화
         setIsLogin(true);
         setForm({
           email: "",
@@ -220,9 +217,8 @@ export default function LoginPage() {
         return;
       }
     } catch (err: any) {
-      // 백엔드에서 보내는 에러 메시지 표시
-      const errorMessage = err.response?.data?.message || "처리에 실패했습니다.";
-      alert(errorMessage);
+      // 이제 400 에러 없이 에러 메시지만 표시
+      alert(err.message || "처리에 실패했습니다.");
     }
   };
 
