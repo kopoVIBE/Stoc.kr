@@ -13,99 +13,85 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { getFavorites, removeFavorite } from "@/api/stock";
+import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 
 const favoriteStocks = [
   {
-    id: 1,
+    ticker: "005930",
     name: "삼성전자",
-    price: "60,800원",
-    change: "+0.9%",
-    changeValue: "+600원",
-    isUp: true,
+    closePrice: 60800,
+    fluctuationRate: 0.9,
     logo: "/samsung-logo.png",
   },
   {
-    id: 2,
+    ticker: "000660",
     name: "SK하이닉스",
-    price: "283,500원",
-    change: "-3.2%",
-    changeValue: "-9,500원",
-    isUp: false,
+    closePrice: 283500,
+    fluctuationRate: -3.2,
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 3,
+    ticker: "207940",
     name: "삼성바이오로직스",
-    price: "997,000원",
-    change: "-0.2%",
-    changeValue: "-2,000원",
-    isUp: false,
+    closePrice: 997000,
+    fluctuationRate: -0.2,
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 4,
+    ticker: "373220",
     name: "LG에너지솔루션",
-    price: "289,000원",
-    change: "-2.6%",
-    changeValue: "-8,000원",
-    isUp: false,
+    closePrice: 289000,
+    fluctuationRate: -2.6,
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 5,
+    ticker: "005380",
     name: "현대차",
-    price: "205,000원",
-    change: "-2.1%",
-    changeValue: "-4,500원",
-    isUp: false,
+    closePrice: 205000,
+    fluctuationRate: -2.1,
     logo: "/placeholder.svg?height=32&width=32",
   },
 ];
 
-const recommendedStocks = [
+const recommendedStocks: Stock[] = [
   {
-    id: 1,
+    ticker: "JTC",
     name: "JTC",
-    price: "6,480원",
-    change: "+3.8%",
-    changeValue: "+240원",
-    isUp: true,
+    closePrice: 6480,
+    fluctuationRate: 3.8,
     category: "면세점",
     marketCap: "3,353.2억원",
     volume: "1,050,316주",
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 2,
+    ticker: "039130",
     name: "하나투어",
-    price: "54,300원",
-    change: "-1.0%",
-    changeValue: "-600원",
-    isUp: false,
+    closePrice: 54300,
+    fluctuationRate: -1.0,
     category: "여행용품",
     marketCap: "8,426.5억원",
     volume: "63,506주",
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 3,
+    ticker: "003100",
     name: "서원",
-    price: "1,304원",
-    change: "+0.7%",
-    changeValue: "+10원",
-    isUp: true,
+    closePrice: 1304,
+    fluctuationRate: 0.7,
     category: "구리",
     marketCap: "619.1억원",
     volume: "353,222주",
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
-    id: 4,
+    ticker: "402340",
     name: "SK스퀘어",
-    price: "176,400원",
-    change: "-5.8%",
-    changeValue: "-11,000원",
-    isUp: false,
+    closePrice: 176400,
+    fluctuationRate: -5.8,
     category: "지주사",
     marketCap: "23.4조원",
     volume: "1,043,174주",
@@ -129,12 +115,10 @@ const communityPosts = [
 ];
 
 interface Stock {
-  id: number;
+  ticker: string;
   name: string;
-  price: string;
-  change: string;
-  changeValue: string;
-  isUp: boolean;
+  closePrice: number;
+  fluctuationRate: number;
   logo?: string;
   category?: string;
   marketCap?: string;
@@ -144,17 +128,75 @@ interface Stock {
 interface StockTableProps {
   stocks: Stock[];
   isRecommended: boolean;
+  onToggleFavorite?: (stock: Stock) => void;
+  isFavorite?: (stock: Stock) => boolean;
 }
 
 export default function HomePage() {
   const [currentTime, setCurrentTime] = useState<string>("");
+  const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, "0");
     const minutes = now.getMinutes().toString().padStart(2, "0");
     setCurrentTime(`${hours}:${minutes}`);
+
+    const fetchFavorites = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await getFavorites();
+        setFavoriteStocks(response.data);
+      } catch (error) {
+        toast({
+          title: "오류",
+          description: "관심 종목을 불러오는데 실패했습니다.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFavorites();
   }, []);
+
+  const handleToggleFavorite = async (stock: Stock) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast({
+        title: "로그인 필요",
+        description: "관심 종목 기능을 사용하려면 로그인이 필요합니다.",
+        variant: "destructive",
+      });
+      router.push("/login");
+      return;
+    }
+
+    try {
+      await removeFavorite(stock.ticker);
+      setFavoriteStocks((prev) =>
+        prev.filter((s) => s.ticker !== stock.ticker)
+      );
+      toast({
+        description: `${stock.name}이(가) 관심 종목에서 제거되었습니다.`,
+      });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "관심 종목 해제에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-12">
@@ -163,14 +205,27 @@ export default function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-baseline gap-4">
-              <span>User1님의 관심 종목</span>
+              <span>내 관심 종목</span>
               <span className="text-sm font-normal text-gray-500">
                 {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <StockTable stocks={favoriteStocks} isRecommended={false} />
+            {isLoading ? (
+              <div className="text-center py-4">로딩 중...</div>
+            ) : favoriteStocks.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                관심 종목이 없습니다.
+              </div>
+            ) : (
+              <StockTable
+                stocks={favoriteStocks}
+                isRecommended={false}
+                onToggleFavorite={handleToggleFavorite}
+                isFavorite={() => true}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -272,72 +327,120 @@ export default function HomePage() {
   );
 }
 
-function StockTable({ stocks, isRecommended }: StockTableProps) {
+function StockTable({
+  stocks,
+  isRecommended,
+  onToggleFavorite,
+  isFavorite,
+}: StockTableProps) {
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleHeartClick = (stock: Stock) => {
+    if (isFavorite?.(stock)) {
+      setSelectedStock(stock);
+      setIsDialogOpen(true);
+    } else if (onToggleFavorite) {
+      onToggleFavorite(stock);
+    }
+  };
+
+  const handleConfirmRemove = () => {
+    if (selectedStock && onToggleFavorite) {
+      onToggleFavorite(selectedStock);
+    }
+    setIsDialogOpen(false);
+    setSelectedStock(null);
+  };
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[50px]"></TableHead>
-          <TableHead>종목명</TableHead>
-          <TableHead className="text-right">현재가</TableHead>
-          <TableHead className="text-right">등락률</TableHead>
-          {isRecommended && (
-            <TableHead className="hidden sm:table-cell text-right">
-              시가총액
-            </TableHead>
-          )}
-          {isRecommended && (
-            <TableHead className="hidden lg:table-cell text-right">
-              거래량
-            </TableHead>
-          )}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {stocks.map((stock, index) => (
-          <TableRow key={stock.id}>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-gray-300 fill-current hover:text-red-500 cursor-pointer" />
-                <span className="font-bold text-primary">{index + 1}</span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Link href={`/stocks/${stock.id}`} className="hover:underline">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={stock.logo || "/placeholder.svg"}
-                    alt={stock.name}
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <span className="font-semibold">{stock.name}</span>
-                </div>
-              </Link>
-            </TableCell>
-            <TableCell className="text-right font-semibold">
-              {stock.price}
-            </TableCell>
-            <TableCell
-              className={`text-right ${
-                stock.isUp ? "text-red-500" : "text-blue-500"
-              }`}
-            >
-              <div>{stock.change}</div>
-              <div className="text-xs">{stock.changeValue}</div>
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[50px]"></TableHead>
+            <TableHead>종목명</TableHead>
+            <TableHead className="text-right">현재가</TableHead>
+            <TableHead className="text-right">등락률</TableHead>
             {isRecommended && (
-              <TableCell className="hidden sm:table-cell text-right">
-                {stock.marketCap}
-              </TableCell>
+              <TableHead className="hidden sm:table-cell text-right">
+                시가총액
+              </TableHead>
             )}
             {isRecommended && (
-              <TableCell className="hidden lg:table-cell text-right">
-                {stock.volume}
-              </TableCell>
+              <TableHead className="hidden lg:table-cell text-right">
+                거래량
+              </TableHead>
             )}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {stocks.map((stock, index) => (
+            <TableRow key={stock.ticker}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  {onToggleFavorite && (
+                    <Heart
+                      className={`w-5 h-5 cursor-pointer ${
+                        isFavorite?.(stock)
+                          ? "text-red-500 fill-current"
+                          : "text-gray-300"
+                      }`}
+                      onClick={() => handleHeartClick(stock)}
+                    />
+                  )}
+                  <span className="font-bold text-primary">{index + 1}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Link
+                  href={`/stocks/${stock.ticker}`}
+                  className="hover:underline"
+                >
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={stock.logo || "/placeholder.svg"}
+                      alt={stock.name}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="font-semibold">{stock.name}</span>
+                  </div>
+                </Link>
+              </TableCell>
+              <TableCell className="text-right font-semibold">
+                {stock.closePrice}
+              </TableCell>
+              <TableCell
+                className={`text-right ${
+                  stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
+                }`}
+              >
+                <div>
+                  {stock.fluctuationRate > 0 ? "+" : ""}
+                  {stock.fluctuationRate}%
+                </div>
+              </TableCell>
+              {isRecommended && (
+                <TableCell className="hidden sm:table-cell text-right">
+                  {stock.marketCap}
+                </TableCell>
+              )}
+              {isRecommended && (
+                <TableCell className="hidden lg:table-cell text-right">
+                  {stock.volume}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <FavoriteConfirmDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onConfirm={handleConfirmRemove}
+        stockName={selectedStock?.name || ""}
+      />
+    </>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType, Time } from "lightweight-charts";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { stockApi, StockPrice } from "@/api/stock";
 
 interface CandlestickData {
   time: Time;
@@ -11,149 +13,125 @@ interface CandlestickData {
   close: number;
 }
 
+type IntervalType = "daily" | "weekly" | "monthly";
+
 interface CandlestickChartProps {
+  ticker?: string;
   data?: CandlestickData[];
 }
 
-export function CandlestickChart({ data = [] }: CandlestickChartProps) {
+export function CandlestickChart({
+  ticker = "005930",
+  data = [],
+}: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [interval, setInterval] = useState<IntervalType>("daily");
+  const [chartData, setChartData] = useState<CandlestickData[]>(data);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!ticker) return;
+      setIsLoading(true);
+      try {
+        console.log("Fetching data for ticker:", ticker, "interval:", interval);
+        const response = await stockApi.getStockPrices(ticker, interval);
+        console.log("API Response:", response);
+
+        if (response?.prices?.length > 0) {
+          const formattedData = response.prices.map((price: StockPrice) => ({
+            time: price.time.split("T")[0],
+            open: price.open,
+            high: price.high,
+            low: price.low,
+            close: price.close,
+          }));
+          console.log("Formatted chart data:", formattedData);
+          setChartData(formattedData);
+        } else {
+          console.log("No price data available");
+          setChartData([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stock prices:", error);
+        setChartData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [ticker, interval]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
+    console.log("Creating chart with data:", chartData);
 
-    // 차트 생성 및 기본 설정
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 400,
       layout: {
-        background: { color: "#ffffff" as ColorType },
-        textColor: "#333",
+        background: { type: ColorType.Solid, color: "white" },
+        textColor: "black",
       },
       grid: {
         vertLines: { color: "#f0f3fa" },
         horzLines: { color: "#f0f3fa" },
       },
-      crosshair: {
-        mode: 1,
-      },
-      rightPriceScale: {
-        borderColor: "#f0f3fa",
-      },
+      width: chartContainerRef.current.clientWidth,
+      height: 400,
       timeScale: {
-        borderColor: "#f0f3fa",
         timeVisible: true,
+        secondsVisible: false,
       },
     });
 
-    // 캔들스틱 시리즈 생성
-    const candlestickSeries = chart.addCandlestickSeries();
-    candlestickSeries.applyOptions({
-      upColor: "#f04452", // 상승: 빨간색
-      downColor: "#3182f6", // 하락: 파란색
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: "#26a69a",
+      downColor: "#ef5350",
       borderVisible: false,
-      wickUpColor: "#f04452", // 상승 꼬리: 빨간색
-      wickDownColor: "#3182f6", // 하락 꼬리: 파란색
+      wickUpColor: "#26a69a",
+      wickDownColor: "#ef5350",
     });
 
-    // 데이터 설정
-    const chartData =
-      data.length > 0
-        ? data
-        : [
-            {
-              time: "2025-02-01" as Time,
-              open: 55.11,
-              high: 56.55,
-              low: 54.88,
-              close: 55.8,
-            },
-            {
-              time: "2025-02-02" as Time,
-              open: 55.77,
-              high: 56.22,
-              low: 54.77,
-              close: 55.99,
-            },
-            {
-              time: "2025-02-03" as Time,
-              open: 55.98,
-              high: 56.03,
-              low: 54.98,
-              close: 55.33,
-            },
-            {
-              time: "2025-02-04" as Time,
-              open: 55.42,
-              high: 55.55,
-              low: 54.42,
-              close: 55.52,
-            },
-            {
-              time: "2025-02-05" as Time,
-              open: 55.53,
-              high: 56.53,
-              low: 55.53,
-              close: 56.21,
-            },
-            {
-              time: "2025-03-15" as Time,
-              open: 56.21,
-              high: 58.21,
-              low: 56.01,
-              close: 57.9,
-            },
-            {
-              time: "2025-04-17" as Time,
-              open: 57.9,
-              high: 58.5,
-              low: 54.3,
-              close: 55.0,
-            },
-            {
-              time: "2025-05-10" as Time,
-              open: 55.0,
-              high: 61.0,
-              low: 54.8,
-              close: 60.8,
-            },
-            {
-              time: "2025-06-01" as Time,
-              open: 60.8,
-              high: 61.2,
-              low: 59.3,
-              close: 59.8,
-            },
-          ];
+    if (chartData.length > 0) {
+      candlestickSeries.setData(chartData);
+    }
 
-    candlestickSeries.setData(chartData);
-
-    // 차트 크기 조정
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
 
     window.addEventListener("resize", handleResize);
 
-    // 줌 및 스크롤 설정
-    chart.timeScale().fitContent();
-
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [chartData]);
 
   return (
-    <div
-      ref={chartContainerRef}
-      style={{
-        width: "100%",
-        height: "400px",
-      }}
-    />
+    <div>
+      <div className="mb-4">
+        <Tabs
+          value={interval}
+          className="w-full"
+          onValueChange={(value: string) => setInterval(value as IntervalType)}
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="daily">일별</TabsTrigger>
+            <TabsTrigger value="weekly">주별</TabsTrigger>
+            <TabsTrigger value="monthly">월별</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      {isLoading ? (
+        <div className="h-[400px] flex items-center justify-center">
+          <p>Loading...</p>
+        </div>
+      ) : (
+        <div ref={chartContainerRef} className="h-[400px]" />
+      )}
+    </div>
   );
 }

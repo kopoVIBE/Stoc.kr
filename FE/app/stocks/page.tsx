@@ -11,8 +11,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from "next/navigation";
 
 export default function StocksPage() {
+  const router = useRouter();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [sortedStocks, setSortedStocks] = useState<Stock[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,7 +55,7 @@ export default function StocksPage() {
           sorted.sort((a, b) => b.volume - a.volume);
           break;
         case "amount":
-          sorted.sort((a, b) => b.currentPrice - a.currentPrice);
+          sorted.sort((a, b) => b.closePrice - a.closePrice);
           break;
         case "up":
           sorted.sort((a, b) => b.fluctuationRate - a.fluctuationRate);
@@ -92,6 +94,10 @@ export default function StocksPage() {
   };
 
   const pageNumbers = getPageNumbers();
+
+  const handleStockClick = (ticker: string) => {
+    router.push(`/stocks/${ticker}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -139,13 +145,17 @@ export default function StocksPage() {
           </TableHeader>
           <TableBody>
             {currentPageStocks.map((stock, index) => (
-              <TableRow key={stock.ticker || `stock-${index}`}>
+              <TableRow
+                key={stock.ticker || `stock-${index}`}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => handleStockClick(stock.ticker)}
+              >
                 <TableCell>
                   {(currentPage - 1) * itemsPerPage + index + 1}
                 </TableCell>
                 <TableCell>{stock.name}</TableCell>
                 <TableCell>
-                  {stock.currentPrice?.toLocaleString() ?? "-"}원
+                  {stock.closePrice?.toLocaleString() ?? "-"}원
                 </TableCell>
                 <TableCell>
                   {stock.priceDiff?.toLocaleString() ?? "-"}
