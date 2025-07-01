@@ -22,9 +22,10 @@ env_path = os.path.join(os.path.dirname(__file__), '..', 'BE', '.env')
 load_dotenv(env_path)
 
 # Redis 설정 (로컬 테스트용)
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')  # 로컬호스트로 기본값 설정
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws/websocket')
+REDIS_HOST = 'localhost'  # 로컬 환경에서는 무조건 localhost 사용
+REDIS_PORT = 6379
+REDIS_PASSWORD = 'stockr123!'
+WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws')
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'kis_token.json')
 
 # KIS API 설정
@@ -40,14 +41,37 @@ class StockRealtime:
         self.access_token = None
         self.token_expires_at = None
         
-        # 토큰 로드 또는 새로 발급
+        # Redis 연결 테스트
+        try:
+            logger.info("Redis 연결을 시도합니다...")
+            self.redis_client = redis.Redis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                password=REDIS_PASSWORD,
+                decode_responses=True
+            )
+            # Redis 연결 테스트
+            self.redis_client.ping()
+            logger.info(f"Redis 연결 성공 (host: {REDIS_HOST}, port: {REDIS_PORT})")
+            
+            # Redis에 저장된 토큰이 있는지 확인
+            redis_token = self.redis_client.get("kis_token")
+            if redis_token:
+                logger.info(f"Redis에 저장된 토큰: {redis_token}")
+            else:
+                logger.info("Redis에 저장된 토큰이 없습니다.")
+                
+        except redis.ConnectionError as e:
+            logger.error(f"Redis 연결 실패 (host: {REDIS_HOST}): {e}")
+            logger.info("파일 기반 저장소를 사용합니다.")
+            self.redis_client = None
+        except Exception as e:
+            logger.error(f"Redis 초기화 중 예상치 못한 오류 발생: {e}")
+            self.redis_client = None
+            
+        # Redis 연결 확인 후 토큰 로드 또는 새로 발급
         self._ensure_valid_token()
         
-        self.redis_client = redis.Redis(
-            host=REDIS_HOST,
-            port=REDIS_PORT,
-            decode_responses=True
-        )
         self.is_running = False
         self.ws = None
         self._initialize_websocket()
@@ -63,9 +87,72 @@ class StockRealtime:
         if missing_vars:
             raise ValueError(f"필수 환경 변수가 누락되었습니다: {', '.join(missing_vars)}")
             
-    def _load_saved_token(self):
-        """저장된 토큰 불러오기"""
+    def start(self):
+        """실시간 데이터 수집 시작"""
         try:
+            self.is_running = True
+            logger.info("실시간 데이터 수집을 시작합니다...")
+            
+            while self.is_running:
+                try:
+                    # 삼성전자 현재가 조회
+                    result = self.get_current_price("005930")
+                    
+                    if result['status'] == 'success':
+                        # 현재 시간
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        # 데이터 가공
+                        data = {
+                            "ticker": "005930",
+                            "stockCode": "005930",
+                            "price": result['price'],
+                            "volume": result['volume'],
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        
+                        # WebSocket으로 데이터 전송 (Spring에서 Redis 저장)
+                        self.send_stock_data(data)
+                        
+                        # 로그 출력
+                        logger.info(f"[{now}] 삼성전자 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
+                    else:
+                        logger.error(f"데이터 조회 실패: {result.get('message', 'Unknown error')}")
+                    
+                    # 1초 대기
+                    time.sleep(1)
+                    
+                except Exception as e:
+                    logger.error(f"데이터 수집 중 오류 발생: {e}")
+                    time.sleep(5)  # 오류 발생시 5초 대기 후 재시도
+                    
+        except KeyboardInterrupt:
+            logger.info("실시간 데이터 수집을 중지합니다...")
+            self.stop()
+            
+    def stop(self):
+        """실시간 데이터 수집 중지"""
+        self.is_running = False
+        if self.ws:
+            self.ws.close()
+        logger.info("실시간 데이터 수집이 중지되었습니다.")
+
+    def _load_saved_token(self):
+        """저장된 토큰 불러오기 (파일 또는 Redis)"""
+        try:
+            # 1. Redis에서 먼저 확인
+            if self.redis_client is not None:
+                redis_token = self.redis_client.get("kis_token")
+                if redis_token:
+                    token_data = json.loads(redis_token)
+                    expires_at = datetime.fromisoformat(token_data.get('expires_at', ''))
+                    
+                    # 토큰이 아직 유효한지 확인 (만료 10분 전까지 사용)
+                    if datetime.now() < expires_at:
+                        logger.info("Redis에서 토큰을 불러왔습니다.")
+                        return token_data.get('access_token'), expires_at
+            
+            # 2. 파일에서 확인
             if os.path.exists(TOKEN_FILE):
                 with open(TOKEN_FILE, 'r', encoding='utf-8') as f:
                     token_data = json.load(f)
@@ -74,7 +161,20 @@ class StockRealtime:
                     
                     # 토큰이 아직 유효한지 확인 (만료 10분 전까지 사용)
                     if datetime.now() < expires_at:
-                        logger.info("기존 토큰을 사용합니다.")
+                        logger.info("파일에서 토큰을 불러왔습니다.")
+                        
+                        # 파일에서 읽은 유효한 토큰을 Redis에도 저장
+                        if self.redis_client is not None:
+                            try:
+                                self.redis_client.set(
+                                    "kis_token",
+                                    json.dumps(token_data),
+                                    ex=int((expires_at - datetime.now()).total_seconds())
+                                )
+                                logger.info("파일에서 읽은 토큰을 Redis에 저장했습니다.")
+                            except Exception as e:
+                                logger.error(f"Redis에 토큰 저장 실패: {e}")
+                        
                         return token_data.get('access_token'), expires_at
                     else:
                         logger.info("저장된 토큰이 만료되었습니다.")
@@ -121,16 +221,30 @@ class StockRealtime:
             raise
 
     def _save_token(self, access_token, expires_at):
-        """토큰 저장"""
+        """토큰 저장 (파일 및 Redis)"""
         try:
+            # 토큰 데이터 구성
             token_data = {
                 'access_token': access_token,
                 'expires_at': expires_at.isoformat(),
                 'saved_at': datetime.now().isoformat()
             }
             
+            # 1. 파일에 저장
             with open(TOKEN_FILE, 'w', encoding='utf-8') as f:
                 json.dump(token_data, f, indent=2, ensure_ascii=False)
+                
+            # 2. Redis에 JSON 형태로 저장 (Redis 연결이 있는 경우에만)
+            if self.redis_client is not None:
+                try:
+                    self.redis_client.set(
+                        "kis_token",  # key
+                        json.dumps(token_data),  # value를 JSON 문자열로 변환
+                        ex=int((expires_at - datetime.now()).total_seconds())  # 만료시간 설정
+                    )
+                    logger.info("토큰이 Redis에 저장되었습니다.")
+                except Exception as e:
+                    logger.error(f"Redis에 토큰 저장 실패: {e}")
                 
             logger.info(f"토큰이 {TOKEN_FILE}에 저장되었습니다.")
             
@@ -210,9 +324,14 @@ class StockRealtime:
 
         def on_open(ws):
             logger.info("WebSocket 연결 성공")
-            # STOMP 프로토콜 연결
-            connect_frame = "CONNECT\naccept-version:1.2\n\n\x00"
+            # STOMP 프레임을 텍스트로 구성
+            connect_frame = "CONNECT\naccept-version:1.2,1.1,1.0\nheart-beat:10000,10000\n\n\x00"
             ws.send(connect_frame)
+            logger.info("STOMP CONNECT 프레임 전송")
+
+            subscribe_frame = "SUBSCRIBE\nid:sub-0\ndestination:/topic/price\n\n\x00"
+            ws.send(subscribe_frame)
+            logger.info("STOMP SUBSCRIBE 프레임 전송")
 
         self.ws = websocket.WebSocketApp(
             WEBSOCKET_URL,
@@ -231,65 +350,15 @@ class StockRealtime:
         """WebSocket을 통해 데이터 전송"""
         if self.ws and self.ws.sock and self.ws.sock.connected:
             try:
-                # STOMP 메시지 전송 프레임 구성
-                send_frame = f"SEND\ndestination:/app/stock/price\ncontent-type:application/json\n\n{json.dumps(data)}\x00"
+                # STOMP SEND 프레임 구성
+                body = json.dumps(data)
+                send_frame = f"SEND\ndestination:/app/price\ncontent-type:application/json\n\n{body}\x00"
                 self.ws.send(send_frame)
                 logger.info("WebSocket으로 데이터 전송 완료")
             except Exception as e:
                 logger.warning(f"WebSocket 데이터 전송 실패: {e}")
         else:
-            # WebSocket 연결이 안 되어도 데이터 수집은 계속 진행
-            logger.debug("WebSocket이 연결되지 않았습니다. (데이터 수집은 계속 진행)")
-
-    def start(self):
-        """실시간 데이터 수집 시작"""
-        try:
-            self.is_running = True
-            logger.info("실시간 데이터 수집을 시작합니다...")
-            
-            while self.is_running:
-                try:
-                    # 삼성전자 현재가 조회
-                    result = self.get_current_price("005930")
-                    
-                    if result['status'] == 'success':
-                        # 현재 시간
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        # 데이터 가공
-                        data = {
-                            "ticker": "005930",
-                            "stockCode": "005930",
-                            "price": result['price'],
-                            "volume": result['volume'],
-                            "timestamp": int(time.time() * 1000)
-                        }
-                        
-                        # WebSocket으로 데이터 전송 (Spring에서 Redis 저장)
-                        self.send_stock_data(data)
-                        
-                        # 로그 출력
-                        logger.info(f"[{now}] 삼성전자 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
-                    else:
-                        logger.error(f"데이터 조회 실패: {result.get('message', 'Unknown error')}")
-                    
-                    # 1초 대기
-                    time.sleep(1)
-                    
-                except Exception as e:
-                    logger.error(f"데이터 수집 중 오류 발생: {e}")
-                    time.sleep(5)  # 오류 발생시 5초 대기 후 재시도
-                    
-        except KeyboardInterrupt:
-            logger.info("실시간 데이터 수집을 중지합니다...")
-            self.stop()
-            
-    def stop(self):
-        """실시간 데이터 수집 중지"""
-        self.is_running = False
-        if self.ws:
-            self.ws.close()
-        logger.info("실시간 데이터 수집이 중지되었습니다.")
+            logger.debug("WebSocket이 연결되지 않았습니다.")
 
 if __name__ == "__main__":
     stock_realtime = StockRealtime()
