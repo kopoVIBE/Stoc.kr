@@ -1,7 +1,7 @@
 # =============================================================
 # Playwright 비동기 방식 크롤링 코드
 # =============================================================
-import asyncio # ★★★ 비동기 처리를 위한 라이브러리
+import asyncio # 비동기 처리를 위한 라이브러리
 from playwright.async_api import async_playwright # ★★★ Playwright 비동기 API
 import requests
 from bs4 import BeautifulSoup
@@ -10,7 +10,7 @@ from datetime import datetime
 import json
 import time
 
-# 1. 뉴스 목록 수집 (이 부분은 빠르므로 그대로 requests 사용)
+# 1. 뉴스 목록 수집
 list_url = 'https://finance.naver.com/news/mainnews.naver'
 response = requests.get(list_url, headers={'User-Agent':'Mozilla/5.0'})
 soup = BeautifulSoup(response.text, 'html.parser')
@@ -21,7 +21,7 @@ full_urls = [urljoin(base_url, link) for link in article_links]
 
 print(f"수집 대상 URL 수: {len(full_urls)}")
 
-# 2. ★★★ Playwright를 이용한 비동기 상세 정보 수집 함수 ★★★
+# 2. Playwright를 이용한 비동기 상세 정보 수집 함수
 async def fetch_article_details(page, url):
     """하나의 URL을 받아서 상세 정보를 크롤링하는 비동기 함수"""
     try:
@@ -35,9 +35,7 @@ async def fetch_article_details(page, url):
 
         title = soup_article.select_one('#title_area span').text
         content_element = soup_article.select_one('#dic_area')
-        # 불필요한 요소 제거 (선택사항)
-        for ad_element in content_element.select('.da_ad, .media_end_linked_more_btn'):
-            ad_element.decompose()
+        
         content = str(content_element)
         
         source_element = soup_article.select_one('.media_end_head_top_logo img')
@@ -59,7 +57,7 @@ async def fetch_article_details(page, url):
         print(f"❌ {url} 처리 중 예외 발생: {e}")
         return None
 
-# 3. ★★★ 메인 비동기 실행 함수 ★★★
+# 3. 메인 비동기 실행 함수
 async def main():
     news_data = []
     async with async_playwright() as p:
@@ -95,9 +93,9 @@ async def main():
     print("\n--- 최종 수집 데이터 ---")
     print(json.dumps(news_data, indent=2, ensure_ascii=False))
 
-# 4. ★★★ 비동기 프로그램 실행 ★★★
+# 4. 비동기 프로그램 실행
 if __name__ == "__main__":
-    # ================== ★★★ 시간 측정 시작 ★★★ ==================
+    # ================== 시간 측정 시작 ==================
     start_time = time.time()
     print("크롤링을 시작합니다...")
     
@@ -105,7 +103,7 @@ if __name__ == "__main__":
     asyncio.run(main())
     
     end_time = time.time()
-    # ================== ★★★ 시간 측정 종료 ★★★ ==================
+    # ================== 시간 측정 종료 ==================
 
     # 최종 소요 시간 계산 및 출력
     elapsed_time = end_time - start_time
