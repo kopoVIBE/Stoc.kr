@@ -9,12 +9,8 @@ interface StockPrice {
   timestamp: number;
 }
 
-interface StockPrices {
-  [key: string]: number;
-}
-
 export function useStockWebSocket(tickers: string[]) {
-  const [stockPrices, setStockPrices] = useState<StockPrices>({});
+  const [stockPrices, setStockPrices] = useState<Record<string, number>>({});
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const client = useRef<Client | null>(null);
   const subscriptions = useRef<StompSubscription[]>([]);
@@ -27,8 +23,7 @@ export function useStockWebSocket(tickers: string[]) {
       return;
     }
 
-    console.log("Attempting to connect websocket with tickers:", tickers);
-    setConnectionError(null);
+    console.log("Connecting to WebSocket with tickers:", tickers);
 
     const wsClient = new Client({
       webSocketFactory: () => {
@@ -51,20 +46,20 @@ export function useStockWebSocket(tickers: string[]) {
         tickers.forEach((ticker) => {
           console.log(`Subscribing to stock: ${ticker}`);
           const subscription = wsClient.subscribe(
-            `/topic/stock/${ticker}`,
+            `/topic/price`, // 모든 종목의 실시간 시세를 하나의 토픽으로 받음
             (message: IMessage) => {
               try {
                 const priceData: StockPrice = JSON.parse(message.body);
-                console.log(`Received price update for ${ticker}:`, priceData);
-                setStockPrices((prev) => ({
-                  ...prev,
-                  [ticker]: priceData.price,
-                }));
+                console.log(`Received price update:`, priceData);
+                if (tickers.includes(priceData.ticker)) {
+                  // 구독 중인 종목인 경우만 처리
+                  setStockPrices((prev) => ({
+                    ...prev,
+                    [priceData.ticker]: priceData.price,
+                  }));
+                }
               } catch (error) {
-                console.error(
-                  `Failed to parse price data for ${ticker}:`,
-                  error
-                );
+                console.error(`Failed to parse price data:`, error);
               }
             }
           );

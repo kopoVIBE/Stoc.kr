@@ -15,6 +15,28 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
+
+// 시가총액을 조 단위로 변환하는 함수 추가
+const formatMarketCap = (value: number) => {
+  if (!value) return "-";
+
+  const trillion = 1000000000000; // 1조
+  const billion = 100000000; // 1억
+
+  if (value >= trillion) {
+    const trillionPart = Math.floor(value / trillion);
+    const billionPart = Math.floor((value % trillion) / billion);
+
+    if (billionPart > 0) {
+      return `${trillionPart}조 ${billionPart}억`;
+    }
+    return `${trillionPart}조`;
+  } else {
+    const billionPart = Math.floor(value / billion);
+    return `${billionPart}억`;
+  }
+};
 
 export default function StocksPage() {
   const router = useRouter();
@@ -25,6 +47,21 @@ export default function StocksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [sortedStocks, setSortedStocks] = useState<Stock[]>([]);
+
+  // 웹소켓 연결
+  const { stockPrices, connectionError } = useStockWebSocket(
+    stocks.map((stock) => stock.ticker)
+  );
+
+  // 웹소켓 상태 모니터링
+  useEffect(() => {
+    console.log("WebSocket Status:", {
+      stocksLength: stocks.length,
+      connectedTickers: stocks.map((stock) => stock.ticker),
+      stockPrices,
+      connectionError,
+    });
+  }, [stocks, stockPrices, connectionError]);
 
   const itemsPerPage = 8;
 
@@ -68,18 +105,15 @@ export default function StocksPage() {
           stock.ticker.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      const sorted = [...filtered];
-      console.log("Filtered and sorted stocks:", sorted); // 정렬된 데이터 출력
+      let sorted: Stock[] = filtered.map((stock) => ({
+        ...stock,
+        closePrice: stockPrices[stock.ticker] || stock.closePrice,
+      }));
+
       switch (sortType) {
         case "volume":
-          sorted.sort((a, b) => (b.volume || 0) - (a.volume || 0));
-          break;
         case "amount":
-          sorted.sort(
-            (a, b) =>
-              (b.volume || 0) * (b.closePrice || 0) -
-              (a.volume || 0) * (a.closePrice || 0)
-          );
+          sorted.sort((a, b) => b.marketCap - a.marketCap); // 시가총액 기준으로 정렬
           break;
         case "up":
           sorted.sort(
@@ -92,14 +126,14 @@ export default function StocksPage() {
           );
           break;
         case "popular":
-          sorted.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+          sorted.sort((a, b) => b.marketCap - a.marketCap); // 시가총액 기준으로 정렬
           break;
       }
       setSortedStocks(sorted);
       setCurrentPage(1);
     };
     sortStocks();
-  }, [sortType, stocks, searchTerm]);
+  }, [sortType, stocks, searchTerm, stockPrices]);
 
   // 정렬된 주식 목록에 대한 페이지네이션
   const totalPages = Math.ceil(sortedStocks.length / itemsPerPage);
@@ -129,6 +163,11 @@ export default function StocksPage() {
 
   return (
     <div className="container py-6 space-y-6">
+      {connectionError && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+          <p>{connectionError}</p>
+        </div>
+      )}
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-4">
           <h1 className="text-2xl font-bold">전체 종목</h1>
@@ -154,8 +193,7 @@ export default function StocksPage() {
           className="w-full"
         >
           <TabsList>
-            <TabsTrigger value="volume">거래대금</TabsTrigger>
-            <TabsTrigger value="amount">거래량</TabsTrigger>
+            <TabsTrigger value="volume">시가총액</TabsTrigger>
             <TabsTrigger value="up">급상승</TabsTrigger>
             <TabsTrigger value="down">급하락</TabsTrigger>
             <TabsTrigger value="popular">인기</TabsTrigger>
@@ -171,14 +209,13 @@ export default function StocksPage() {
                 <TableHead>현재가</TableHead>
                 <TableHead>전일대비</TableHead>
                 <TableHead>등락률</TableHead>
-                <TableHead>거래량</TableHead>
                 <TableHead>시가총액</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     로딩 중...
                   </TableCell>
                 </TableRow>
@@ -225,16 +262,7 @@ export default function StocksPage() {
                           "%"
                         : "-"}
                     </TableCell>
-                    <TableCell>
-                      {stock.volume?.toLocaleString() ?? "-"}
-                    </TableCell>
-                    <TableCell>
-                      {stock.marketCap
-                        ? `${Number(stock.marketCap).toLocaleString(undefined, {
-                            maximumFractionDigits: 2,
-                          })}억`
-                        : "-"}
-                    </TableCell>
+                    <TableCell>{formatMarketCap(stock.marketCap)}</TableCell>
                   </TableRow>
                 ))
               )}

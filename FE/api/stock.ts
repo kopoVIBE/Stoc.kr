@@ -1,40 +1,22 @@
 import axiosInstance from "./axiosInstance";
 
 export interface Stock {
-  id: number;
   ticker: string;
   name: string;
   closePrice: number;
-  priceChange: number;
-  priceChangePercent: number;
-  marketCap: number; // 시가총액 (단위: 억원)
-  volume: number;
-  eps?: number;
-  per?: number;
-  bps?: number;
-  pbr?: number;
-  dividendPerShare?: number;
-  dividendYield?: number;
-  beta?: number;
-  return1yPercent?: number;
-  returnVolatility?: number;
-  marketType?: string;
-  industryType?: string;
-  logo?: string;
-  lastUpdated: string;
   priceDiff: number;
   fluctuationRate: number;
+  eps: number;
+  per: number;
   forwardEps: number;
   forwardPer: number;
-  epsStd: number;
-  perStd: number;
-  forwardEpsStd: number;
-  forwardPerStd: number;
-  bpsStd: number;
-  pbrStd: number;
-  dividendPerShareStd: number;
-  dividendYieldStd: number;
-  marketCapStd: number;
+  bps: number;
+  pbr: number;
+  dividendPerShare: number;
+  dividendYield: number;
+  marketType: string;
+  industryType: string;
+  marketCap: number;
 }
 
 export interface StockPrice {
