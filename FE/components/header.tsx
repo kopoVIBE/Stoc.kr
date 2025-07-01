@@ -85,6 +85,14 @@ export default function Header() {
     router.push("/login");
   };
 
+  const handleNavClick = (href: string, e: React.MouseEvent) => {
+    // "내 정보" 페이지에 접근할 때 로그인 체크
+    if (href === "/my-page" && !isLoggedIn) {
+      e.preventDefault();
+      router.push("/login");
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -103,6 +111,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={(e) => handleNavClick(link.href, e)}
                 className={cn(
                   "text-base font-medium text-gray-500 hover:text-gray-900",
                   pathname === link.href && "text-gray-900"
