@@ -1,6 +1,6 @@
 package com.stockr.be.domain.stock.controller;
 
-import com.stockr.be.domain.stock.dto.StockPriceDto;
+import com.stockr.be.domain.stock.dto.RealtimeStockPriceDto;
 import com.stockr.be.domain.stock.service.StockPriceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -15,7 +15,7 @@ public class StockWebSocketController {
 
     @MessageMapping("/price")
     @SendTo("/topic/price")
-    public StockPriceDto handleStockPrice(StockPriceDto priceData) {
-        return stockPriceService.savePrice(priceData);
+    public RealtimeStockPriceDto handleStockPrice(RealtimeStockPriceDto priceData) {
+        return stockPriceService.handleRealtimePrice(priceData);
     }
 }
