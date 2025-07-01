@@ -73,3 +73,8 @@ logging:
     org.springframework.data.redis: debug
     io.lettuce.core: debug
     org.springframework.data.mongodb: DEBUG # MongoDB 로깅 추가
+
+KIS:
+  APP:
+    KEY: ${KIS_APP_KEY}
+    SECRET: ${KIS_APP_SECRET}
