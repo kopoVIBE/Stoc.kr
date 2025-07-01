@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { createAccount } from "@/api/account"
 
@@ -15,12 +15,19 @@ interface CreateAccountModalProps {
 }
 
 export default function CreateAccountModal({ isOpen, onClose, onSuccess }: CreateAccountModalProps) {
-  const [bankName, setBankName] = useState("")
-  const [accountNumber, setAccountNumber] = useState("")
+  const bankName = "스톡 증권" // 고정값
+  
+  // 계좌번호 자동 생성 (218-XXXXXXXX-XX 형식)
+  const generateAccountNumber = () => {
+    const middleDigits = Math.floor(Math.random() * 100000000).toString().padStart(8, '0') // 8자리 랜덤
+    const lastDigits = Math.floor(Math.random() * 100).toString().padStart(2, '0') // 2자리 랜덤
+    return `218-${middleDigits}-${lastDigits}`
+  }
+
+  const [accountNumber] = useState(() => generateAccountNumber())
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!bankName || !accountNumber) return
 
     try {
       await createAccount({ bankName, accountNumber })
@@ -39,27 +46,21 @@ export default function CreateAccountModal({ isOpen, onClose, onSuccess }: Creat
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="bank">은행 선택</Label>
-            <Select onValueChange={setBankName}>
-              <SelectTrigger>
-                <SelectValue placeholder="은행을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="하나은행">하나은행</SelectItem>
-                <SelectItem value="신한은행">신한은행</SelectItem>
-                <SelectItem value="우리은행">우리은행</SelectItem>
-                <SelectItem value="KB국민은행">KB국민은행</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="bankName">은행명</Label>
+            <Input
+              id="bankName"
+              value={bankName}
+              readOnly
+              className="bg-gray-50 cursor-not-allowed"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="accountNumber">계좌 번호</Label>
             <Input
               id="accountNumber"
               value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
-              placeholder="숫자만 입력"
-              required
+              readOnly
+              className="bg-gray-50 cursor-not-allowed"
             />
           </div>
           <Button type="submit" className="w-full h-12 text-lg">
