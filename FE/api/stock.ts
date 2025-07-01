@@ -7,7 +7,7 @@ export interface Stock {
   closePrice: number;
   priceChange: number;
   priceChangePercent: number;
-  marketCap: number;
+  marketCap: number; // 시가총액 (단위: 억원)
   volume: number;
   eps?: number;
   per?: number;

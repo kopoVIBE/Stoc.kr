@@ -23,15 +23,19 @@ export default function StocksPage() {
   const [sortType, setSortType] = useState("volume");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<string>("");
   const [sortedStocks, setSortedStocks] = useState<Stock[]>([]);
 
   const itemsPerPage = 8;
 
   // 시간 업데이트
   useEffect(() => {
+    // 초기 시간 설정
+    setCurrentTime(new Date().toLocaleTimeString());
+
+    // 1초마다 시간 업데이트
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(new Date().toLocaleTimeString());
     }, 1000);
 
     return () => clearInterval(timer);
@@ -43,6 +47,7 @@ export default function StocksPage() {
       try {
         setIsLoading(true);
         const response = await stockApi.getStocks();
+        console.log("Fetched stocks data:", response); // 데이터 출력
         setStocks(response);
       } catch (error) {
         console.error("Failed to fetch stocks:", error);
@@ -64,6 +69,7 @@ export default function StocksPage() {
       );
 
       const sorted = [...filtered];
+      console.log("Filtered and sorted stocks:", sorted); // 정렬된 데이터 출력
       switch (sortType) {
         case "volume":
           sorted.sort((a, b) => (b.volume || 0) - (a.volume || 0));
@@ -126,9 +132,7 @@ export default function StocksPage() {
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-4">
           <h1 className="text-2xl font-bold">전체 종목</h1>
-          <span className="text-sm text-gray-500">
-            {currentTime.toLocaleTimeString()} 기준
-          </span>
+          <span className="text-sm text-gray-500">{currentTime} 기준</span>
         </div>
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
@@ -225,7 +229,11 @@ export default function StocksPage() {
                       {stock.volume?.toLocaleString() ?? "-"}
                     </TableCell>
                     <TableCell>
-                      {(stock.marketCap / 100000000)?.toLocaleString() ?? "-"}억
+                      {stock.marketCap
+                        ? `${Number(stock.marketCap).toLocaleString(undefined, {
+                            maximumFractionDigits: 2,
+                          })}억`
+                        : "-"}
                     </TableCell>
                   </TableRow>
                 ))
