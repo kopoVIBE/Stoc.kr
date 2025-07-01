@@ -8,20 +8,26 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ErrorCode {
     // Common
-    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다."),
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 내부 오류가 발생했습니다."),
-    EXTERNAL_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C003", "외부 API 호출 중 오류가 발생했습니다."),
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "Invalid input value"),
+    DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "C002", "Data not found"),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C003", "Internal server error"),
+    EXTERNAL_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C004", "External API call failed"),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다."),
 
     // Stock
-    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "주식을 찾을 수 없습니다."),
-    STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S002", "주식 가격 정보를 찾을 수 없습니다."),
-    INVALID_STOCK_PRICE(HttpStatus.BAD_REQUEST, "S003", "유효하지 않은 주식 가격입니다.");
+    INVALID_INTERVAL(HttpStatus.BAD_REQUEST, "S001", "Invalid interval value. Use 'daily', 'weekly', or 'monthly'"),
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "S002", "Stock not found"),
+    STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S003", "Stock price not found"),
+    INVALID_STOCK_PRICE(HttpStatus.BAD_REQUEST, "S004", "유효하지 않은 주식 가격입니다.");
 
-    private final HttpStatus httpStatus;
+    private final HttpStatus status;
     private final String code;
     private final String defaultMessage;
+
+    public String getMessage() {
+        return defaultMessage;
+    }
 }
