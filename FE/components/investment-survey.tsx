@@ -147,12 +147,35 @@ export default function InvestmentSurvey({
     investmentTypes[0]
   );
   const [userName, setUserName] = useState<string>("");
+  const [investmentStyleUpdatedAt, setInvestmentStyleUpdatedAt] = useState<string | null>(null);
+
+  // 투자 성향 설정 날짜로부터 2년 후 날짜 계산
+  const getValidUntilDate = () => {
+    let baseDate: Date;
+    
+    if (investmentStyleUpdatedAt) {
+      // 기존 투자 성향 설정 날짜가 있다면 그 날짜 사용
+      baseDate = new Date(investmentStyleUpdatedAt);
+    } else {
+      // 없다면 현재 날짜 사용 (새로 설정하는 경우)
+      baseDate = new Date();
+    }
+    
+    const twoYearsLater = new Date(baseDate.getFullYear() + 2, baseDate.getMonth(), baseDate.getDate());
+    
+    return twoYearsLater.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
         const userInfo = await getMyInfo();
         setUserName(userInfo.name);
+        setInvestmentStyleUpdatedAt(userInfo.investmentStyleUpdatedAt);
       } catch (error) {
         console.error("사용자 정보 가져오기 실패:", error);
       }
@@ -297,7 +320,7 @@ export default function InvestmentSurvey({
                 <span className="text-primary">{resultType.name}</span>이에요
               </DialogTitle>
               <p className="text-center text-xs text-gray-500 pt-2">
-                2027년 6월 27일까지 유효해요.
+                {getValidUntilDate()}까지 유효해요.
               </p>
             </DialogHeader>
             <div className="py-4 text-center text-sm">

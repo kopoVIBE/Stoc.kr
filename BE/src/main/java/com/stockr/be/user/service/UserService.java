@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 
 @Service
@@ -57,6 +58,7 @@ public class UserService {
                 .genderCode(requestDto.getGenderCode())
                 .gender(requestDto.getGender())
                 .investmentStyle(requestDto.getInvestmentStyle())
+                .investmentStyleUpdatedAt(LocalDateTime.now())
                 .build();
 
         userRepository.save(user);
@@ -104,6 +106,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
         user.setInvestmentStyle(investmentStyle);
+        user.setInvestmentStyleUpdatedAt(LocalDateTime.now()); // 현재 시간으로 설정
         userRepository.save(user);
     }
 
