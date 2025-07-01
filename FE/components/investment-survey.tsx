@@ -81,16 +81,10 @@ const surveyQuestions: SurveyQuestion[] = [
     question: "지금까지 투자해본 것을 모두 골라주세요.",
     options: [
       { text: "예금, 적금", score: 1 },
-      { text: "펀드(채권형)", score: 2 },
-      { text: "펀드(주식형)", score: 3 },
-      { text: "펀드(혼합형)", score: 3 },
-      { text: "주식", score: 4 },
-      { text: "레버리지 및 인버스 ETF", score: 5 },
-      { text: "주식 신용거래", score: 5 },
-      { text: "선물, 옵션", score: 6 },
-      { text: "ELB", score: 2 },
-      { text: "ELS(원금부분지급형)", score: 4 },
-      { text: "ELS(원금비보장)", score: 5 },
+      { text: "주식형 펀드", score: 3 },
+      { text: "주식 직접투자", score: 4 },
+      { text: "파생상품 (선물, 옵션 등)", score: 6 },
+      { text: "구조화상품 (ELS, ELB 등)", score: 4 },
     ],
   },
   {
@@ -128,11 +122,11 @@ const surveyQuestions: SurveyQuestion[] = [
 ];
 
 const investmentTypes: InvestmentType[] = [
-  { name: "안정형", color: "bg-teal-500" },
-  { name: "안정추구형", color: "bg-green-500" },
-  { name: "위험중립형", color: "bg-yellow-500" },
-  { name: "적극투자형", color: "bg-orange-500" },
-  { name: "공격투자형", color: "bg-red-500" },
+  { name: "안정형", color: "bg-emerald-300" },
+  { name: "안정추구형", color: "bg-green-400" },
+  { name: "위험중립형", color: "bg-yellow-400" },
+  { name: "적극투자형", color: "bg-orange-400" },
+  { name: "공격투자형", color: "bg-red-400" },
 ];
 
 export default function InvestmentSurvey({
@@ -254,104 +248,228 @@ export default function InvestmentSurvey({
       <DialogContent className="sm:max-w-lg">
         {!showResult ? (
           <>
-            <DialogHeader>
-              <DialogTitle>
-                <span className="text-primary font-bold">{step + 1}</span>/
-                {surveyQuestions.length}
-              </DialogTitle>
-              <p className="text-lg font-semibold pt-2">
-                {currentQuestion.question}
-              </p>
+            <DialogHeader className="space-y-4">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  투자성향 조사
+                </DialogTitle>
+                <div className="flex items-center gap-2 mr-8">
+                  <span className="text-2xl font-bold text-emerald-600">{step + 1}</span>
+                  <span className="text-lg text-gray-400">/</span>
+                  <span className="text-lg text-gray-600">{surveyQuestions.length}</span>
+                </div>
+              </div>
+              
+              {/* 진행 바 */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span>진행률</span>
+                  <span>{Math.round(((step + 1) / surveyQuestions.length) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-emerald-500 to-green-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${((step + 1) / surveyQuestions.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-lg border-l-4 border-emerald-500">
+                <p className="text-lg font-semibold text-gray-800">
+                  {currentQuestion.question}
+                </p>
+              </div>
             </DialogHeader>
-            <div className="py-4">
+            <div className="py-6">
               {currentQuestion.type === "radio" ? (
                 <RadioGroup
                   onValueChange={(value: string) =>
                     setAnswers({ ...answers, [step]: value })
                   }
                   value={answers[step] as string}
+                  className="space-y-3"
                 >
-                  {currentQuestion.options.map((option) => (
+                  {currentQuestion.options.map((option, index) => (
                     <div
                       key={option.text}
-                      className="flex items-center space-x-2 py-2"
+                      className={`relative flex items-center p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-md hover:scale-[1.02] ${
+                        answers[step] === option.text
+                          ? 'border-emerald-500 bg-emerald-50 shadow-lg'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
                     >
-                      <RadioGroupItem value={option.text} id={option.text} />
-                      <Label htmlFor={option.text} className="text-base">
-                        {option.text}
+                      <RadioGroupItem 
+                        value={option.text} 
+                        id={`q${step}_${option.text}`}
+                        className="shrink-0"
+                      />
+                      <Label 
+                        htmlFor={`q${step}_${option.text}`} 
+                        className="flex-1 ml-4 text-base font-medium cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{option.text}</span>
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                            {index + 1}
+                          </span>
+                        </div>
                       </Label>
                     </div>
                   ))}
                 </RadioGroup>
               ) : (
-                <div className="space-y-2">
-                  {currentQuestion.options.map((option) => (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    복수 선택 가능
+                  </p>
+                  {currentQuestion.options.map((option, index) => (
                     <div
                       key={option.text}
-                      className="flex items-center space-x-2 py-2"
+                      className={`relative flex items-center p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-md hover:scale-[1.02] ${
+                        ((answers[step] as string[]) || []).includes(option.text)
+                          ? 'border-emerald-500 bg-emerald-50 shadow-lg'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
                     >
                       <Checkbox
-                        id={option.text}
+                        id={`q${step}_${option.text}`}
                         checked={((answers[step] as string[]) || []).includes(
                           option.text
                         )}
                         onCheckedChange={(checked: boolean) =>
                           handleCheckboxChange(checked, option.text)
                         }
+                        className="shrink-0"
                       />
-                      <Label htmlFor={option.text} className="text-base">
-                        {option.text}
+                      <Label 
+                        htmlFor={`q${step}_${option.text}`} 
+                        className="flex-1 ml-4 text-base font-medium cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{option.text}</span>
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                            {index + 1}
+                          </span>
+                        </div>
                       </Label>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <DialogFooter>
-              <Button onClick={handleNext}>확인</Button>
+            <DialogFooter className="pt-6">
+              <Button 
+                onClick={handleNext}
+                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 transform transition-all duration-200 hover:scale-[1.02] shadow-lg"
+                disabled={
+                  currentQuestion.type === "radio" 
+                    ? !answers[step] 
+                    : !answers[step] || (answers[step] as string[]).length === 0
+                }
+              >
+                {step === surveyQuestions.length - 1 ? "결과 확인하기" : "다음"}
+              </Button>
             </DialogFooter>
           </>
         ) : (
           <>
-            <DialogHeader>
-              <DialogTitle className="text-center text-xl">
-                {userName}님의 투자자 성향은
-                <br />
-                <span className="text-primary">{resultType.name}</span>이에요
-              </DialogTitle>
-              <p className="text-center text-xs text-gray-500 pt-2">
-                {getValidUntilDate()}까지 유효해요.
-              </p>
-            </DialogHeader>
-            <div className="py-4 text-center text-sm">
-              <p>등록된 투자자 성향 정보는 2년 동안 유효해요.</p>
-            </div>
-            <div className="my-4">
-              <h4 className="text-center font-semibold mb-2">내 투자성향</h4>
-              <div className="flex w-full h-3 rounded-full overflow-hidden">
-                {investmentTypes.map((type, i) => (
-                  <div key={i} className={`w-1/5 ${type.color}`} />
-                ))}
-              </div>
-              <div className="relative w-full h-4">
-                {investmentTypes.map((type, i) => (
-                  <div
-                    key={type.name}
-                    className={`absolute top-0 text-xs text-center w-1/5 ${
-                      type.name === resultType.name ? "font-bold" : ""
-                    }`}
-                    style={{ left: `${i * 20}%` }}
-                  >
-                    {type.name.slice(0, 2)}
-                    {type.name === resultType.name && (
-                      <div className="w-1 h-1 bg-black rounded-full mx-auto mt-1" />
-                    )}
+            <DialogHeader className="text-center space-y-6">
+              <div className="space-y-4">
+                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center animate-pulse">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <DialogTitle className="text-2xl font-bold">
+                  <div className="flex flex-wrap items-baseline justify-center gap-2">
+                    <span className="text-gray-600 text-base font-normal">
+                      <span className="font-bold">{userName}</span>님의 투자자 성향은
+                    </span>
+                    <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent text-3xl font-bold">
+                      {resultType.name}
+                    </span>
+                    <span className="text-lg font-normal text-gray-700">이에요!</span>
                   </div>
-                ))}
+                </DialogTitle>
+              </div>
+              
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-xl border border-emerald-200">
+                <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{getValidUntilDate()}까지 유효해요</span>
+                </p>
+              </div>
+            </DialogHeader>
+
+            <div className="py-6 space-y-6">
+              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <h4 className="text-center font-bold text-lg mb-4 text-gray-800 flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  내 투자성향 분석
+                </h4>
+                
+                {/* 개선된 투자성향 바 */}
+                <div className="space-y-3">
+                  <div className="flex w-full h-6 rounded-full overflow-hidden shadow-inner bg-gray-100">
+                    {investmentTypes.map((type, i) => (
+                      <div 
+                        key={i} 
+                        className={`w-1/5 ${type.color} transition-all duration-500 hover:brightness-110 ${
+                          type.name === resultType.name ? 'shadow-lg ring-2 ring-white' : ''
+                        }`}
+                        style={{ animationDelay: `${i * 100}ms` }}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* 투자성향 라벨 */}
+                  <div className="relative w-full">
+                    {investmentTypes.map((type, i) => (
+                      <div
+                        key={type.name}
+                        className={`absolute top-0 text-xs text-center w-1/5 transition-all duration-300 ${
+                          type.name === resultType.name 
+                            ? "font-bold text-emerald-600 transform scale-110" 
+                            : "text-gray-500"
+                        }`}
+                        style={{ left: `${i * 20}%` }}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>{type.name.slice(0, 2)}</span>
+                          {type.name === resultType.name && (
+                            <div className="w-2 h-2 bg-emerald-600 rounded-full mt-1 animate-bounce" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  등록된 투자자 성향 정보는 <span className="font-semibold text-emerald-600">2년 동안</span> 유효해요
+                </p>
               </div>
             </div>
-            <DialogFooter className="sm:justify-between">
-              <Button onClick={handleClose}>다음</Button>
+
+            <DialogFooter>
+              <Button 
+                onClick={handleClose}
+                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 transform transition-all duration-200 hover:scale-[1.02] shadow-lg"
+              >
+                완료
+              </Button>
             </DialogFooter>
           </>
         )}
