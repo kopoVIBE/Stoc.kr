@@ -58,7 +58,7 @@ public class AccountService {
      * 사용자 ID로 계좌 조회
      *
      * @param userId 사용자 ID
-     * @return 계좌 응답 DTO
+     * @return 계좌 응답 DTO (없으면 null)
      */
     @Transactional(readOnly = true)
     public AccountResponseDto getAccountByUserId(Long userId) {
@@ -67,6 +67,6 @@ public class AccountService {
 
         return accountRepository.findByUser(user)
                 .map(AccountResponseDto::fromEntity)
-                .orElseThrow(() -> new EntityNotFoundException("계좌가 존재하지 않습니다."));
+                .orElse(null); // 예외 대신 null 반환
     }
 }

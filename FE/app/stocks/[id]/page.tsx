@@ -4,7 +4,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@/components/ui/tabs";
 import { Tabs } from "@/components/ui/tabs";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,16 @@ import { CandlestickChart } from "@/components/candlestick-chart";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import dynamic from "next/dynamic";
+import {
+  Stock,
+  stockApi,
+  checkFavorite,
+  addFavorite,
+  removeFavorite,
+} from "@/api/stock";
+import { useToast } from "@/components/ui/use-toast";
+import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
+import { useParams, useRouter } from "next/navigation";
 
 interface PriceHistoryItem {
   time: string;
@@ -65,31 +75,42 @@ const tabs: TabItem[] = [
   { id: "recommend", label: "관련 종목 추천" },
 ];
 
-// 클라이언트 사이드에서만 렌더링되는 컴포넌트
-const ClientSideChart = dynamic(
-  () =>
-    import("@/components/candlestick-chart").then(
-      (mod) => mod.CandlestickChart
-    ),
-  {
-    ssr: false,
-  }
-);
-
 interface UnderlineStyle {
   left?: number;
   width?: number;
 }
 
-export default function StockDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default function StockDetailPage() {
+  const params = useParams();
+  const ticker = params.id as string;
+  const [stock, setStock] = useState<Stock | null>(null);
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState<UnderlineStyle>({});
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [mounted, setMounted] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const data = await stockApi.getStock(ticker);
+        setStock(data);
+      } catch (error) {
+        console.error("Failed to fetch stock:", error);
+      }
+    };
+
+    fetchStock();
+  }, [ticker]);
 
   useEffect(() => {
     setMounted(true);
@@ -108,44 +129,106 @@ export default function StockDetailPage({
     }
   }, [activeTab, mounted]);
 
+  useEffect(() => {
+    const checkIsFavorite = async () => {
+      const token = localStorage.getItem("token");
+      console.log("Token for checkIsFavorite:", token);
+      if (!token) {
+        return;
+      }
+
+      try {
+        const response = await checkFavorite(ticker);
+        setIsFavorite(response.data);
+      } catch (error) {
+        console.error("Failed to check favorite status:", error);
+      }
+    };
+
+    checkIsFavorite();
+  }, [ticker]);
+
   const setTabRef = (el: HTMLButtonElement | null, index: number) => {
     tabRefs.current[index] = el;
   };
 
-  if (!mounted) {
-    return null;
-  }
+  const handleToggleFavorite = async () => {
+    const token = localStorage.getItem("token");
+    console.log("Token for handleToggleFavorite:", token);
+    if (!token) {
+      toast({
+        title: "로그인 필요",
+        description: "관심 종목 기능을 사용하려면 로그인이 필요합니다.",
+        variant: "destructive",
+      });
+      router.push("/login");
+      return;
+    }
+
+    if (isFavorite) {
+      setIsDialogOpen(true);
+    } else {
+      try {
+        await addFavorite(ticker);
+        setIsFavorite(true);
+        toast({
+          description: "관심 종목에 추가되었습니다.",
+        });
+      } catch (error) {
+        console.error("Failed to add favorite:", error);
+        toast({
+          title: "오류",
+          description: "관심 종목 추가에 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    try {
+      await removeFavorite(ticker);
+      setIsFavorite(false);
+      toast({
+        description: "관심 종목에서 제거되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "관심 종목 해제에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+    setIsDialogOpen(false);
+  };
+
+  if (!stock) return <div>Loading...</div>;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50/50 p-4 rounded-lg">
       <div className="lg:col-span-2 space-y-4">
         {/* Stock Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/samsung-logo.png"
-              alt="Samsung"
-              className="w-12 h-12 rounded-md"
-            />
-            <div>
-              <h1 className="text-xl font-bold">삼성전자 005930</h1>
-              <p className="text-2xl font-bold">
-                60,800원{" "}
-                <span className="text-red-500 text-lg">
-                  어제보다 +600원 (0.9%)
-                </span>
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold mb-2">
+              {stock.name} ({stock.ticker})
+            </h1>
+            <p className="text-2xl font-bold">
+              현재가: {stock.closePrice.toLocaleString()}원
+            </p>
           </div>
-          <Button variant="outline" size="icon">
-            <Heart className="w-5 h-5 text-gray-400" />
-          </Button>
+          <Heart
+            className={`w-6 h-6 cursor-pointer ${
+              isFavorite ? "text-red-500 fill-current" : "text-gray-300"
+            }`}
+            onClick={handleToggleFavorite}
+          />
         </div>
 
         {/* Chart */}
         <Card>
           <CardContent className="p-2">
-            <CandlestickChart />
+            <CandlestickChart ticker={ticker} />
           </CardContent>
         </Card>
 
@@ -158,8 +241,10 @@ export default function StockDetailPage({
                 ref={(el) => setTabRef(el, index)}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "py-3 font-semibold",
-                  activeTab === tab.id ? "text-black" : "text-gray-500"
+                  "py-3",
+                  activeTab === tab.id
+                    ? "text-black font-semibold"
+                    : "text-gray-500"
                 )}
               >
                 {tab.label}
@@ -172,7 +257,7 @@ export default function StockDetailPage({
           />
         </div>
         <div className="pt-4">
-          {activeTab === "price" && <PriceTabContent />}
+          {activeTab === "price" && <PriceTabContent ticker={ticker} />}
           {activeTab === "info" && <InfoTabContent />}
           {activeTab === "recommend" && <RecommendTabContent />}
         </div>
@@ -210,11 +295,35 @@ export default function StockDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <FavoriteConfirmDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onConfirm={handleConfirmRemove}
+        stockName={stock?.name || ""}
+      />
     </div>
   );
 }
 
-function PriceTabContent() {
+function PriceTabContent({ ticker }: { ticker: string }) {
+  const [stock, setStock] = useState<Stock | null>(null);
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const data = await stockApi.getStock(ticker);
+        setStock(data);
+      } catch (error) {
+        console.error("Failed to fetch stock:", error);
+      }
+    };
+
+    fetchStock();
+  }, [ticker]);
+
+  if (!stock) return <div>Loading...</div>;
+
   return (
     <Card>
       <CardContent className="p-4">
