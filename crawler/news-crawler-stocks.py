@@ -32,27 +32,72 @@ def try_selectors(soup, selectors):
             return element
     return None
 
+# --- 헬퍼 함수 2: 여러 포맷의 날짜를 파싱 ---
+def parse_datetime_from_soup(soup):
+    """여러 다른 HTML 구조와 날짜 포맷을 시도하여 datetime 객체를 반환"""
+    # 시도 1: 기존 템플릿 (data-date-time 속성)
+    try:
+        element = soup.select_one('.media_end_head_info_datestamp_time')
+        if element and 'data-date-time' in element.attrs:
+            datetime_str = element['data-date-time']
+            return datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        pass # 파싱 실패 시 다음으로 넘어감
+
+    # 시도 2: 새로운 템플릿 ('오전/오후' 텍스트)
+    try:
+        element = soup.select_one('div.DateInfo_info_item__3yQPs em.date')
+        if element:
+            datetime_str = element.text.strip()
+            # '오전/오후'를 파싱 가능한 'AM/PM'으로 변환
+            if '오전' in datetime_str:
+                datetime_str = datetime_str.replace('오전', 'AM').replace('.', '', 3) # Y.M.D. -> Y M D
+            elif '오후' in datetime_str:
+                datetime_str = datetime_str.replace('오후', 'PM').replace('.', '', 3)
+            
+            # AM/PM 형식의 포맷 코드 (%p, %I) 사용
+            return datetime.strptime(datetime_str, '%Y%m%d %p %I:%M')
+    except (ValueError, TypeError):
+        pass
+
+    # 모든 시도 실패
+    return None
+
 # --- 2. 개별 기사 상세 정보 수집 함수 ---
 async def fetch_article_details(page, url, stock_code, stock_name):
     """하나의 기사 URL에서 상세 정보를 수집하는 함수"""
     try:
         await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-        await page.wait_for_selector('#title_area', timeout=10000)
         html_article = await page.content()
         soup_article = BeautifulSoup(html_article, 'html.parser')
 
-        title = soup_article.select_one('#title_area span').text
-        content_element = soup_article.select_one('#dic_area')
+        # --- 선택자 목록 정의 (가장 흔한 것을 맨 앞에) ---
+        title_selectors = ['#title_area span', 'h2.ArticleHead_article_title__qh8GV']
+        content_selectors = ['#dic_area', '#comp_news_article']
+        source_selectors = ['.media_end_head_top_logo img', '.PressLogo_article_head_press_logo__Fm8Xa img']
+        category_selectors = ['em.media_end_categorize_item']
+
+        # --- 헬퍼 함수를 이용해 데이터 추출 ---
+        title_element = try_selectors(soup_article, title_selectors)
+        content_element = try_selectors(soup_article, content_selectors)
+        source_element = try_selectors(soup_article, source_selectors)
+        category_element = try_selectors(soup_article, category_selectors)
+        published_at_dt = parse_datetime_from_soup(soup_article)
+
+        # ★★★ 필수: 모든 요소가 성공적으로 찾아졌는지 확인 ★★★
+        if not all([title_element, content_element, source_element, published_at_dt]):
+            print(f"    - ⚠️  '{url}' 페이지의 HTML 구조가 달라서 일부 정보 수집 실패. 건너뜁니다.")
+            return None
+
+        title = title_element.text
         content = str(content_element)
-        source = soup_article.select_one('.media_end_head_top_logo img')['alt']
-        published_at_str = soup_article.select_one('.media_end_head_info_datestamp_time')['data-date-time']
-        published_at = datetime.strptime(published_at_str, '%Y-%m-%d %H:%M:%S')
+        source = source_element['alt']
+        category = category_element.text if category_element else 'N/A'
 
         return {
-            'stock_code': stock_code, # 어떤 종목의 뉴스인지 명시
-            'stock_name': stock_name, # 
-            'title': title, 'content': content, 'source': source,
-            'url': page.url, 'published_at': published_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'stock_code': stock_code, 'stock_name': stock_name, 
+            'title': title, 'content': content, 'source': source, 'category': category, 'url': page.url, 
+            'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
             'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
     except Exception as e:
