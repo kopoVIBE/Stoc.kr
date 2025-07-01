@@ -160,69 +160,72 @@ class StockDataCollector:
             self._save_token(self.access_token, self.token_expires_at)
 
     def get_stock_data(self, stock_code, period_type='D'):
-        """주가 데이터 수집
-        Args:
-            stock_code (str): 종목 코드
-            period_type (str): 'D' (일봉), 'W' (주봉), 'M' (월봉)
-        """
+        """주가 데이터 수집"""
         self._refresh_token_if_needed()
         
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=365 * 3)
+        today = datetime.now()
+        end_date = today
         
+        logger.info("\n" + "="*50)
+        logger.info(f"[{period_type}봉] 데이터 수집 시작")
+        logger.info(f"종목코드: {stock_code}")
+        logger.info("="*50)
+        
+        # API 요청 파라미터 설정
+        params = {
+            'FID_COND_MRKT_DIV_CODE': 'J',          # 시장 구분 코드
+            'FID_INPUT_ISCD': stock_code,            # 종목 코드
+            'FID_INPUT_DATE_1': '20210301',          # 시작일 (3년치 데이터)
+            'FID_INPUT_DATE_2': end_date.strftime('%Y%m%d'),  # 종료일
+            'FID_PERIOD_DIV_CODE': period_type,      # D:일봉, W:주봉, M:월봉
+            'FID_ORG_ADJ_PRC': '0'                   # 수정주가 여부
+        }
+        
+        # API 요청 헤더 설정
         headers = {
             'authorization': f'Bearer {self.access_token}',
             'appkey': self.app_key,
             'appsecret': self.app_secret,
-            'tr_id': 'FHKST01010400',  # 국내주식기간별시세(일/주/월/년)
-            'content-type': 'application/json'
+            'tr_id': 'FHKST03010100',               # 이미지의 tr_id 사용
+            'content-type': 'application/json; charset=utf-8'
         }
         
-        logger.info(f"\n=== {period_type}봉 데이터 수집 시작 ===")
-        logger.info(f"종목코드: {stock_code}")
-        
-        all_data = []
-        current_date = start_date
-        
-        while current_date <= end_date:
-            next_date = min(current_date + timedelta(days=99), end_date)
+        try:
+            logger.info(f"\n데이터 조회 시도: {params['FID_INPUT_DATE_1']} ~ {params['FID_INPUT_DATE_2']}")
+            response = requests.get(
+                f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+                headers=headers,
+                params=params
+            )
             
-            params = {
-                'FID_COND_MRKT_DIV_CODE': 'J',
-                'FID_INPUT_ISCD': stock_code,
-                'FID_INPUT_DATE_1': current_date.strftime('%Y%m%d'),
-                'FID_INPUT_DATE_2': next_date.strftime('%Y%m%d'),
-                'FID_PERIOD_DIV_CODE': period_type,  # D:일봉, W:주봉, M:월봉
-                'FID_ORG_ADJ_PRC': '0'
-            }
-            
-            logger.info(f"조회 기간: {current_date.strftime('%Y-%m-%d')} ~ {next_date.strftime('%Y-%m-%d')}")
-            
-            try:
-                response = requests.get(
-                    f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-daily-price",
-                    headers=headers,
-                    params=params
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get('rt_cd') == '0':
-                        output_data = data.get('output', [])
-                        all_data.extend(output_data)
-                        logger.info(f"데이터 수집 완료: {len(output_data)}건")
-                    else:
-                        logger.error(f"API 오류: {data.get('msg1', '')}")
-                else:
-                    logger.error(f"API 요청 실패: {response.status_code}")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('rt_cd') == '0':
+                    output_data = data.get('output2', [])  # output2에 차트 데이터가 있음
+                    logger.info(f"데이터 수집 성공: {len(output_data)}건")
                     
-            except Exception as e:
-                logger.error(f"데이터 조회 중 오류: {e}")
+                    if output_data:
+                        # 수집된 데이터 샘플 로깅
+                        logger.info("\n첫 번째 데이터:")
+                        logger.info(f"  시가: {output_data[0].get('stck_oprc')}")
+                        logger.info(f"  고가: {output_data[0].get('stck_hgpr')}")
+                        logger.info(f"  저가: {output_data[0].get('stck_lwpr')}")
+                        logger.info(f"  종가: {output_data[0].get('stck_clpr')}")
+                        logger.info(f"  거래량: {output_data[0].get('acml_vol')}")
+                    
+                    return output_data
+                else:
+                    logger.error(f"API 오류: {data.get('msg1', '')}")
+                    
+            else:
+                logger.error(f"API 요청 실패: {response.status_code}")
+                logger.error(f"응답 내용: {response.text}")
             
-            time.sleep(1)
-            current_date = next_date + timedelta(days=1)
-            
-        return all_data
+        except Exception as e:
+            logger.error(f"데이터 조회 중 오류: {e}")
+            logger.exception("상세 에러:")
+        
+        return []
 
     def save_price_data(self, ticker, period_type, data):
         """가격 데이터 저장
@@ -314,8 +317,9 @@ class StockDataCollector:
             return
             
         try:
-            # 기존 데이터 삭제
+            # 기존 데이터 모두 삭제 (처음 한 번만)
             self.collection.delete_many({'ticker': ticker})
+            logger.info("기존 데이터 삭제 완료")
             
             # 일봉 데이터 저장
             daily_documents = [{
@@ -329,78 +333,77 @@ class StockDataCollector:
                 'volume': float(row['acml_vol'])
             } for row in daily_data]
             
-            # 주봉, 월봉 계산
-            weekly: Union[DataFrame, Series]
-            monthly: Union[DataFrame, Series]
+            if daily_documents:
+                # 벌크 삽입으로 한 번에 저장
+                self.collection.insert_many(daily_documents)
+                logger.info(f"일봉 데이터 {len(daily_documents)}건 저장 완료")
+            
+            # 주봉, 월봉 계산 및 저장
             weekly, monthly = self.calculate_weekly_monthly_data(daily_data)
             
-            # 주봉 데이터 준비
-            weekly_documents = []
-            for date, row in weekly.iterrows():
-                weekly_documents.append({
+            # 주봉 데이터 저장
+            if not weekly.empty:
+                weekly_documents = []
+                for date, row in weekly.iterrows():
+                    weekly_documents.append({
+                        'ticker': ticker,
+                        'date': date,
+                        'interval': 'weekly',
+                        'open': float(row['stck_oprc']),
+                        'high': float(row['stck_hgpr']),
+                        'low': float(row['stck_lwpr']),
+                        'close': float(row['stck_clpr']),
+                        'volume': float(row['acml_vol'])
+                    })
+                if weekly_documents:
+                    self.collection.insert_many(weekly_documents)
+                    logger.info(f"주봉 데이터 {len(weekly_documents)}건 저장 완료")
+            
+            # 월봉 데이터 저장
+            if not monthly.empty:
+                monthly_documents = []
+                for date, row in monthly.iterrows():
+                    monthly_documents.append({
+                        'ticker': ticker,
+                        'date': date,
+                        'interval': 'monthly',
+                        'open': float(row['stck_oprc']),
+                        'high': float(row['stck_hgpr']),
+                        'low': float(row['stck_lwpr']),
+                        'close': float(row['stck_clpr']),
+                        'volume': float(row['acml_vol'])
+                    })
+                if monthly_documents:
+                    self.collection.insert_many(monthly_documents)
+                    logger.info(f"월봉 데이터 {len(monthly_documents)}건 저장 완료")
+            
+            # 저장 결과 확인
+            total_count = self.collection.count_documents({'ticker': ticker})
+            logger.info(f"\n=== 최종 저장 결과 ===")
+            logger.info(f"전체 저장된 데이터 수: {total_count}건")
+            
+            # interval별 데이터 확인
+            for interval in ['daily', 'weekly', 'monthly']:
+                count = self.collection.count_documents({
                     'ticker': ticker,
-                    'date': date,
-                    'interval': 'weekly',
-                    'open': float(row['stck_oprc']),
-                    'high': float(row['stck_hgpr']),
-                    'low': float(row['stck_lwpr']),
-                    'close': float(row['stck_clpr']),
-                    'volume': float(row['acml_vol'])
+                    'interval': interval
                 })
-            
-            # 월봉 데이터 준비
-            monthly_documents = []
-            for date, row in monthly.iterrows():
-                monthly_documents.append({
-                    'ticker': ticker,
-                    'date': date,
-                    'interval': 'monthly',
-                    'open': float(row['stck_oprc']),
-                    'high': float(row['stck_hgpr']),
-                    'low': float(row['stck_lwpr']),
-                    'close': float(row['stck_clpr']),
-                    'volume': float(row['acml_vol'])
-                })
-            
-            # 데이터 저장
-            if daily_documents:
-                self.collection.insert_many(daily_documents)
-            if weekly_documents:
-                self.collection.insert_many(weekly_documents)
-            if monthly_documents:
-                self.collection.insert_many(monthly_documents)
-            
-            # 저장된 데이터 통계 출력
-            self._print_data_statistics(ticker)
+                
+                if count > 0:
+                    first = self.collection.find_one(
+                        {'ticker': ticker, 'interval': interval},
+                        sort=[('date', 1)]
+                    )
+                    last = self.collection.find_one(
+                        {'ticker': ticker, 'interval': interval},
+                        sort=[('date', -1)]
+                    )
+                    logger.info(f"{interval} 데이터: {count}건")
+                    logger.info(f"기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
             
         except Exception as e:
             logger.error(f"데이터 저장 중 오류 발생: {e}")
             raise
-
-    def _print_data_statistics(self, ticker):
-        """저장된 데이터 통계 출력"""
-        try:
-            for interval in ['daily', 'weekly', 'monthly']:
-                count = self.collection.count_documents({'ticker': ticker, 'interval': interval})
-                
-                if count > 0:
-                    first_doc = self.collection.find_one(
-                        {'ticker': ticker, 'interval': interval},
-                        sort=[('date', 1)]
-                    )
-                    
-                    last_doc = self.collection.find_one(
-                        {'ticker': ticker, 'interval': interval},
-                        sort=[('date', -1)]
-                    )
-                    
-                    if first_doc and last_doc:
-                        logger.info(f"{interval} 데이터:")
-                        logger.info(f"- 데이터 수: {count}건")
-                        logger.info(f"- 기간: {first_doc['date'].strftime('%Y-%m-%d')} ~ {last_doc['date'].strftime('%Y-%m-%d')}")
-                    
-        except Exception as e:
-            logger.warning(f"통계 출력 중 오류 발생: {e}")
 
     def get_chart_data(self, ticker, interval, start_date=None, end_date=None):
         """차트 데이터 조회"""
@@ -450,24 +453,120 @@ def collect_samsung_data():
         collector = StockDataCollector()
         ticker = "005930"  # 삼성전자
         
-        # 일봉/주봉/월봉 데이터 수집 및 저장
-        period_types = [
-            ('D', 'daily'),
+        logger.info("\n" + "="*50)
+        logger.info("삼성전자 데이터 수집 시작")
+        logger.info("="*50)
+        
+        # 일봉/주봉/월봉 데이터 수집
+        periods = [
+            ('D', 'daily'),    # (API 코드, DB 저장용 interval 명)
             ('W', 'weekly'),
             ('M', 'monthly')
         ]
         
-        for api_type, db_type in period_types:
-            logger.info(f"\n=== 삼성전자 {db_type} 데이터 수집 시작 ===")
-            data = collector.get_stock_data(ticker, api_type)
+        for period_code, interval_name in periods:
+            logger.info("\n" + "-"*30)
+            logger.info(f"[{interval_name}] 데이터 수집 시작")
+            logger.info("-"*30)
+            
+            # 기존 데이터 확인
+            existing_count = collector.collection.count_documents({
+                'ticker': ticker,
+                'interval': interval_name
+            })
+            if existing_count > 0:
+                logger.info(f"기존 {interval_name} 데이터: {existing_count}건")
+            
+            # 데이터 수집
+            data = collector.get_stock_data(ticker, period_code)
+            
             if data:
-                collector.save_price_data(ticker, db_type, data)
-                logger.info(f"=== 삼성전자 {db_type} 데이터 처리 완료 ===\n")
+                logger.info(f"\n수집된 {interval_name} 데이터: {len(data)}건")
+                
+                # 수집된 데이터 샘플 출력 (처음 2개, 마지막 2개)
+                if len(data) > 0:
+                    logger.info("\n[수집 데이터 샘플]")
+                    for idx, row in enumerate(data[:2]):  # 처음 2개
+                        logger.info(f"처음 {idx+1}번째 데이터:")
+                        logger.info(f"  날짜: {row['stck_bsop_date']}")
+                        logger.info(f"  시가: {row['stck_oprc']}")
+                        logger.info(f"  고가: {row['stck_hgpr']}")
+                        logger.info(f"  저가: {row['stck_lwpr']}")
+                        logger.info(f"  종가: {row['stck_clpr']}")
+                        logger.info(f"  거래량: {row['acml_vol']}")
+                    
+                    if len(data) > 4:  # 마지막 2개
+                        for idx, row in enumerate(data[-2:]):
+                            logger.info(f"\n마지막 {idx+1}번째 데이터:")
+                            logger.info(f"  날짜: {row['stck_bsop_date']}")
+                            logger.info(f"  시가: {row['stck_oprc']}")
+                            logger.info(f"  고가: {row['stck_hgpr']}")
+                            logger.info(f"  저가: {row['stck_lwpr']}")
+                            logger.info(f"  종가: {row['stck_clpr']}")
+                            logger.info(f"  거래량: {row['acml_vol']}")
+                
+                # 데이터 저장 준비
+                documents = [{
+                    'ticker': ticker,
+                    'date': datetime.strptime(row['stck_bsop_date'], '%Y%m%d'),
+                    'interval': interval_name,
+                    'open': float(row['stck_oprc']),
+                    'high': float(row['stck_hgpr']),
+                    'low': float(row['stck_lwpr']),
+                    'close': float(row['stck_clpr']),
+                    'volume': float(row['acml_vol'])
+                } for row in data]
+                
+                # 해당 기간의 기존 데이터 삭제
+                if documents:
+                    min_date = min(doc['date'] for doc in documents)
+                    max_date = max(doc['date'] for doc in documents)
+                    
+                    delete_result = collector.collection.delete_many({
+                        'ticker': ticker,
+                        'interval': interval_name,
+                        'date': {
+                            '$gte': min_date,
+                            '$lte': max_date
+                        }
+                    })
+                    logger.info(f"\n기존 데이터 삭제: {delete_result.deleted_count}건")
+                    
+                    # 새 데이터 저장
+                    collector.collection.insert_many(documents)
+                    logger.info(f"새 데이터 저장: {len(documents)}건")
+                    logger.info(f"저장 기간: {min_date.strftime('%Y-%m-%d')} ~ {max_date.strftime('%Y-%m-%d')}")
             else:
-                logger.error(f"삼성전자 {db_type} 데이터 수집 실패")
+                logger.error(f"삼성전자 {interval_name} 데이터 수집 실패")
+        
+        # 최종 저장 결과 확인
+        logger.info("\n" + "="*50)
+        logger.info("최종 저장 결과")
+        logger.info("="*50)
+        
+        for interval in ['daily', 'weekly', 'monthly']:
+            count = collector.collection.count_documents({
+                'ticker': ticker,
+                'interval': interval
+            })
+            if count > 0:
+                first = collector.collection.find_one(
+                    {'ticker': ticker, 'interval': interval},
+                    sort=[('date', 1)]
+                )
+                last = collector.collection.find_one(
+                    {'ticker': ticker, 'interval': interval},
+                    sort=[('date', -1)]
+                )
+                logger.info(f"\n[{interval}]")
+                logger.info(f"- 총 데이터 수: {count}건")
+                logger.info(f"- 전체 기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
+                logger.info(f"- 첫 데이터: 시가={first['open']}, 종가={first['close']}, 거래량={first['volume']}")
+                logger.info(f"- 마지막 데이터: 시가={last['open']}, 종가={last['close']}, 거래량={last['volume']}")
                 
     except Exception as e:
         logger.error(f"오류 발생: {e}")
+        logger.exception("상세 에러:")
     finally:
         if 'collector' in locals():
             collector.mongo_client.close()
