@@ -109,6 +109,21 @@ export default function LoginPage() {
     setValid(valids);
   }, [form, isLogin]);
 
+  // 로그인/회원가입 모드 전환 시 폼 초기화
+  useEffect(() => {
+    setForm({
+      email: "",
+      password: "",
+      name: "",
+      phone: "",
+      birth: "",
+      genderCode: "",
+      gender: "",
+    });
+    setErrors({});
+    setValid({});
+  }, [isLogin]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     
@@ -148,13 +163,31 @@ export default function LoginPage() {
   // 제출 처리 (회원가입 or 로그인)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (Object.keys(errors).length > 0) return;
+    
+    if (!isLogin) {
+      // 회원가입 시 필수 필드 체크
+      if (!form.email || !form.password || !form.name || !form.phone || !form.birth || !form.genderCode) {
+        alert("모든 필드를 입력해주세요.");
+        return;
+      }
+    } else {
+      // 로그인 시 필수 필드 체크
+      if (!form.email || !form.password) {
+        alert("이메일과 비밀번호를 입력해주세요.");
+        return;
+      }
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      alert("입력 형식을 확인해주세요.");
+      return;
+    }
 
     try {
       if (isLogin) {
         const token = await login({ email: form.email, password: form.password });
         localStorage.setItem("token", token);
-        alert("로그인이 완료되었습니다다!");
+        alert("로그인이 완료되었습니다!");
         router.push("/");
       } else {
         await signup({
@@ -173,8 +206,17 @@ export default function LoginPage() {
         
         alert("회원가입이 완료되었습니다! 로그인해주세요.");
         
-        // 현재 페이지에서 로그인 모드로 전환
+        // 현재 페이지에서 로그인 모드로 전환 + 폼 초기화
         setIsLogin(true);
+        setForm({
+          email: "",
+          password: "",
+          name: "",
+          phone: "",
+          birth: "",
+          genderCode: "",
+          gender: "",
+        });
         return;
       }
     } catch (err: any) {
@@ -249,7 +291,14 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-600">이메일</label>
                 <div className="relative">
-                  <Input id="email" value={form.email} onChange={handleChange} placeholder="이메일을 입력하세요." className="h-12 text-sm pl-10" />
+                  <Input 
+                    id="email" 
+                    value={form.email} 
+                    onChange={handleChange} 
+                    placeholder="이메일을 입력하세요." 
+                    className="h-12 text-sm pl-10"
+                    autoComplete="off"
+                  />
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                 </div>
                 {!isLogin && form.email && (valid.email ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.email}</p>)}
@@ -266,6 +315,7 @@ export default function LoginPage() {
                       onChange={handleChange}
                       placeholder="비밀번호를 입력하세요."
                       className="h-12 text-sm pl-10 pr-10"
+                      autoComplete="off"
                   />
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer" onClick={() => setShowPassword(!showPassword)}>
