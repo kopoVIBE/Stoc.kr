@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("잘못된 인자: {}", e.getMessage());
-        
+
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getMessage()));
@@ -43,9 +43,9 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .findFirst()
                 .orElse("유효성 검증 실패");
-                
+
         log.warn("유효성 검증 실패: {}", message);
-        
+
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, message));
@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorResponse> handleRestClientException(RestClientException e) {
         log.error("외부 API 호출 실패: {}", e.getMessage());
-        
+
         return ResponseEntity
                 .status(ErrorCode.EXTERNAL_API_ERROR.getStatus())
                 .body(ErrorResponse.of(ErrorCode.EXTERNAL_API_ERROR));

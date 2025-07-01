@@ -27,14 +27,12 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/me").permitAll()
-                        .requestMatchers("/ws/**", "/ws").permitAll()
-                        .requestMatchers("/api/users/signup", "/api/users/login").permitAll()
-                        .requestMatchers("/api/stocks/**", "/api/v1/stocks/**").permitAll()
-                        .requestMatchers("/api/v1/favorites/**").authenticated()
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository), UsernamePasswordAuthenticationFilter.class);
+                        .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/me", "/api/v1/stocks/**",
+                                "/ws/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

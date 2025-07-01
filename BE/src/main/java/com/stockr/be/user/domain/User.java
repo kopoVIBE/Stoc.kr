@@ -2,6 +2,7 @@ package com.stockr.be.user.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -39,4 +40,7 @@ public class User {
 
     @Column(length = 20)
     private String investmentStyle;  // 투자 성향
+
+    @Column
+    private LocalDateTime investmentStyleUpdatedAt;  // 투자 성향 설정/수정 날짜
 }

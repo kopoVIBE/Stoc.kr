@@ -31,8 +31,8 @@ export default function DepositModal({ isOpen, onClose }: DepositModalProps) {
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">입금 금액</Label>
-            <Input id="amount" type="number" placeholder="금액 입력" />
+            <Label htmlFor="depositAmount">입금 금액</Label>
+            <Input id="depositAmount" type="number" placeholder="금액 입력" />
           </div>
           <p className="text-sm text-gray-500">연결된 계좌에서 출금됩니다.</p>
         </div>
