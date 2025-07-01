@@ -19,12 +19,22 @@ interface LoginData {
 
 export const signup = async (data: SignupData) => {
     const res = await axiosInstance.post('/api/users/signup', data);
+    
+    if (!res.data.success) {
+        throw new Error(res.data.message);
+    }
+    
     return res.data;
 };
 
 export const login = async (data: LoginData) => {
     const res = await axiosInstance.post('/api/users/login', data);
-    return res.data.replace(/^Bearer\s/, ''); // ✅ "Bearer " 제거
+    
+    if (!res.data.success) {
+        throw new Error(res.data.message);
+    }
+    
+    return res.data.token.replace(/^Bearer\s/, ''); // "Bearer " 제거
 };
 
 export const getMyInfo = async () => {
@@ -39,4 +49,35 @@ export const updateInvestmentStyle = async (investmentStyle: string) => {
   return res.data;
 };
 
+export const updateUserName = async (name: string) => {
+  const res = await axiosInstance.put('/api/users/me/name', { name });
+  
+  if (!res.data.success) {
+    throw new Error(res.data.message);
+  }
+  
+  return res.data;
+};
 
+export const updateUserPhone = async (phone: string) => {
+  const res = await axiosInstance.put('/api/users/me/phone', { phone });
+  
+  if (!res.data.success) {
+    throw new Error(res.data.message);
+  }
+  
+  return res.data;
+};
+
+export const updateUserPassword = async (currentPassword: string, newPassword: string) => {
+  const res = await axiosInstance.put('/api/users/me/password', { 
+    currentPassword, 
+    newPassword 
+  });
+  
+  if (!res.data.success) {
+    throw new Error(res.data.message);
+  }
+  
+  return res.data;
+};

@@ -1,5 +1,6 @@
 package com.stockr.be.global.handler;
 
+import com.stockr.be.global.common.ApiResponse;
 import com.stockr.be.global.exception.BusinessException;
 import com.stockr.be.global.exception.ErrorCode;
 import lombok.Getter;
@@ -18,20 +19,19 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
-        log.warn("비즈니스 예외 발생: {} - {}", e.getErrorCode().getCode(), e.getMessage());
-        
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
+        log.error("BusinessException: {}", e.getMessage());
         return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(ErrorResponse.of(e.getErrorCode(), e.getMessage()));
+                .status(e.getErrorCode().getStatus())
+                .body(ApiResponse.error(e.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("잘못된 인자: {}", e.getMessage());
-        
+
         return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getMessage()));
     }
 
@@ -43,30 +43,29 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .findFirst()
                 .orElse("유효성 검증 실패");
-                
+
         log.warn("유효성 검증 실패: {}", message);
-        
+
         return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, message));
     }
 
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorResponse> handleRestClientException(RestClientException e) {
         log.error("외부 API 호출 실패: {}", e.getMessage());
-        
+
         return ResponseEntity
-                .status(ErrorCode.EXTERNAL_API_ERROR.getHttpStatus())
+                .status(ErrorCode.EXTERNAL_API_ERROR.getStatus())
                 .body(ErrorResponse.of(ErrorCode.EXTERNAL_API_ERROR));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneralException(Exception e) {
-        log.error("예상치 못한 서버 오류", e);
-        
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+        log.error("Exception: ", e);
         return ResponseEntity
-                .status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR));
+                .status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
+                .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
     }
 
     @Getter
@@ -79,7 +78,7 @@ public class GlobalExceptionHandler {
         public static ErrorResponse of(ErrorCode errorCode) {
             return new ErrorResponse(
                     errorCode.getCode(),
-                    errorCode.getDefaultMessage(),
+                    errorCode.getMessage(),
                     LocalDateTime.now()
             );
         }

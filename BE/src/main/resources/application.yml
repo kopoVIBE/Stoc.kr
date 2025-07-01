@@ -23,7 +23,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
   data:
     mongodb:
-      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27117/${MONGO_DATABASE}?authSource=admin
+      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/${MONGO_DATABASE}?authSource=admin
     redis:
 #      host: ${REDIS_HOST}
       host: localhost
@@ -72,3 +72,4 @@ logging:
     com.stockr.be: debug
     org.springframework.data.redis: debug
     io.lettuce.core: debug
+    org.springframework.data.mongodb: DEBUG # MongoDB 로깅 추가

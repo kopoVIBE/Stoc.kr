@@ -31,8 +31,8 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">출금 금액</Label>
-            <Input id="amount" type="number" placeholder="금액 입력" />
+            <Label htmlFor="withdrawAmount">출금 금액</Label>
+            <Input id="withdrawAmount" type="number" placeholder="금액 입력" />
           </div>
           <p className="text-sm text-gray-500">연결된 계좌로 입금됩니다.</p>
         </div>
