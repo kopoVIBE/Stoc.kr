@@ -374,7 +374,7 @@ export default function LoginPage() {
                   <button 
                     type="button" 
                     onClick={() => setIsLogin(!isLogin)} 
-                    className="font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                    className="font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
                   >
                     {isLogin ? "회원가입" : "로그인"}
                   </button>
