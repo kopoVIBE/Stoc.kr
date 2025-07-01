@@ -1,106 +1,156 @@
 package com.stockr.be.domain.stock.service;
 
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import com.stockr.be.domain.stock.dto.StockPriceDto;
 import com.stockr.be.domain.stock.dto.StockPriceResponse;
-import com.stockr.be.domain.stock.entity.StockPrice;
-import com.stockr.be.domain.stock.repository.StockPriceRepository;
-import com.stockr.be.global.exception.BusinessException;
-import com.stockr.be.global.exception.ErrorCode;
+import com.stockr.be.domain.stock.dto.RealtimeStockPriceDto;
 import lombok.RequiredArgsConstructor;
+import org.bson.Document;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class StockPriceService {
+    private final MongoClient mongoClient;
 
-    private final StockPriceRepository stockPriceRepository;
-    private final Map<String, String> stockNameMap;  // 종목코드-종목명 매핑 (실제로는 DB나 외부 API에서 가져와야 함)
-
-    @Transactional
-    public StockPriceDto savePrice(StockPriceDto dto) {
-        StockPrice stockPrice = StockPrice.builder()
-                .ticker(dto.getTicker())
-                .date(dto.getDate())
-                .interval(dto.getInterval())
-                .open(dto.getOpen())
-                .high(dto.getHigh())
-                .low(dto.getLow())
-                .close(dto.getClose())
-                .volume(dto.getVolume())
-                .build();
-
-        stockPriceRepository.save(stockPrice);
-        return StockPriceDto.from(stockPrice);
+    private MongoCollection<Document> getCollection() {
+        return mongoClient.getDatabase("stock_db").getCollection("stock_prices");
     }
 
     public StockPriceResponse getPrices(String ticker, String interval, LocalDate startDate, LocalDate endDate, Integer limit) {
-        validateInterval(interval);
-        String stockName = getStockName(ticker);
+        var collection = getCollection();
+        var query = new Document("ticker", ticker)
+                .append("interval", interval.toLowerCase());
 
-        LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : LocalDate.now().minusYears(3).atStartOfDay();
-        LocalDateTime endDateTime = endDate != null ? endDate.atTime(LocalTime.MAX) : LocalDate.now().atTime(LocalTime.MAX);
-
-        List<StockPrice> prices;
         if (startDate != null || endDate != null) {
-            prices = stockPriceRepository.findByTickerAndIntervalAndDateBetweenOrderByDateDesc(
-                    ticker, interval, startDateTime, endDateTime);
-        } else {
-            prices = stockPriceRepository.findByTickerAndIntervalOrderByDateDesc(ticker, interval);
+            var dateQuery = new Document();
+            if (startDate != null) {
+                dateQuery.append("$gte", startDate.atStartOfDay());
+            }
+            if (endDate != null) {
+                dateQuery.append("$lte", endDate.plusDays(1).atStartOfDay());
+            }
+            query.append("date", dateQuery);
         }
 
-        if (limit != null && limit > 0) {
-            prices = prices.stream().limit(limit).collect(Collectors.toList());
+        var prices = new ArrayList<StockPriceDto>();
+        var cursor = collection.find(query)
+                .sort(Sorts.ascending("date"));
+        
+        if (limit != null) {
+            cursor.limit(limit);
         }
 
-        return StockPriceResponse.from(ticker, stockName, interval, prices);
+        cursor.forEach(doc -> prices.add(documentToDto(doc)));
+
+        if (prices.isEmpty()) {
+            return StockPriceResponse.builder()
+                    .ticker(ticker)
+                    .interval(interval)
+                    .prices(List.of())
+                    .meta(StockPriceResponse.MetaData.builder()
+                            .totalCount(0)
+                            .build())
+                    .build();
+        }
+
+        var meta = StockPriceResponse.MetaData.builder()
+                .totalCount(prices.size())
+                .startDate(prices.get(0).getDate().toString())
+                .endDate(prices.get(prices.size() - 1).getDate().toString())
+                .build();
+
+        return StockPriceResponse.builder()
+                .ticker(ticker)
+                .interval(interval)
+                .prices(prices)
+                .meta(meta)
+                .build();
     }
 
     public StockPriceResponse getPriceByDate(String ticker, String interval, LocalDate date) {
-        validateInterval(interval);
-        String stockName = getStockName(ticker);
+        var collection = getCollection();
+        var query = new Document("ticker", ticker)
+                .append("interval", interval.toLowerCase())
+                .append("date", new Document("$gte", date.atStartOfDay())
+                        .append("$lt", date.plusDays(1).atStartOfDay()));
 
-        LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+        var doc = collection.find(query).first();
+        var prices = new ArrayList<StockPriceDto>();
+        if (doc != null) {
+            prices.add(documentToDto(doc));
+        }
 
-        StockPrice price = stockPriceRepository.findByTickerAndDateAndInterval(ticker, startOfDay, interval)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
+        var meta = StockPriceResponse.MetaData.builder()
+                .totalCount(prices.size())
+                .startDate(date.toString())
+                .endDate(date.toString())
+                .build();
 
-        return StockPriceResponse.from(ticker, stockName, interval, List.of(price));
+        return StockPriceResponse.builder()
+                .ticker(ticker)
+                .interval(interval)
+                .prices(prices)
+                .meta(meta)
+                .build();
     }
 
     public List<StockPriceResponse> getLatestPrices(List<String> tickers) {
-        LocalDateTime yesterday = LocalDate.now().minusDays(1).atStartOfDay();
-        
-        List<StockPrice> prices = stockPriceRepository.findByTickerInAndIntervalAndDateGreaterThanEqualOrderByDateDesc(
-                tickers, "daily", yesterday);
+        var collection = getCollection();
+        var responses = new ArrayList<StockPriceResponse>();
 
-        return tickers.stream()
-                .map(ticker -> {
-                    String stockName = getStockName(ticker);
-                    List<StockPrice> tickerPrices = prices.stream()
-                            .filter(p -> p.getTicker().equals(ticker))
-                            .collect(Collectors.toList());
-                    return StockPriceResponse.from(ticker, stockName, "daily", tickerPrices);
-                })
-                .collect(Collectors.toList());
-    }
+        for (String ticker : tickers) {
+            var query = new Document("ticker", ticker)
+                    .append("interval", "daily");
+            
+            var doc = collection.find(query)
+                    .sort(Sorts.descending("date"))
+                    .first();
 
-    private void validateInterval(String interval) {
-        if (!List.of("daily", "weekly", "monthly").contains(interval)) {
-            throw new BusinessException(ErrorCode.INVALID_INTERVAL);
+            if (doc != null) {
+                var prices = List.of(documentToDto(doc));
+                var meta = StockPriceResponse.MetaData.builder()
+                        .totalCount(1)
+                        .startDate(doc.getDate("date").toString())
+                        .endDate(doc.getDate("date").toString())
+                        .build();
+
+                responses.add(StockPriceResponse.builder()
+                        .ticker(ticker)
+                        .interval("daily")
+                        .prices(prices)
+                        .meta(meta)
+                        .build());
+            }
         }
+
+        return responses;
     }
 
-    private String getStockName(String ticker) {
-        return stockNameMap.getOrDefault(ticker, ticker);
+    public RealtimeStockPriceDto handleRealtimePrice(RealtimeStockPriceDto priceData) {
+        // 실시간 가격 데이터 처리 및 반환
+        return priceData;
+    }
+
+    private StockPriceDto documentToDto(Document doc) {
+        return StockPriceDto.builder()
+                .ticker(doc.getString("ticker"))
+                .date(doc.getDate("date").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .interval(doc.getString("interval"))
+                .open(doc.getDouble("open"))
+                .high(doc.getDouble("high"))
+                .low(doc.getDouble("low"))
+                .close(doc.getDouble("close"))
+                .volume(doc.getDouble("volume"))
+                .build();
     }
 }
