@@ -238,100 +238,148 @@ export default function LoginPage() {
             </h1>
           </div>
           <div className="p-6">
-            <form onSubmit={handleSubmit} className="w-full space-y-4">
+            <form onSubmit={handleSubmit} className="w-full space-y-3">
               {!isLogin && (
                   <>
                     {/* 이름 */}
-                    <div className="space-y-2">
-                      <label htmlFor="name" className="text-sm font-medium text-gray-600">이름</label>
+                    <div className="space-y-1.5">
+                      <label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" />
+                        이름
+                      </label>
                       <div className="relative">
-                        <Input id="name" value={form.name} onChange={handleChange} placeholder="이름을 입력하세요." className="h-12 text-sm pl-10" />
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Input 
+                          id="name" 
+                          value={form.name} 
+                          onChange={handleChange} 
+                          placeholder="이름을 입력하세요" 
+                          className="h-10 text-sm pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200" 
+                        />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                       </div>
                     </div>
 
                     {/* 전화번호 */}
-                    <div className="space-y-2">
-                      <label htmlFor="phone" className="text-sm font-medium text-gray-600">전화번호</label>
+                    <div className="space-y-1.5">
+                      <label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-emerald-600" />
+                        전화번호
+                      </label>
                       <div className="relative">
                         <Input 
                           id="phone" 
                           value={form.phone} 
                           onChange={handleChange} 
                           maxLength={13}
-                          className="h-12 text-sm pl-10" 
+                          placeholder="010-0000-0000"
+                          className="h-10 text-sm pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200" 
                         />
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                       </div>
-                      {!form.phone && <p className="text-xs text-gray-500">전화번호를 입력해주세요.</p>}
-                      {form.phone && (valid.phone ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.phone}</p>)}
+                      {form.phone && !valid.phone && <p className="text-xs text-red-500 leading-tight">{errors.phone}</p>}
                     </div>
 
                     {/* 주민번호 앞자리 + 성별코드 */}
-                    <div className="flex space-x-2 items-end">
-                      <div className="space-y-2 w-2/3">
-                        <label htmlFor="birth" className="text-sm font-medium text-gray-600">주민번호 앞자리</label>
-                        <Input id="birth" value={form.birth} onChange={handleChange} placeholder="YYMMDD" maxLength={6} className="h-12 text-sm" />
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" />
+                        주민등록번호
+                      </label>
+                      <div className="flex gap-2 items-center w-full">
+                        <Input 
+                          id="birth" 
+                          value={form.birth} 
+                          onChange={handleChange} 
+                          placeholder="YYMMDD" 
+                          maxLength={6} 
+                          className="h-10 flex-1 text-sm text-center border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200 font-mono" 
+                        />
+                        <span className="text-gray-400 font-bold">-</span>
+                        <Input 
+                          id="genderCode" 
+                          value={form.genderCode} 
+                          onChange={handleChange} 
+                          maxLength={1} 
+                          className="h-10 w-12 text-sm text-center border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200 font-mono" 
+                        />
+                        <span className="text-gray-300 text-xs">●●●●●●</span>
                       </div>
-                      <div className="space-y-2 w-1/3">
-                        <label htmlFor="genderCode" className="text-sm font-medium text-gray-600">- 뒤 1자리</label>
-                        <Input id="genderCode" value={form.genderCode} onChange={handleChange} maxLength={1} className="h-12 text-sm" />
-                      </div>
+                      {(form.birth || form.genderCode) && !valid.birth && <p className="text-xs text-red-500 leading-tight">{errors.birth}</p>}
                     </div>
-                    {!form.birth && !form.genderCode && <p className="text-xs text-gray-500"> 주민번호를 입력해주세요. </p>}
-                    {(form.birth || form.genderCode) && (valid.birth ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.birth}</p>)}
                   </>
               )}
 
               {/* 이메일 */}
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-gray-600">이메일</label>
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-emerald-600" />
+                  이메일
+                </label>
                 <div className="relative">
                   <Input 
                     id="email" 
                     value={form.email} 
                     onChange={handleChange} 
-                    placeholder="이메일을 입력하세요." 
-                    className="h-12 text-sm pl-10"
+                    placeholder="이메일을 입력하세요" 
+                    className="h-10 text-sm pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200"
                     autoComplete="off"
                   />
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                 </div>
-                {!isLogin && form.email && (valid.email ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.email}</p>)}
+                {!isLogin && form.email && !valid.email && <p className="text-xs text-red-500 leading-tight">{errors.email}</p>}
               </div>
 
               {/* 비밀번호 */}
-              <div className="space-y-2 relative">
-                <label htmlFor="password" className="text-sm font-medium text-gray-600">비밀번호</label>
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-emerald-600" />
+                  비밀번호
+                </label>
                 <div className="relative">
                   <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={handleChange}
-                      placeholder="비밀번호를 입력하세요."
-                      className="h-12 text-sm pl-10 pr-10"
+                      placeholder="비밀번호를 입력하세요"
+                      className="h-10 text-sm pl-10 pr-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg transition-all duration-200"
                       autoComplete="off"
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </div>
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-                {!isLogin && !form.password && <p className="text-xs text-gray-500">8~20자, 영문+숫자+특수문자를 포함해야 합니다.</p>}
-                {!isLogin && form.password && (valid.password ? <p className="text-xs text-green-500">형식이 일치합니다.</p> : <p className="text-xs text-red-500">{errors.password}</p>)}
+                {!isLogin && form.password && !valid.password && <p className="text-xs text-red-500 leading-tight">{errors.password}</p>}
+                {!isLogin && !form.password && <p className="text-xs text-gray-500 leading-tight">8~20자, 영문+숫자+특수문자 포함</p>}
               </div>
 
               {/* 제출 버튼 */}
-              <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
-                {isLogin ? "로그인" : "회원가입"}
-              </Button>
-              <p className="text-center text-sm text-gray-600">
-                {isLogin ? "아직 회원이 아니신가요?" : "이미 계정이 있으신가요?"}{" "}
-                <button type="button" onClick={() => setIsLogin(!isLogin)} className="font-semibold text-primary hover:underline">
-                  {isLogin ? "회원가입" : "로그인"}
-                </button>
-              </p>
+              <div className="pt-2">
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 text-base font-semibold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-0 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]"
+                >
+                  {isLogin ? "로그인" : "회원가입"}
+                </Button>
+              </div>
+              
+              <div className="text-center pt-3 border-t border-gray-100">
+                <p className="text-sm text-gray-600">
+                  {isLogin ? "아직 회원이 아니신가요?" : "이미 계정이 있으신가요?"}{" "}
+                  <button 
+                    type="button" 
+                    onClick={() => setIsLogin(!isLogin)} 
+                    className="font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                  >
+                    {isLogin ? "회원가입" : "로그인"}
+                  </button>
+                </p>
+              </div>
             </form>
           </div>
         </div>

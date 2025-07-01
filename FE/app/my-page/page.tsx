@@ -95,7 +95,6 @@ export default function MyPage() {
             className="mt-8 h-12 px-8 text-lg bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 transform transition-all duration-200 hover:scale-105 shadow-lg"
             onClick={() => setIsCreateAccountOpen(true)}
           >
-            <CreditCard className="w-5 h-5 mr-2" />
             계좌 만들기
           </Button>
         </div>
