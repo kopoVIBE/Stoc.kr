@@ -13,7 +13,22 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // 초기값을 localStorage에서 동기적으로 설정 (깜빡임 방지)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem("token");
+    }
+    return false;
+  });
+  
+  // 토큰이 있을 때만 로딩 상태로 시작 (더 자연스러운 로딩)
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem("token"); // 토큰이 있으면 로딩, 없으면 바로 완료
+    }
+    return false;
+  });
 
   // 로그인 상태 확인 및 사용자 정보 가져오기
   useEffect(() => {
@@ -23,9 +38,13 @@ export default function Header() {
       if (!token) {
         setIsLoggedIn(false);
         setUser(null);
+        setIsLoading(false);
         return;
       }
 
+      // 토큰이 있는 경우에만 로딩 시작
+      setIsLoading(true);
+      
       try {
         const userData = await getMyInfo();
         setUser(userData);
@@ -35,6 +54,8 @@ export default function Header() {
         localStorage.removeItem("token");
         setIsLoggedIn(false);
         setUser(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -92,7 +113,10 @@ export default function Header() {
             ))}
           </nav>
           <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
+            {isLoading ? (
+              // 로딩 중일 때는 스켈레톤 UI 표시 (깜빡임 방지)
+              <div className="w-20 h-9 bg-gray-100 rounded animate-pulse"></div>
+            ) : isLoggedIn ? (
               <>
                 <span className="text-base font-medium">{user?.name}님</span>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
