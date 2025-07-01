@@ -38,7 +38,7 @@ export interface Stock {
 }
 
 export interface StockPrice {
-  time: string;
+  date: string;
   open: number;
   high: number;
   low: number;
@@ -47,10 +47,18 @@ export interface StockPrice {
 }
 
 export interface StockPriceResponse {
-  ticker: string;
-  stockName: string;
-  interval: string;
-  prices: StockPrice[];
+  success: boolean;
+  data: {
+    ticker: string;
+    interval: string;
+    prices: StockPrice[];
+    meta: {
+      totalCount: number;
+      startDate: string;
+      endDate: string;
+    };
+  };
+  message: string | null;
 }
 
 export const stockApi = {

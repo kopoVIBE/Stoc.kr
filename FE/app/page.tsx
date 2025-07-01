@@ -13,8 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getFavorites, removeFavorite } from "@/api/stock";
+import { getFavorites, removeFavorite, addFavorite } from "@/api/stock";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
+import { FavoriteAddDialog } from "@/components/favorite-add-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -182,17 +183,26 @@ export default function HomePage() {
     }
 
     try {
-      await removeFavorite(stock.ticker);
-      setFavoriteStocks((prev) =>
-        prev.filter((s) => s.ticker !== stock.ticker)
-      );
-      toast({
-        description: `${stock.name}이(가) 관심 종목에서 제거되었습니다.`,
-      });
+      if (favoriteStocks.some((s) => s.ticker === stock.ticker)) {
+        await removeFavorite(stock.ticker);
+        setFavoriteStocks((prev) =>
+          prev.filter((s) => s.ticker !== stock.ticker)
+        );
+        toast({
+          description: `${stock.name}이(가) 관심 종목에서 제거되었습니다.`,
+        });
+      } else {
+        await addFavorite(stock.ticker);
+        setFavoriteStocks((prev) => [...prev, stock]);
+        toast({
+          description: `${stock.name}이(가) 관심 종목에 추가되었습니다.`,
+          variant: "default",
+        });
+      }
     } catch (error) {
       toast({
         title: "오류",
-        description: "관심 종목 해제에 실패했습니다.",
+        description: "관심 종목 처리 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     }
@@ -334,14 +344,15 @@ function StockTable({
   isFavorite,
 }: StockTableProps) {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const handleHeartClick = (stock: Stock) => {
+    setSelectedStock(stock);
     if (isFavorite?.(stock)) {
-      setSelectedStock(stock);
-      setIsDialogOpen(true);
-    } else if (onToggleFavorite) {
-      onToggleFavorite(stock);
+      setIsRemoveDialogOpen(true);
+    } else {
+      setIsAddDialogOpen(true);
     }
   };
 
@@ -349,7 +360,15 @@ function StockTable({
     if (selectedStock && onToggleFavorite) {
       onToggleFavorite(selectedStock);
     }
-    setIsDialogOpen(false);
+    setIsRemoveDialogOpen(false);
+    setSelectedStock(null);
+  };
+
+  const handleConfirmAdd = () => {
+    if (selectedStock && onToggleFavorite) {
+      onToggleFavorite(selectedStock);
+    }
+    setIsAddDialogOpen(false);
     setSelectedStock(null);
   };
 
@@ -436,9 +455,16 @@ function StockTable({
       </Table>
 
       <FavoriteConfirmDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        isOpen={isRemoveDialogOpen}
+        onClose={() => setIsRemoveDialogOpen(false)}
         onConfirm={handleConfirmRemove}
+        stockName={selectedStock?.name || ""}
+      />
+
+      <FavoriteAddDialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onConfirm={handleConfirmAdd}
         stockName={selectedStock?.name || ""}
       />
     </>
