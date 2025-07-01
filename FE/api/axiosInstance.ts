@@ -24,7 +24,6 @@ axiosInstance.interceptors.request.use((config) => {
   console.log("Request Method:", config.method);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log("✅ JWT Token attached:", token);
     console.log("✅ Headers:", config.headers);
   } else {
     console.warn("⚠️ No token found in localStorage");
