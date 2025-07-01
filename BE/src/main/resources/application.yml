@@ -62,17 +62,17 @@ spring:
 
 logging:
   level:
-    com.stockr: DEBUG
+    com.stockr: INFO  # 기본적으로 INFO 레벨로 설정
+    com.stockr.be.domain.stock.controller: INFO  # 웹소켓 컨트롤러는 INFO로 유지
     org.springframework.web: INFO
-    org.springframework.web.socket: DEBUG
-    org.springframework.messaging: DEBUG # STOMP 메시지 로깅
-    org.springframework.web.socket.messaging: TRACE # WebSocket 상세 로깅
+    org.springframework.web.socket: WARN  # DEBUG에서 WARN으로 변경
+    org.springframework.messaging: WARN   # DEBUG에서 WARN으로 변경
+    org.springframework.web.socket.messaging: WARN  # TRACE에서 WARN으로 변경
     org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
-    com.stockr.be: debug
-    org.springframework.data.redis: debug
-    io.lettuce.core: debug
-    org.springframework.data.mongodb: DEBUG # MongoDB 로깅 추가
+    org.hibernate.type.descriptor.sql: trace
+    org.springframework.data.redis: WARN  # debug에서 WARN으로 변경
+    io.lettuce.core: WARN  # debug에서 WARN으로 변경
+    org.springframework.data.mongodb: DEBUG
 
 KIS:
   APP:

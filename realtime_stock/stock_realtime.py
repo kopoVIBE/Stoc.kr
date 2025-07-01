@@ -40,6 +40,7 @@ class StockRealtime:
         self.app_secret = os.getenv('KIS_APP_SECRET')
         self.access_token = None
         self.token_expires_at = None
+        self.target_stocks_redis_key = "target_stocks"
         
         # Redis 연결 테스트
         try:
@@ -95,32 +96,49 @@ class StockRealtime:
             
             while self.is_running:
                 try:
-                    # 삼성전자 현재가 조회
-                    result = self.get_current_price("005930")
+                    stock_codes = []
+                    if self.redis_client:
+                        try:
+                            stock_codes_from_redis = self.redis_client.smembers(self.target_stocks_redis_key)
+                            if isinstance(stock_codes_from_redis, set):
+                                stock_codes = list(stock_codes_from_redis)
+                            else:
+                                logger.warning(f"Redis smembers가 예기치 않은 타입을 반환했습니다: {type(stock_codes_from_redis)}")
+                                stock_codes = []
+                        except Exception as e:
+                            logger.error(f"Redis에서 종목 코드 조회 중 오류 발생: {e}")
+                            stock_codes = []
+
+                    if not stock_codes:
+                        logger.info("추적할 종목이 없습니다. 5초간 대기합니다.")
+                        time.sleep(5)
+                        continue
                     
-                    if result['status'] == 'success':
-                        # 현재 시간
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    logger.info(f"추적 대상 종목: {stock_codes}")
+
+                    for stock_code in stock_codes:
+                        if not self.is_running:
+                            break
                         
-                        # 데이터 가공
-                        data = {
-                            "ticker": "005930",
-                            "stockCode": "005930",
-                            "price": result['price'],
-                            "volume": result['volume'],
-                            "timestamp": int(time.time() * 1000)
-                        }
+                        result = self.get_current_price(stock_code)
                         
-                        # WebSocket으로 데이터 전송 (Spring에서 Redis 저장)
-                        self.send_stock_data(data)
+                        if result['status'] == 'success':
+                            data = {
+                                "ticker": stock_code,
+                                "stockCode": stock_code,
+                                "price": result['price'],
+                                "volume": result['volume'],
+                                "timestamp": int(time.time() * 1000)
+                            }
+                            
+                            self.send_stock_data(data)
+                            logger.info(f"[{stock_code}] 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
+                        else:
+                            logger.error(f"[{stock_code}] 데이터 조회 실패: {result.get('message', 'Unknown error')}")
                         
-                        # 로그 출력
-                        logger.info(f"[{now}] 삼성전자 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
-                    else:
-                        logger.error(f"데이터 조회 실패: {result.get('message', 'Unknown error')}")
+                        time.sleep(0.1)  # 각 종목 조회 사이에 0.1초 대기
                     
-                    # 1초 대기
-                    time.sleep(1)
+                    time.sleep(1)  # 전체 루프 후 1초 대기
                     
                 except Exception as e:
                     logger.error(f"데이터 수집 중 오류 발생: {e}")
@@ -314,7 +332,15 @@ class StockRealtime:
     def _initialize_websocket(self):
         """WebSocket 연결 초기화"""
         def on_message(ws, message):
-            logger.info(f"수신 메시지: {message}")
+            try:
+                logger.debug(f"수신 메시지: {message}")
+                # CONNECTED 프레임 확인
+                if "CONNECTED" in message:
+                    logger.info("STOMP 연결 성공")
+                elif "MESSAGE" in message:
+                    logger.debug(f"메시지 수신: {message}")
+            except Exception as e:
+                logger.error(f"메시지 처리 중 오류 발생: {e}")
 
         def on_error(ws, error):
             logger.error(f"WebSocket 오류: {error}")
@@ -328,10 +354,6 @@ class StockRealtime:
             connect_frame = "CONNECT\naccept-version:1.2,1.1,1.0\nheart-beat:10000,10000\n\n\x00"
             ws.send(connect_frame)
             logger.info("STOMP CONNECT 프레임 전송")
-
-            subscribe_frame = "SUBSCRIBE\nid:sub-0\ndestination:/topic/price\n\n\x00"
-            ws.send(subscribe_frame)
-            logger.info("STOMP SUBSCRIBE 프레임 전송")
 
         self.ws = websocket.WebSocketApp(
             WEBSOCKET_URL,
@@ -350,11 +372,16 @@ class StockRealtime:
         """WebSocket을 통해 데이터 전송"""
         if self.ws and self.ws.sock and self.ws.sock.connected:
             try:
-                # STOMP SEND 프레임 구성
+                # STOMP SEND 프레임 구성 - 종목별 destination 사용
                 body = json.dumps(data)
-                send_frame = f"SEND\ndestination:/app/price\ncontent-type:application/json\n\n{body}\x00"
-                self.ws.send(send_frame)
-                logger.info("WebSocket으로 데이터 전송 완료")
+                stock_code = data.get('stockCode')
+                if stock_code:
+                    destination = f"/app/price/{stock_code}"  # 종목별 destination
+                    send_frame = f"SEND\ndestination:{destination}\ncontent-type:application/json\n\n{body}\x00"
+                    self.ws.send(send_frame)
+                    logger.debug(f"WebSocket으로 {stock_code} 데이터 전송 완료")
+                else:
+                    logger.warning("종목 코드가 없는 데이터입니다.")
             except Exception as e:
                 logger.warning(f"WebSocket 데이터 전송 실패: {e}")
         else:
