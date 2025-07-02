@@ -23,7 +23,8 @@ public enum ErrorCode {
     STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S003", "Stock price not found"),
     INVALID_STOCK_PRICE(HttpStatus.BAD_REQUEST, "S004", "유효하지 않은 주식 가격입니다."),
     FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "S005", "즐겨찾기를 찾을 수 없습니다."),
-    DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S006", "이미 즐겨찾기에 추가된 주식입니다.");
+    DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S006", "이미 즐겨찾기에 추가된 주식입니다."),
+    INVALID_TICKER(HttpStatus.BAD_REQUEST, "S007", "유효하지 않은 종목 코드입니다.");
 
     private final HttpStatus status;
     private final String code;
