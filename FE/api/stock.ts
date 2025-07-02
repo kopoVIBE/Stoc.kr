@@ -1,40 +1,22 @@
 import axiosInstance from "./axiosInstance";
 
 export interface Stock {
-  id: number;
   ticker: string;
   name: string;
   closePrice: number;
-  priceChange: number;
-  priceChangePercent: number;
+  priceDiff?: number;
+  fluctuationRate?: number;
   marketCap: number;
-  volume: number;
-  eps?: number;
+  volume?: number;
   per?: number;
-  bps?: number;
   pbr?: number;
-  dividendPerShare?: number;
-  dividendYield?: number;
-  beta?: number;
-  return1yPercent?: number;
-  returnVolatility?: number;
-  marketType?: string;
+  eps?: number;
+  bps?: number;
   industryType?: string;
-  logo?: string;
-  lastUpdated: string;
-  priceDiff: number;
-  fluctuationRate: number;
-  forwardEps: number;
-  forwardPer: number;
-  epsStd: number;
-  perStd: number;
-  forwardEpsStd: number;
-  forwardPerStd: number;
-  bpsStd: number;
-  pbrStd: number;
-  dividendPerShareStd: number;
-  dividendYieldStd: number;
-  marketCapStd: number;
+  marketType?: string;
+  sharesOutstanding?: number;
+  high52Week?: number;
+  low52Week?: number;
 }
 
 export interface StockPrice {

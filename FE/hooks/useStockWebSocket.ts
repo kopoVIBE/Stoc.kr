@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
 
-interface StockPrice {
+export interface StockPrice {
   ticker: string;
   stockCode: string;
   price: number;
@@ -9,118 +9,119 @@ interface StockPrice {
   timestamp: number;
 }
 
-export const useStockWebSocket = (initialStockCode?: string) => {
+export const useStockWebSocket = () => {
   const [stockData, setStockData] = useState<StockPrice | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const clientRef = useRef<Client | null>(null);
-  const subscriptionRef = useRef<any>(null);
+  const subscriptionsRef = useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+      brokerURL: "ws://localhost:8080/ws",
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
+        console.log("WebSocket Connected");
         setIsConnected(true);
         setError(null);
-        console.log('WebSocket Connected');
-        
-        if (initialStockCode) {
-          subscribeToStock(initialStockCode);
-        }
       },
       onDisconnect: () => {
+        console.log("WebSocket Disconnected");
         setIsConnected(false);
-        console.log('WebSocket Disconnected');
+        subscriptionsRef.current = {};
       },
       onStompError: (frame) => {
-        setError(`WebSocket Error: ${frame.headers['message']}`);
-        console.error('STOMP error', frame);
+        console.error("STOMP error", frame);
+        setError(`WebSocket Error: ${frame.headers["message"]}`);
       },
       onWebSocketError: (event) => {
-        console.error('WebSocket Error:', event);
-        setError('WebSocket connection error');
-      }
+        console.error("WebSocket Error:", event);
+        setError("WebSocket connection error");
+      },
     });
 
     clientRef.current = client;
     client.activate();
 
     return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
+      console.log("WebSocket hook cleanup");
+      if (client.connected) {
+        Object.keys(subscriptionsRef.current).forEach(unsubscribeFromStock);
+        client.deactivate();
       }
-      client.deactivate();
     };
-  }, [initialStockCode]);
+  }, []);
 
-  const subscribeToStock = (stockCode: string) => {
+  const subscribeToStock = useCallback((ticker: string) => {
     if (!clientRef.current?.connected) {
-      setError('WebSocket is not connected');
+      console.log(`Cannot subscribe to ${ticker}: WebSocket not connected`);
       return;
     }
 
-    // 이전 구독 해제
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
+    if (subscriptionsRef.current[ticker]) {
+      console.log(`Already subscribed to ${ticker}`);
+      return;
     }
 
     try {
-      // 구독 요청 전송
-      clientRef.current.publish({
-        destination: `/app/stock/subscribe/${stockCode}`,
-        body: JSON.stringify({ stockCode }),
-        headers: { 'content-type': 'application/json' }
-      });
+      console.log(`Subscribing to ${ticker}`);
 
-      // 실시간 데이터 구독
-      subscriptionRef.current = clientRef.current.subscribe(
-        `/topic/price/${stockCode}`,
+      subscriptionsRef.current[ticker] = clientRef.current.subscribe(
+        `/topic/price/${ticker}`,
         (message) => {
           try {
             const data = JSON.parse(message.body) as StockPrice;
             setStockData(data);
             setError(null);
           } catch (e) {
-            setError('Failed to parse stock data');
-            console.error('Parse error:', e);
+            console.error(`Parse error for ${ticker}:`, e);
+            setError("Failed to parse stock data");
           }
         }
       );
 
-      console.log(`Subscribed to ${stockCode}`);
-    } catch (e) {
-      setError('Failed to subscribe to stock');
-      console.error('Subscribe error:', e);
-    }
-  };
+      clientRef.current.publish({
+        destination: `/app/stock/subscribe/${ticker}`,
+        body: JSON.stringify({ stockCode: ticker }),
+        headers: { "content-type": "application/json" },
+      });
 
-  const unsubscribeFromStock = (stockCode: string) => {
+      console.log(`Successfully subscribed to ${ticker}`);
+    } catch (e) {
+      console.error(`Failed to subscribe to ${ticker}:`, e);
+      setError("Failed to subscribe to stock");
+      delete subscriptionsRef.current[ticker];
+    }
+  }, []);
+
+  const unsubscribeFromStock = useCallback((ticker: string) => {
     if (!clientRef.current?.connected) {
+      console.log(`Cannot unsubscribe from ${ticker}: WebSocket not connected`);
       return;
     }
 
     try {
-      clientRef.current.publish({
-        destination: `/app/stock/unsubscribe/${stockCode}`,
-        body: JSON.stringify({ stockCode }),
-        headers: { 'content-type': 'application/json' }
-      });
+      console.log(`Unsubscribing from ${ticker}`);
 
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
+      if (subscriptionsRef.current[ticker]) {
+        subscriptionsRef.current[ticker].unsubscribe();
+        delete subscriptionsRef.current[ticker];
+
+        clientRef.current.publish({
+          destination: `/app/stock/unsubscribe/${ticker}`,
+          body: JSON.stringify({ stockCode: ticker }),
+          headers: { "content-type": "application/json" },
+        });
+
+        console.log(`Successfully unsubscribed from ${ticker}`);
       }
-
-      setStockData(null);
-      console.log(`Unsubscribed from ${stockCode}`);
     } catch (e) {
-      setError('Failed to unsubscribe from stock');
-      console.error('Unsubscribe error:', e);
+      console.error(`Failed to unsubscribe from ${ticker}:`, e);
+      setError("Failed to unsubscribe from stock");
     }
-  };
+  }, []);
 
   return {
     stockData,

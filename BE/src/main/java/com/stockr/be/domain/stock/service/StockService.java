@@ -35,8 +35,8 @@ public class StockService {
                 .collect(Collectors.toList());
     }
     
-    public List<StockResponseDto> getTopVolumeStocks() {
-        return stockRepository.findTop10ByOrderByVolumeDesc().stream()
+    public List<StockResponseDto> getTopMarketCapStocks() {
+        return stockRepository.findTop10ByOrderByMarketCapDesc().stream()
                 .map(StockResponseDto::from)
                 .collect(Collectors.toList());
     }

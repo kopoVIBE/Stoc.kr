@@ -4,7 +4,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@/components/ui/tabs";
 import { Tabs } from "@/components/ui/tabs";
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useRef, useEffect, useCallback, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,8 @@ import {
 } from "@/api/stock";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
 interface PriceHistoryItem {
   time: string;
@@ -69,12 +70,6 @@ const priceHistory: PriceHistoryItem[] = [
   },
 ];
 
-const tabs: TabItem[] = [
-  { id: "price", label: "실시간 시세" },
-  { id: "info", label: "종목 정보" },
-  { id: "recommend", label: "관련 종목 추천" },
-];
-
 interface UnderlineStyle {
   left?: number;
   width?: number;
@@ -86,123 +81,207 @@ interface PageProps {
   }>;
 }
 
-export default function StockDetailPage() {
-  const params = useParams();
-  const ticker = params.id as string;
+interface StockPrice {
+  ticker: string;
+  stockCode: string;
+  price: number;
+  volume: number;
+  timestamp: number;
+}
+
+export default function StockDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const ticker = id;
   const [stock, setStock] = useState<Stock | null>(null);
-  const [activeTab, setActiveTab] = useState("price");
-  const [underlineStyle, setUnderlineStyle] = useState<UnderlineStyle>({});
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("price");
+  const [underlineStyle, setUnderlineStyle] = useState({
+    width: 0,
+    transform: "translateX(0)",
+  });
+
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const tabs = [
+    { id: "price", label: "시세" },
+    { id: "info", label: "기업정보" },
+    { id: "recommend", label: "추천" },
+  ] as const;
+
+  // 웹소켓 연결
+  const { stockData, isConnected, subscribeToStock, unsubscribeFromStock } =
+    useStockWebSocket();
+  const subscribedTickerRef = useRef<string | null>(null);
+
+  // 탭 참조 설정 함수
+  const setTabRef = useCallback(
+    (el: HTMLButtonElement | null, index: number) => {
+      tabRefs.current[index] = el;
+    },
+    []
+  );
+
+  // 언더라인 스타일 업데이트
+  useEffect(() => {
+    const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+    const activeElement = tabRefs.current[activeIndex];
+
+    if (activeElement) {
+      setUnderlineStyle({
+        width: activeElement.offsetWidth,
+        transform: `translateX(${activeElement.offsetLeft}px)`,
+      });
+    }
+  }, [activeTab]);
+
+  // 탭 변경 핸들러
+  const handleTabChange = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+  }, []);
 
   useEffect(() => {
     const fetchStock = async () => {
       try {
+        setIsLoading(true);
         const data = await stockApi.getStock(ticker);
         setStock(data);
       } catch (error) {
         console.error("Failed to fetch stock:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchStock();
   }, [ticker]);
 
+  // 웹소켓 구독 관리
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!isConnected || !ticker) return;
 
-  useEffect(() => {
-    if (mounted) {
-      const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
-      const activeTabRef = tabRefs.current[activeTabIndex];
-      if (activeTabRef) {
-        setUnderlineStyle({
-          left: activeTabRef.offsetLeft,
-          width: activeTabRef.offsetWidth,
-        });
-      }
+    // 이전 구독 해제
+    if (subscribedTickerRef.current && subscribedTickerRef.current !== ticker) {
+      unsubscribeFromStock(subscribedTickerRef.current);
     }
-  }, [activeTab, mounted]);
 
+    // 새로운 종목 구독
+    if (subscribedTickerRef.current !== ticker) {
+      subscribeToStock(ticker);
+      subscribedTickerRef.current = ticker;
+    }
+
+    // 컴포넌트 언마운트 시 구독 해제
+    return () => {
+      if (subscribedTickerRef.current) {
+        unsubscribeFromStock(subscribedTickerRef.current);
+        subscribedTickerRef.current = null;
+      }
+    };
+  }, [ticker, isConnected]);
+
+  // 실시간 데이터 처리
+  useEffect(() => {
+    if (!stockData || stockData.ticker !== ticker || !stock) return;
+
+    const priceChange =
+      ((stockData.price - stock.closePrice) / stock.closePrice) * 100;
+
+    setStock((prev: Stock | null) =>
+      prev
+        ? {
+            ...prev,
+            closePrice: stockData.price,
+            priceDiff: stockData.price - prev.closePrice,
+            fluctuationRate: priceChange,
+            marketCap: prev.marketCap,
+          }
+        : null
+    );
+  }, [stockData, ticker]);
+
+  // 즐겨찾기 상태 확인
   useEffect(() => {
     const checkIsFavorite = async () => {
-      const token = localStorage.getItem("token");
-      console.log("Token for checkIsFavorite:", token);
-      if (!token) {
-        return;
-      }
-
       try {
         const response = await checkFavorite(ticker);
-        setIsFavorite(response.data);
+        if (response.success) {
+          setIsFavorite(response.data);
+        }
       } catch (error) {
+        // API 호출 실패 시 즐겨찾기 상태를 false로 설정
         console.error("Failed to check favorite status:", error);
+        setIsFavorite(false);
       }
     };
 
-    checkIsFavorite();
+    const token = localStorage.getItem("token");
+    if (token) {
+      checkIsFavorite();
+    }
   }, [ticker]);
 
-  const setTabRef = (el: HTMLButtonElement | null, index: number) => {
-    tabRefs.current[index] = el;
-  };
-
   const handleToggleFavorite = async () => {
-    const token = localStorage.getItem("token");
-    console.log("Token for handleToggleFavorite:", token);
-    if (!token) {
-      toast({
-        title: "로그인 필요",
-        description: "관심 종목 기능을 사용하려면 로그인이 필요합니다.",
-        variant: "destructive",
-      });
-      router.push("/login");
-      return;
-    }
-
-    if (isFavorite) {
-      setIsDialogOpen(true);
-    } else {
-      try {
-        await addFavorite(ticker);
-        setIsFavorite(true);
+    try {
+      if (isFavorite) {
+        setIsDialogOpen(true);
+      } else {
+        const response = await addFavorite(ticker);
+        if (response.success) {
+          setIsFavorite(true);
+          toast({
+            title: "즐겨찾기 추가",
+            description: "관심 종목에 추가되었습니다.",
+          });
+        }
+      }
+    } catch (error: any) {
+      // 401 Unauthorized 에러인 경우 로그인 페이지로 리다이렉트
+      if (error.response?.status === 401) {
         toast({
-          description: "관심 종목에 추가되었습니다.",
-        });
-      } catch (error) {
-        console.error("Failed to add favorite:", error);
-        toast({
-          title: "오류",
-          description: "관심 종목 추가에 실패했습니다.",
+          title: "로그인 필요",
+          description: "즐겨찾기 기능은 로그인 후 이용 가능합니다.",
           variant: "destructive",
         });
+        router.push("/login");
+        return;
       }
+      toast({
+        title: "오류 발생",
+        description: "즐겨찾기 추가에 실패했습니다.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleConfirmRemove = async () => {
     try {
       await removeFavorite(ticker);
-      setIsFavorite(false);
       toast({
-        description: "관심 종목에서 제거되었습니다.",
+        title: "관심 종목이 삭제되었습니다.",
+        description: `${stock?.name}이(가) 관심 종목에서 제거되었습니다.`,
       });
+      router.refresh();
     } catch (error) {
+      console.error("Failed to remove favorite:", error);
       toast({
-        title: "오류",
-        description: "관심 종목 해제에 실패했습니다.",
+        title: "관심 종목 삭제 실패",
+        description: "관심 종목 삭제 중 오류가 발생했습니다.",
         variant: "destructive",
       });
+    } finally {
+      setIsDialogOpen(false);
     }
-    setIsDialogOpen(false);
   };
 
-  if (!stock) return <div>Loading...</div>;
+  if (isLoading) return <div>Loading...</div>;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50/50 p-4 rounded-lg">
@@ -211,10 +290,10 @@ export default function StockDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-2">
-              {stock.name} ({stock.ticker})
+              {stock?.name} ({stock?.ticker})
             </h1>
             <p className="text-2xl font-bold">
-              현재가: {stock.closePrice.toLocaleString()}원
+              현재가: {stock?.closePrice.toLocaleString()}원
             </p>
           </div>
           <Heart
@@ -239,7 +318,7 @@ export default function StockDetailPage() {
               <button
                 key={tab.id}
                 ref={(el) => setTabRef(el, index)}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={cn(
                   "py-3",
                   activeTab === tab.id
@@ -301,28 +380,42 @@ export default function StockDetailPage() {
         onClose={() => setIsDialogOpen(false)}
         onConfirm={handleConfirmRemove}
         stockName={stock?.name || ""}
+        action="remove"
       />
     </div>
   );
 }
 
 function PriceTabContent({ ticker }: { ticker: string }) {
-  const [stock, setStock] = useState<Stock | null>(null);
+  const {
+    stockData,
+    isConnected,
+    error,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
+  const [priceHistory, setPriceHistory] = useState<StockPrice[]>([]);
 
+  // 웹소켓 구독 설정
   useEffect(() => {
-    const fetchStock = async () => {
-      try {
-        const data = await stockApi.getStock(ticker);
-        setStock(data);
-      } catch (error) {
-        console.error("Failed to fetch stock:", error);
-      }
-    };
+    if (isConnected) {
+      subscribeToStock(ticker);
+      return () => unsubscribeFromStock(ticker);
+    }
+  }, [ticker, isConnected, subscribeToStock, unsubscribeFromStock]);
 
-    fetchStock();
-  }, [ticker]);
+  // 실시간 데이터 업데이트
+  useEffect(() => {
+    if (stockData && stockData.ticker === ticker) {
+      setPriceHistory((prev) => {
+        const newHistory = [stockData, ...prev];
+        return newHistory.slice(0, 10); // 최근 10개 기록만 유지
+      });
+    }
+  }, [stockData, ticker]);
 
-  if (!stock) return <div>Loading...</div>;
+  if (!isConnected) return <div>연결 중...</div>;
+  if (error) return <div>에러: {error}</div>;
 
   return (
     <Card>
@@ -340,25 +433,15 @@ function PriceTabContent({ ticker }: { ticker: string }) {
           <TableBody>
             {priceHistory.map((item, i) => (
               <TableRow key={i}>
-                <TableCell
-                  className={`font-semibold ${
-                    item.isUp ? "text-red-500" : "text-blue-500"
-                  }`}
-                >
-                  {item.price}
+                <TableCell className="font-semibold">
+                  {item.price.toLocaleString()}원
                 </TableCell>
-                <TableCell
-                  className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}
-                >
-                  {i === 1 ? 30 : i === 2 ? 1 : 700}
+                <TableCell>{item.volume.toLocaleString()}</TableCell>
+                <TableCell>-</TableCell>
+                <TableCell>{item.volume.toLocaleString()}</TableCell>
+                <TableCell>
+                  {new Date(item.timestamp).toLocaleTimeString()}
                 </TableCell>
-                <TableCell
-                  className={`${item.isUp ? "text-red-500" : "text-blue-500"}`}
-                >
-                  {item.change}
-                </TableCell>
-                <TableCell>{item.volume}</TableCell>
-                <TableCell>{item.time}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -627,3 +710,24 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
     </div>
   );
 }
+
+// 시가총액을 조 단위로 변환하는 함수
+const formatMarketCap = (value?: number) => {
+  if (!value) return "-";
+
+  const trillion = 1000000000000; // 1조
+  const billion = 100000000; // 1억
+
+  if (value >= trillion) {
+    const trillionPart = Math.floor(value / trillion);
+    const billionPart = Math.floor((value % trillion) / billion);
+
+    if (billionPart > 0) {
+      return `${trillionPart}조 ${billionPart}억`;
+    }
+    return `${trillionPart}조`;
+  } else {
+    const billionPart = Math.floor(value / billion);
+    return `${billionPart}억`;
+  }
+};
