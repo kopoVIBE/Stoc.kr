@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Stock, stockApi } from "@/api/stock";
+import Image from "next/image";
 import {
   Table,
   TableBody,
@@ -297,12 +298,12 @@ export default function StocksPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>순번</TableHead>
-                <TableHead>종목명</TableHead>
-                <TableHead>현재가</TableHead>
-                <TableHead>전일대비</TableHead>
-                <TableHead>등락률</TableHead>
-                <TableHead>시가총액</TableHead>
+                <TableHead className="text-center">순번</TableHead>
+                <TableHead className="text-center">종목명</TableHead>
+                <TableHead className="text-center">현재가</TableHead>
+                <TableHead className="text-center">전일대비</TableHead>
+                <TableHead className="text-center">등락률</TableHead>
+                <TableHead className="text-center">시가총액</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -319,21 +320,35 @@ export default function StocksPage() {
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => handleStockClick(stock.ticker)}
                   >
-                    <TableCell>
+                    <TableCell className="text-center">
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
-                    <TableCell>{stock.name}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center">
+                        <Image
+                          src={`/stock-images/${stock.ticker}.png`}
+                          alt={stock.name}
+                          width={32}
+                          height={32}
+                          className="rounded-full object-cover mr-3"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <span>{stock.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
                       {stock.closePrice?.toLocaleString() ?? "-"}원
                     </TableCell>
                     <TableCell
-                      className={
+                      className={`text-center ${
                         stock.priceDiff && stock.priceDiff > 0
                           ? "text-red-500"
                           : stock.priceDiff && stock.priceDiff < 0
                           ? "text-blue-500"
                           : ""
-                      }
+                      }`}
                     >
                       {stock.priceDiff
                         ? (stock.priceDiff > 0 ? "+" : "") +
@@ -341,13 +356,13 @@ export default function StocksPage() {
                         : "-"}
                     </TableCell>
                     <TableCell
-                      className={
+                      className={`text-center ${
                         stock.fluctuationRate && stock.fluctuationRate > 0
                           ? "text-red-500"
                           : stock.fluctuationRate && stock.fluctuationRate < 0
                           ? "text-blue-500"
                           : ""
-                      }
+                      }`}
                     >
                       {stock.fluctuationRate
                         ? (stock.fluctuationRate > 0 ? "+" : "") +
@@ -355,7 +370,7 @@ export default function StocksPage() {
                           "%"
                         : "-"}
                     </TableCell>
-                    <TableCell>{formatMarketCap(stock.marketCap)}</TableCell>
+                    <TableCell className="text-center">{formatMarketCap(stock.marketCap)}</TableCell>
                   </TableRow>
                 ))
               )}
