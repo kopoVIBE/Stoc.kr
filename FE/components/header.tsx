@@ -60,7 +60,7 @@ export default function Header() {
   }
 
   const navLinks = [
-    { href: "/", label: "Home" },
+    { href: "/dashboard", label: "Home" },
     { href: "/stocks", label: "전체 종목" },
     { href: "/news", label: "뉴스" },
     { href: "/community", label: "커뮤니티" },
@@ -69,6 +69,8 @@ export default function Header() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    // 쿠키에서도 토큰 제거
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setIsLoggedIn(false);
     setUser(null);
     router.push("/login");
@@ -92,8 +94,10 @@ export default function Header() {
   }
 
   const handleNavClick = (href: string, e: React.MouseEvent) => {
-    // "내 정보" 페이지에 접근할 때 로그인 체크
-    if (href === "/my-page" && !isLoggedIn) {
+    // 로그인이 필요한 페이지들 체크
+    const protectedPages = ["/dashboard", "/news", "/community", "/my-page"];
+    
+    if (protectedPages.includes(href) && !isLoggedIn) {
       e.preventDefault();
       router.push("/login");
     }
