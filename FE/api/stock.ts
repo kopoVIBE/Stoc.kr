@@ -4,19 +4,19 @@ export interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
-  priceDiff: number;
-  fluctuationRate: number;
-  eps: number;
-  per: number;
-  forwardEps: number;
-  forwardPer: number;
-  bps: number;
-  pbr: number;
-  dividendPerShare: number;
-  dividendYield: number;
-  marketType: string;
-  industryType: string;
+  priceDiff?: number;
+  fluctuationRate?: number;
   marketCap: number;
+  volume?: number;
+  per?: number;
+  pbr?: number;
+  eps?: number;
+  bps?: number;
+  industryType?: string;
+  marketType?: string;
+  sharesOutstanding?: number;
+  high52Week?: number;
+  low52Week?: number;
 }
 
 export interface StockPrice {

@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Stock, stockApi } from "@/api/stock";
 import {
   Table,
@@ -40,6 +39,7 @@ const formatMarketCap = (value: number) => {
 
 export default function StocksPage() {
   const router = useRouter();
+  const itemsPerPage = 8;
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortType, setSortType] = useState("volume");
@@ -47,23 +47,115 @@ export default function StocksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [sortedStocks, setSortedStocks] = useState<Stock[]>([]);
+  const [stockPrices, setStockPrices] = useState<{ [key: string]: number }>({});
+  const subscribedTickersRef = useRef<string[]>([]);
+  const prevPageRef = useRef<number>(currentPage);
 
   // 웹소켓 연결
-  const { stockPrices, connectionError } = useStockWebSocket(
-    stocks.map((stock) => stock.ticker)
+  const {
+    stockData,
+    isConnected,
+    error,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
+
+  // 정렬된 주식 목록에 대한 페이지네이션
+  const totalPages = Math.ceil(sortedStocks.length / itemsPerPage);
+  const currentPageStocks = useMemo(
+    () =>
+      sortedStocks.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      ),
+    [sortedStocks, currentPage, itemsPerPage]
   );
+
+  // 웹소켓으로 받은 데이터 처리
+  useEffect(() => {
+    if (stockData) {
+      setStockPrices((prev) => ({
+        ...prev,
+        [stockData.ticker]: stockData.price,
+      }));
+    }
+  }, [stockData]);
+
+  // 현재 페이지의 종목들 구독 관리
+  useEffect(() => {
+    if (!isConnected || currentPageStocks.length === 0) return;
+
+    // 페이지가 실제로 변경되었는지 확인
+    if (prevPageRef.current === currentPage) return;
+    prevPageRef.current = currentPage;
+
+    const currentTickers = currentPageStocks.map((stock) => stock.ticker);
+    const prevTickers = subscribedTickersRef.current;
+
+    console.log("Page Changed. Updating subscriptions:", {
+      currentPage,
+      currentTickers,
+      prevTickers,
+    });
+
+    // 이전에 구독했던 종목 중 현재 페이지에 없는 종목만 구독 해제
+    prevTickers.forEach((ticker) => {
+      if (!currentTickers.includes(ticker)) {
+        unsubscribeFromStock(ticker);
+      }
+    });
+
+    // 현재 페이지의 종목 중 구독되지 않은 종목만 구독
+    currentTickers.forEach((ticker) => {
+      if (!prevTickers.includes(ticker)) {
+        subscribeToStock(ticker);
+      }
+    });
+
+    // 구독 중인 종목 목록 업데이트
+    subscribedTickersRef.current = currentTickers;
+
+    // 컴포넌트 언마운트 시에만 구독 해제
+    return () => {
+      if (subscribedTickersRef.current.length > 0) {
+        console.log("Component unmounting, cleaning up subscriptions");
+        subscribedTickersRef.current.forEach((ticker) => {
+          unsubscribeFromStock(ticker);
+        });
+        subscribedTickersRef.current = [];
+      }
+    };
+  }, [currentPage, isConnected]); // 페이지 번호가 변경될 때만 실행
+
+  // 초기 구독 설정
+  useEffect(() => {
+    if (
+      !isConnected ||
+      currentPageStocks.length === 0 ||
+      subscribedTickersRef.current.length > 0
+    )
+      return;
+
+    const currentTickers = currentPageStocks.map((stock) => stock.ticker);
+    console.log("Initial subscription:", currentTickers);
+
+    currentTickers.forEach((ticker) => {
+      subscribeToStock(ticker);
+    });
+
+    subscribedTickersRef.current = currentTickers;
+  }, [isConnected, currentPageStocks]);
 
   // 웹소켓 상태 모니터링
   useEffect(() => {
     console.log("WebSocket Status:", {
-      stocksLength: stocks.length,
-      connectedTickers: stocks.map((stock) => stock.ticker),
-      stockPrices,
-      connectionError,
+      isConnected,
+      error,
+      stockData,
+      subscribedTickers: subscribedTickersRef.current,
+      currentPageStocks: currentPageStocks.map((stock) => stock.ticker),
     });
-  }, [stocks, stockPrices, connectionError]);
-
-  const itemsPerPage = 8;
+  }, [isConnected, error, stockData, currentPageStocks]);
 
   // 시간 업데이트
   useEffect(() => {
@@ -113,7 +205,7 @@ export default function StocksPage() {
       switch (sortType) {
         case "volume":
         case "amount":
-          sorted.sort((a, b) => b.marketCap - a.marketCap); // 시가총액 기준으로 정렬
+          sorted.sort((a, b) => b.marketCap - a.marketCap);
           break;
         case "up":
           sorted.sort(
@@ -126,21 +218,13 @@ export default function StocksPage() {
           );
           break;
         case "popular":
-          sorted.sort((a, b) => b.marketCap - a.marketCap); // 시가총액 기준으로 정렬
+          sorted.sort((a, b) => b.marketCap - a.marketCap);
           break;
       }
       setSortedStocks(sorted);
-      setCurrentPage(1);
     };
     sortStocks();
   }, [sortType, stocks, searchTerm, stockPrices]);
-
-  // 정렬된 주식 목록에 대한 페이지네이션
-  const totalPages = Math.ceil(sortedStocks.length / itemsPerPage);
-  const currentPageStocks = sortedStocks.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
 
   // 페이지네이션
   const getPageNumbers = () => {
@@ -163,15 +247,24 @@ export default function StocksPage() {
 
   return (
     <div className="container py-6 space-y-6">
-      {connectionError && (
+      {error && (
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          <p>{connectionError}</p>
+          <p>{error}</p>
         </div>
       )}
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-4">
           <h1 className="text-2xl font-bold">전체 종목</h1>
           <span className="text-sm text-gray-500">{currentTime} 기준</span>
+          <span
+            className={`text-sm px-2 py-1 rounded ${
+              isConnected
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {isConnected ? "실시간 연결됨" : "연결 끊김"}
+          </span>
         </div>
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
