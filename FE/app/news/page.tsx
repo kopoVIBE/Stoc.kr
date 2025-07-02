@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import NewsDetailModal from "@/components/news-detail-modal"
+import { getMyInfo } from "@/api/user"
 
 const mainNews = {
   title: "[오늘의 뉴욕증시 무버] 나이키, 실적 개선 기대감에 15%대 급등",
@@ -42,6 +43,23 @@ const userNews = [
 
 export default function NewsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const userData = await getMyInfo();
+        setUser(userData);
+      } catch (error) {
+        console.error("Failed to fetch user info:", error);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   return (
     <>
@@ -88,7 +106,7 @@ export default function NewsPage() {
 
         {/* Right Column */}
         <div className="lg:col-span-1 space-y-4">
-          <h1 className="text-2xl font-bold">User1님을 위한 맞춤 뉴스</h1>
+          <h1 className="text-2xl font-bold">{user?.name || "회원"}님을 위한 맞춤 뉴스</h1>
           <div className="space-y-3">
             {userNews.map((news, index) => (
               <Card key={index} className="cursor-pointer" onClick={() => setIsModalOpen(true)}>

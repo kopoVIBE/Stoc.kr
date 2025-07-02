@@ -18,6 +18,7 @@ import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { FavoriteAddDialog } from "@/components/favorite-add-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
+import { getMyInfo } from "@/api/user";
 
 const favoriteStocks = [
   {
@@ -137,6 +138,7 @@ export default function HomePage() {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -146,7 +148,7 @@ export default function HomePage() {
     const minutes = now.getMinutes().toString().padStart(2, "0");
     setCurrentTime(`${hours}:${minutes}`);
 
-    const fetchFavorites = async () => {
+    const fetchInitialData = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
         setIsLoading(false);
@@ -154,12 +156,18 @@ export default function HomePage() {
       }
 
       try {
-        const response = await getFavorites();
-        setFavoriteStocks(response.data);
+        // 사용자 정보와 관심 종목을 병렬로 가져오기
+        const [userResponse, favoritesResponse] = await Promise.all([
+          getMyInfo(),
+          getFavorites()
+        ]);
+        
+        setUser(userResponse);
+        setFavoriteStocks(favoritesResponse.data);
       } catch (error) {
         toast({
           title: "오류",
-          description: "관심 종목을 불러오는데 실패했습니다.",
+          description: "데이터를 불러오는데 실패했습니다.",
           variant: "destructive",
         });
       } finally {
@@ -167,7 +175,7 @@ export default function HomePage() {
       }
     };
 
-    fetchFavorites();
+    fetchInitialData();
   }, []);
 
   const handleToggleFavorite = async (stock: Stock) => {
@@ -243,7 +251,7 @@ export default function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-baseline gap-4">
-              <span>User1님을 위한 추천 종목</span>
+              <span>{user?.name || "회원"}님을 위한 추천 종목</span>
               <span className="text-sm font-normal text-gray-500">
                 {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
               </span>

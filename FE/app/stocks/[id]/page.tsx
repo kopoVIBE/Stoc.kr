@@ -264,11 +264,11 @@ export default function StockDetailPage({
   const handleConfirmRemove = async () => {
     try {
       await removeFavorite(ticker);
+      setIsFavorite(false);
       toast({
         title: "관심 종목이 삭제되었습니다.",
         description: `${stock?.name}이(가) 관심 종목에서 제거되었습니다.`,
       });
-      router.refresh();
     } catch (error) {
       console.error("Failed to remove favorite:", error);
       toast({
