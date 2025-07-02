@@ -187,8 +187,12 @@ export default function LoginPage() {
       if (isLogin) {
         const token = await login({ email: form.email, password: form.password });
         localStorage.setItem("token", token);
+        
+        // 쿠키에도 토큰 저장 (middleware에서 사용)
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7일간 유지
+        
         alert("로그인이 완료되었습니다!");
-        router.push("/");
+        router.push("/dashboard");
       } else {
         await signup({
           email: form.email,
