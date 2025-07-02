@@ -212,9 +212,13 @@ export default function StockDetailPage({
     const checkIsFavorite = async () => {
       try {
         const response = await checkFavorite(ticker);
-        setIsFavorite(response);
+        if (response.success) {
+          setIsFavorite(response.data);
+        }
       } catch (error) {
+        // API 호출 실패 시 즐겨찾기 상태를 false로 설정
         console.error("Failed to check favorite status:", error);
+        setIsFavorite(false);
       }
     };
 
@@ -225,33 +229,35 @@ export default function StockDetailPage({
   }, [ticker]);
 
   const handleToggleFavorite = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast({
-        title: "로그인 필요",
-        description: "관심 종목 기능을 사용하려면 로그인이 필요합니다.",
-        variant: "destructive",
-      });
-      router.push("/login");
-      return;
-    }
-
-    if (isFavorite) {
-      setIsDialogOpen(true);
-    } else {
-      try {
-        await addFavorite(ticker);
-        setIsFavorite(true);
+    try {
+      if (isFavorite) {
+        setIsDialogOpen(true);
+      } else {
+        const response = await addFavorite(ticker);
+        if (response.success) {
+          setIsFavorite(true);
+          toast({
+            title: "즐겨찾기 추가",
+            description: "관심 종목에 추가되었습니다.",
+          });
+        }
+      }
+    } catch (error: any) {
+      // 401 Unauthorized 에러인 경우 로그인 페이지로 리다이렉트
+      if (error.response?.status === 401) {
         toast({
-          description: "관심 종목에 추가되었습니다.",
-        });
-      } catch (error) {
-        toast({
-          title: "오류",
-          description: "관심 종목 추가에 실패했습니다.",
+          title: "로그인 필요",
+          description: "즐겨찾기 기능은 로그인 후 이용 가능합니다.",
           variant: "destructive",
         });
+        router.push("/login");
+        return;
       }
+      toast({
+        title: "오류 발생",
+        description: "즐겨찾기 추가에 실패했습니다.",
+        variant: "destructive",
+      });
     }
   };
 

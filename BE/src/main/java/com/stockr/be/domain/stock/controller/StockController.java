@@ -28,8 +28,8 @@ public class StockController {
         return ResponseEntity.ok(stockService.getAllStocks());
     }
     
-    @GetMapping("/top-volume")
-    public ResponseEntity<List<StockResponseDto>> getTopVolumeStocks() {
-        return ResponseEntity.ok(stockService.getTopVolumeStocks());
+    @GetMapping("/top-market-cap")
+    public ResponseEntity<List<StockResponseDto>> getTopMarketCapStocks() {
+        return ResponseEntity.ok(stockService.getTopMarketCapStocks());
     }
 } 
