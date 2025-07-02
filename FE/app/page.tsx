@@ -459,6 +459,7 @@ function StockTable({
         onClose={() => setIsRemoveDialogOpen(false)}
         onConfirm={handleConfirmRemove}
         stockName={selectedStock?.name || ""}
+        action="remove"
       />
 
       <FavoriteAddDialog

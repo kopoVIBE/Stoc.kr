@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stockApi, StockPrice } from "@/api/stock";
+import { stockApi } from "@/api/stock";
 
 interface CandlestickData {
   time: string;
@@ -13,71 +13,67 @@ interface CandlestickData {
   close: number;
 }
 
-type IntervalType = "daily" | "weekly" | "monthly";
-
 interface CandlestickChartProps {
-  ticker?: string;
+  ticker: string;
   data?: CandlestickData[];
 }
 
-export function CandlestickChart({
-  ticker = "005930",
-  data = [],
-}: CandlestickChartProps) {
+export function CandlestickChart({ ticker, data }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const [interval, setInterval] = useState<IntervalType>("daily");
-  const [chartData, setChartData] = useState<CandlestickData[]>(data);
-  const [isLoading, setIsLoading] = useState(false);
+  const [chartData, setChartData] = useState<CandlestickData[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!ticker) return;
-      setIsLoading(true);
-      try {
-        const response = await stockApi.getStockPrices(ticker, interval);
+    if (data) {
+      setChartData(data);
+      return;
+    }
 
-        if (response?.data?.prices?.length > 0) {
-          const formattedData = response.data.prices.map(
-            (price: StockPrice) => ({
-              time: price.date.split("T")[0],
-              open: price.open,
-              high: price.high,
-              low: price.low,
-              close: price.close,
-            })
-          );
-          setChartData(formattedData);
-        } else {
-          setChartData([]);
+    const fetchData = async () => {
+      try {
+        const response = await stockApi.getStockPrices(ticker);
+        if (response.success && response.data.prices) {
+          const prices = response.data.prices.map((price) => ({
+            time: price.date.split("T")[0],
+            open: price.open,
+            high: price.high,
+            low: price.low,
+            close: price.close,
+          }));
+          setChartData(prices);
         }
       } catch (error) {
-        console.error("Failed to fetch stock prices:", error);
-        setChartData([]);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to fetch chart data:", error);
       }
     };
 
     fetchData();
-  }, [ticker, interval]);
+  }, [ticker, data]);
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || chartData.length === 0) return;
 
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { color: "white" },
-        textColor: "black",
-      },
       width: chartContainerRef.current.clientWidth,
       height: 400,
+      layout: {
+        background: { color: "#ffffff" },
+        textColor: "#333",
+      },
+      grid: {
+        vertLines: { color: "#f0f0f0" },
+        horzLines: { color: "#f0f0f0" },
+      },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries();
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: "#ef4444",
+      downColor: "#3b82f6",
+      borderVisible: false,
+      wickUpColor: "#ef4444",
+      wickDownColor: "#3b82f6",
+    });
 
-    if (chartData.length > 0) {
-      candlestickSeries.setData(chartData);
-    }
+    candlestickSeries.setData(chartData);
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -95,28 +91,5 @@ export function CandlestickChart({
     };
   }, [chartData]);
 
-  return (
-    <div>
-      <div className="mb-4">
-        <Tabs
-          value={interval}
-          className="w-full"
-          onValueChange={(value: string) => setInterval(value as IntervalType)}
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="daily">일별</TabsTrigger>
-            <TabsTrigger value="weekly">주별</TabsTrigger>
-            <TabsTrigger value="monthly">월별</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      {isLoading ? (
-        <div className="h-[400px] flex items-center justify-center">
-          <p>Loading...</p>
-        </div>
-      ) : (
-        <div ref={chartContainerRef} className="h-[400px]" />
-      )}
-    </div>
-  );
+  return <div ref={chartContainerRef} />;
 }

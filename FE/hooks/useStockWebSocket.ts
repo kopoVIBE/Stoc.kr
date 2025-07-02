@@ -1,118 +1,133 @@
-import { useEffect, useRef, useState } from "react";
-import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Client } from "@stomp/stompjs";
 
-interface StockPrice {
+export interface StockPrice {
   ticker: string;
+  stockCode: string;
   price: number;
   volume: number;
   timestamp: number;
 }
 
-interface StockPrices {
-  [key: string]: number;
-}
-
-export function useStockWebSocket(tickers: string[]) {
-  const [stockPrices, setStockPrices] = useState<StockPrices>({});
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const client = useRef<Client | null>(null);
-  const subscriptions = useRef<StompSubscription[]>([]);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+export const useStockWebSocket = () => {
+  const [stockData, setStockData] = useState<StockPrice | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const clientRef = useRef<Client | null>(null);
+  const subscriptionsRef = useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
-    if (!tickers.length) {
-      console.log("No tickers provided, skipping websocket connection");
-      return;
-    }
-
-    console.log("Attempting to connect websocket with tickers:", tickers);
-    setConnectionError(null);
-
-    const wsClient = new Client({
-      webSocketFactory: () => {
-        console.log("Creating SockJS connection...");
-        return new SockJS("http://localhost:8080/ws");
-      },
-      onConnect: () => {
-        console.log("WebSocket Connected Successfully!");
-        setConnectionError(null);
-        reconnectAttempts.current = 0;
-
-        // 기존 구독 해제
-        subscriptions.current.forEach((sub) => {
-          console.log("Unsubscribing from:", sub);
-          sub.unsubscribe();
-        });
-        subscriptions.current = [];
-
-        // 각 종목에 대한 구독 설정
-        tickers.forEach((ticker) => {
-          console.log(`Subscribing to stock: ${ticker}`);
-          const subscription = wsClient.subscribe(
-            `/topic/stock/${ticker}`,
-            (message: IMessage) => {
-              try {
-                const priceData: StockPrice = JSON.parse(message.body);
-                console.log(`Received price update for ${ticker}:`, priceData);
-                setStockPrices((prev) => ({
-                  ...prev,
-                  [ticker]: priceData.price,
-                }));
-              } catch (error) {
-                console.error(
-                  `Failed to parse price data for ${ticker}:`,
-                  error
-                );
-              }
-            }
-          );
-          subscriptions.current.push(subscription);
-        });
-      },
-      onDisconnect: () => {
-        console.log("WebSocket Disconnected!");
-        setConnectionError("연결이 끊어졌습니다. 재연결을 시도합니다...");
-      },
-      onStompError: (frame) => {
-        console.error("STOMP Error:", frame);
-        setConnectionError(`STOMP 오류: ${frame.body}`);
-      },
-      onWebSocketError: (event) => {
-        console.error("WebSocket Error:", event);
-        reconnectAttempts.current++;
-
-        if (reconnectAttempts.current >= maxReconnectAttempts) {
-          setConnectionError(
-            "웹소켓 연결에 실패했습니다. 페이지를 새로고침해주세요."
-          );
-          if (wsClient.active) {
-            wsClient.deactivate();
-          }
-        } else {
-          setConnectionError(
-            `연결 오류 발생. 재시도 중... (${reconnectAttempts.current}/${maxReconnectAttempts})`
-          );
-        }
-      },
+    const client = new Client({
+      brokerURL: "ws://localhost:8080/ws",
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
+      onConnect: () => {
+        console.log("WebSocket Connected");
+        setIsConnected(true);
+        setError(null);
+      },
+      onDisconnect: () => {
+        console.log("WebSocket Disconnected");
+        setIsConnected(false);
+        subscriptionsRef.current = {};
+      },
+      onStompError: (frame) => {
+        console.error("STOMP error", frame);
+        setError(`WebSocket Error: ${frame.headers["message"]}`);
+      },
+      onWebSocketError: (event) => {
+        console.error("WebSocket Error:", event);
+        setError("WebSocket connection error");
+      },
     });
 
-    client.current = wsClient;
-    console.log("Activating STOMP client...");
-    wsClient.activate();
+    clientRef.current = client;
+    client.activate();
 
     return () => {
-      console.log("Cleaning up websocket connection...");
-      subscriptions.current.forEach((sub) => sub.unsubscribe());
-      if (wsClient.active) {
-        wsClient.deactivate();
+      console.log("WebSocket hook cleanup");
+      if (client.connected) {
+        Object.keys(subscriptionsRef.current).forEach(unsubscribeFromStock);
+        client.deactivate();
       }
     };
-  }, [tickers]);
+  }, []);
 
-  return { stockPrices, connectionError };
-}
+  const subscribeToStock = useCallback((ticker: string) => {
+    if (!clientRef.current?.connected) {
+      console.log(`Cannot subscribe to ${ticker}: WebSocket not connected`);
+      return;
+    }
+
+    if (subscriptionsRef.current[ticker]) {
+      console.log(`Already subscribed to ${ticker}`);
+      return;
+    }
+
+    try {
+      console.log(`Subscribing to ${ticker}`);
+
+      subscriptionsRef.current[ticker] = clientRef.current.subscribe(
+        `/topic/price/${ticker}`,
+        (message) => {
+          try {
+            const data = JSON.parse(message.body) as StockPrice;
+            setStockData(data);
+            setError(null);
+          } catch (e) {
+            console.error(`Parse error for ${ticker}:`, e);
+            setError("Failed to parse stock data");
+          }
+        }
+      );
+
+      clientRef.current.publish({
+        destination: `/app/stock/subscribe/${ticker}`,
+        body: JSON.stringify({ stockCode: ticker }),
+        headers: { "content-type": "application/json" },
+      });
+
+      console.log(`Successfully subscribed to ${ticker}`);
+    } catch (e) {
+      console.error(`Failed to subscribe to ${ticker}:`, e);
+      setError("Failed to subscribe to stock");
+      delete subscriptionsRef.current[ticker];
+    }
+  }, []);
+
+  const unsubscribeFromStock = useCallback((ticker: string) => {
+    if (!clientRef.current?.connected) {
+      console.log(`Cannot unsubscribe from ${ticker}: WebSocket not connected`);
+      return;
+    }
+
+    try {
+      console.log(`Unsubscribing from ${ticker}`);
+
+      if (subscriptionsRef.current[ticker]) {
+        subscriptionsRef.current[ticker].unsubscribe();
+        delete subscriptionsRef.current[ticker];
+
+        clientRef.current.publish({
+          destination: `/app/stock/unsubscribe/${ticker}`,
+          body: JSON.stringify({ stockCode: ticker }),
+          headers: { "content-type": "application/json" },
+        });
+
+        console.log(`Successfully unsubscribed from ${ticker}`);
+      }
+    } catch (e) {
+      console.error(`Failed to unsubscribe from ${ticker}:`, e);
+      setError("Failed to unsubscribe from stock");
+    }
+  }, []);
+
+  return {
+    stockData,
+    isConnected,
+    error,
+    subscribeToStock,
+    unsubscribeFromStock,
+  };
+};
