@@ -39,7 +39,10 @@ async def fetch_article_details(page, url):
         content = str(content_element)
         
         source_element = soup_article.select_one('.media_end_head_top_logo img')
-        source = source_element['alt'] if source_element else 'N/A'
+        source = source_element['alt']
+
+        category_elements = soup_article.select('em.media_end_categorize_item')
+        category = [el.text for el in category_elements] if category_elements else ['미분류']
 
         datetime_str = soup_article.select_one('.media_end_head_info_datestamp_time')['data-date-time']
         published_at_dt = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
@@ -49,6 +52,7 @@ async def fetch_article_details(page, url):
             'title': title,
             'content': content,
             'source': source,
+            'category': category,
             'url': page.url, # 최종 도착 URL
             'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
             'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
