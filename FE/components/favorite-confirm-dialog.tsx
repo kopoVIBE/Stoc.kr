@@ -14,6 +14,7 @@ interface FavoriteConfirmDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   stockName: string;
+  action: "add" | "remove";
 }
 
 export function FavoriteConfirmDialog({
@@ -21,14 +22,19 @@ export function FavoriteConfirmDialog({
   onClose,
   onConfirm,
   stockName,
+  action,
 }: FavoriteConfirmDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>관심 종목 해제</AlertDialogTitle>
+          <AlertDialogTitle>
+            {action === "add" ? "관심 종목 추가" : "관심 종목 해제"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {stockName}을(를) 관심 종목에서 해제하시겠습니까?
+            {stockName}을(를){" "}
+            {action === "add" ? "관심 종목에 추가" : "관심 종목에서 해제"}
+            하시겠습니까?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
