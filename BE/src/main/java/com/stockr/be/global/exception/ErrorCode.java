@@ -20,6 +20,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "User Not Found"),
     DUPLICATE_EMAIL(HttpStatus.BAD_REQUEST, "U002", "Email is Duplicate"),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "U003", "Password is Invalid"),
+    UNAUTHORIZED_USER(HttpStatus.UNAUTHORIZED, "U004", "Unauthorized User"),
 
     // Account
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "Account Not Found"),
@@ -32,7 +33,8 @@ public enum ErrorCode {
     FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "S003", "Favorite Not Found"),
     DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S004", "Duplicate Favorite"),
     INVALID_INTERVAL(HttpStatus.BAD_REQUEST, "S005", "Invalid interval value. Use 'daily', 'weekly', or 'monthly'"),
-    STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S006", "Stock price not found");
+    STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S006", "Stock price not found"),
+    STOCK_HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "S007", "Stock Holding Not Found");
 
     private final HttpStatus status;
     private final String code;
