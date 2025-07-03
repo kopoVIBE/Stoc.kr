@@ -45,7 +45,8 @@ public class StockPriceService {
         return mongoClient.getDatabase("stock_db").getCollection("stock_prices");
     }
 
-    public StockPriceResponse getPrices(String ticker, String interval, LocalDate startDate, LocalDate endDate, Integer limit) {
+    public StockPriceResponse getPrices(String ticker, String interval, LocalDate startDate, LocalDate endDate,
+            Integer limit) {
         var collection = getCollection();
         var query = new Document("ticker", ticker).append("interval", interval.toLowerCase());
 
@@ -70,17 +71,21 @@ public class StockPriceService {
         cursor.forEach(doc -> prices.add(documentToDto(doc)));
 
         if (prices.isEmpty()) {
-            return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(List.of()).meta(StockPriceResponse.MetaData.builder().totalCount(0).build()).build();
+            return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(List.of())
+                    .meta(StockPriceResponse.MetaData.builder().totalCount(0).build()).build();
         }
 
-        var meta = StockPriceResponse.MetaData.builder().totalCount(prices.size()).startDate(prices.get(0).getDate().toString()).endDate(prices.get(prices.size() - 1).getDate().toString()).build();
+        var meta = StockPriceResponse.MetaData.builder().totalCount(prices.size())
+                .startDate(prices.get(0).getDate().toString())
+                .endDate(prices.get(prices.size() - 1).getDate().toString()).build();
 
         return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(prices).meta(meta).build();
     }
 
     public StockPriceResponse getPriceByDate(String ticker, String interval, LocalDate date) {
         var collection = getCollection();
-        var query = new Document("ticker", ticker).append("interval", interval.toLowerCase()).append("date", new Document("$gte", date.atStartOfDay()).append("$lt", date.plusDays(1).atStartOfDay()));
+        var query = new Document("ticker", ticker).append("interval", interval.toLowerCase()).append("date",
+                new Document("$gte", date.atStartOfDay()).append("$lt", date.plusDays(1).atStartOfDay()));
 
         var doc = collection.find(query).first();
         var prices = new ArrayList<StockPriceDto>();
@@ -88,7 +93,8 @@ public class StockPriceService {
             prices.add(documentToDto(doc));
         }
 
-        var meta = StockPriceResponse.MetaData.builder().totalCount(prices.size()).startDate(date.toString()).endDate(date.toString()).build();
+        var meta = StockPriceResponse.MetaData.builder().totalCount(prices.size()).startDate(date.toString())
+                .endDate(date.toString()).build();
 
         return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(prices).meta(meta).build();
     }
@@ -104,9 +110,11 @@ public class StockPriceService {
 
             if (doc != null) {
                 var prices = List.of(documentToDto(doc));
-                var meta = StockPriceResponse.MetaData.builder().totalCount(1).startDate(doc.getDate("date").toString()).endDate(doc.getDate("date").toString()).build();
+                var meta = StockPriceResponse.MetaData.builder().totalCount(1).startDate(doc.getDate("date").toString())
+                        .endDate(doc.getDate("date").toString()).build();
 
-                responses.add(StockPriceResponse.builder().ticker(ticker).interval("daily").prices(prices).meta(meta).build());
+                responses.add(StockPriceResponse.builder().ticker(ticker).interval("daily").prices(prices).meta(meta)
+                        .build());
             }
         }
 
@@ -118,15 +126,15 @@ public class StockPriceService {
             // Redis에 데이터 저장
             String key = "stock:realtime:" + priceData.getStockCode();
             String jsonData = objectMapper.writeValueAsString(priceData);
-            
+
             // Redis에 저장 (TTL: 1시간)
             redisTemplate.opsForValue().set(key, jsonData, Duration.ofHours(1));
-            
+
             // 최근 N개의 가격 데이터를 리스트로 저장
             String listKey = "stock:history:" + priceData.getStockCode();
             redisTemplate.opsForList().leftPush(listKey, jsonData);
             redisTemplate.opsForList().trim(listKey, 0, 99); // 최근 100개만 유지
-            
+
             return priceData;
         } catch (Exception e) {
             log.error("실시간 주가 데이터 저장 중 오류 발생: ", e);
@@ -136,7 +144,7 @@ public class StockPriceService {
 
     public StockFinancialRatioDto getFinancialRatio(String ticker, String appKey, String appSecret) {
         String accessToken = getValidAccessToken();
-        
+
         // 1. 재무비율 API 호출
         String url = KOREA_INVESTMENT_API_URL + "/uapi/domestic-stock/v1/finance/financial-ratio";
 
@@ -175,16 +183,16 @@ public class StockPriceService {
                 Double psr = (sps != 0) ? price / sps : null;
 
                 return StockFinancialRatioDto.builder()
-                    .ticker(ticker)
-                    .date(LocalDate.now().toString())
-                    .per(per)
-                    .pbr(pbr)
-                    .psr(psr)
-                    .eps(eps)
-                    .bps(bps)
-                    .roe(roe)
-                    .price(price)
-                    .build();
+                        .ticker(ticker)
+                        .date(LocalDate.now().toString())
+                        .per(per)
+                        .pbr(pbr)
+                        .psr(psr)
+                        .eps(eps)
+                        .bps(bps)
+                        .roe(roe)
+                        .price(price)
+                        .build();
             }
         }
 
@@ -200,14 +208,14 @@ public class StockPriceService {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode tokenData = objectMapper.readTree(tokenJson);
-            
+
             String accessToken = tokenData.get("access_token").asText();
             LocalDateTime expiresAt = LocalDateTime.parse(tokenData.get("expires_at").asText());
-            
+
             if (LocalDateTime.now().isAfter(expiresAt)) {
                 throw new RuntimeException("KIS API 토큰이 만료되었습니다.");
             }
-            
+
             return accessToken;
         } catch (JsonProcessingException e) {
             throw new RuntimeException("토큰 데이터 파싱 중 오류가 발생했습니다.", e);
@@ -248,7 +256,10 @@ public class StockPriceService {
     }
 
     private StockPriceDto documentToDto(Document doc) {
-        return StockPriceDto.builder().ticker(doc.getString("ticker")).date(doc.getDate("date").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()).interval(doc.getString("interval")).open(doc.getDouble("open")).high(doc.getDouble("high")).low(doc.getDouble("low")).close(doc.getDouble("close")).volume(doc.getDouble("volume")).build();
+        return StockPriceDto.builder().ticker(doc.getString("ticker"))
+                .date(doc.getDate("date").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .interval(doc.getString("interval")).open(doc.getDouble("open")).high(doc.getDouble("high"))
+                .low(doc.getDouble("low")).close(doc.getDouble("close")).volume(doc.getDouble("volume")).build();
     }
 
     // 최신 가격 조회
@@ -256,8 +267,15 @@ public class StockPriceService {
         try {
             String key = "stock:realtime:" + stockCode;
             String jsonData = redisTemplate.opsForValue().get(key);
+            log.debug("Redis key: {}, value: {}", key, jsonData);
             if (jsonData != null) {
-                return objectMapper.readValue(jsonData, RealtimeStockPriceDto.class);
+                // 앞뒤 큰따옴표 제거
+                if (jsonData.startsWith("\"") && jsonData.endsWith("\"")) {
+                    jsonData = jsonData.substring(1, jsonData.length() - 1);
+                }
+                RealtimeStockPriceDto dto = objectMapper.readValue(jsonData, RealtimeStockPriceDto.class);
+                log.debug("Parsed DTO: {}", dto);
+                return dto;
             }
             return null;
         } catch (Exception e) {
@@ -273,16 +291,16 @@ public class StockPriceService {
             List<String> jsonList = redisTemplate.opsForList().range(listKey, 0, -1);
             if (jsonList != null) {
                 return jsonList.stream()
-                    .map(json -> {
-                        try {
-                            return objectMapper.readValue(json, RealtimeStockPriceDto.class);
-                        } catch (Exception e) {
-                            log.error("JSON 파싱 중 오류 발생: ", e);
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                        .map(json -> {
+                            try {
+                                return objectMapper.readValue(json, RealtimeStockPriceDto.class);
+                            } catch (Exception e) {
+                                log.error("JSON 파싱 중 오류 발생: ", e);
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
             }
             return new ArrayList<>();
         } catch (Exception e) {
