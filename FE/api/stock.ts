@@ -43,6 +43,13 @@ export interface StockPriceResponse {
   message: string | null;
 }
 
+export interface SimilarStock {
+  name: string;
+  ticker: string;
+  similarity: number;
+  industry: string;
+}
+
 export const stockApi = {
   getStocks: async (): Promise<Stock[]> => {
     const response = await axiosInstance.get("/api/stocks");
@@ -95,4 +102,23 @@ export const removeFavorite = async (ticker: string) => {
   console.log("Removing favorite for ticker:", ticker);
   const response = await axiosInstance.delete(`/api/v1/favorites/${ticker}`);
   return response.data;
+};
+
+export const getSimilarStocks = async (
+  stockName: string
+): Promise<SimilarStock[]> => {
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:5001/recommend?stock_name=${encodeURIComponent(
+        stockName
+      )}`
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch similar stocks");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching similar stocks:", error);
+    throw error;
+  }
 };

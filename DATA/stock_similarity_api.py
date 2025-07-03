@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 df = pd.read_excel("similarity_data.xlsx") 
 
 feature_cols = [
@@ -17,7 +19,7 @@ cos_sim = cosine_similarity(X)
 def recommend():
     stock_name = request.args.get("stock_name")
     if stock_name not in df['종목명'].values:
-        return jsonify({"error": "종목 없음"}), 404
+        return jsonify({"error": "Stock not found"}), 404
 
     target_index = df[df['종목명'] == stock_name].index[0]
     target_industry = df.loc[target_index, '업종명']
@@ -26,15 +28,16 @@ def recommend():
     adjusted_scores = []
     for i, score in enumerate(raw_scores):
         if i == target_index: continue
-        weight = 1.0 if df.loc[i, '업종명'] == target_industry else 0.8 # 추후 조정해야할 것 같음 ?
+        weight = 1.0 if df.loc[i, '업종명'] == target_industry else 0.8
         adjusted_scores.append((i, score * weight))
 
     top_indices = sorted(adjusted_scores, key=lambda x: x[1], reverse=True)[:5]
     recommendations = [
         {
-            "종목명": df.loc[i, '종목명'],
-            "유사도": round(score, 5),
-            "업종명": df.loc[i, '업종명']
+            "name": df.loc[i, '종목명'],
+            "ticker": str(df.loc[i, '종목코드']).zfill(6),
+            "similarity": round(score, 5),
+            "industry": df.loc[i, '업종명']
         }
         for i, score in top_indices
     ]
