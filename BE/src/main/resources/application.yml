@@ -37,7 +37,7 @@ spring:
 
   # KAFKA
   kafka:
-    bootstrap-servers: stockr-kafka:29092
+    bootstrap-servers: localhost:19092
     consumer:
       group-id: stockr-group
       auto-offset-reset: earliest
