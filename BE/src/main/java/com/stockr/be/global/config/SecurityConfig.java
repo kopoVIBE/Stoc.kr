@@ -31,15 +31,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:5500",
-            "http://127.0.0.1:5500"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedOrigins(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -52,21 +46,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers(
-                    "/api/users/signup",
-                    "/api/users/login",
-                    "/api/users/me",
-                    "/api/v1/stocks/**",
-                    "/ws/**",
-                    "/ws",
-                    "/ws/info",
-                    "/ws/info/**",
-                    "/topic/**",
-                    "/app/**"
-                ).permitAll()
-                .anyRequest().authenticated())
-            .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
-                    UsernamePasswordAuthenticationFilter.class);
+                .anyRequest().permitAll());
 
         return http.build();
     }

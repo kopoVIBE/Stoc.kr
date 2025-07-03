@@ -78,3 +78,10 @@ KIS:
   APP:
     KEY: ${KIS_APP_KEY}
     SECRET: ${KIS_APP_SECRET}
+  API:
+    BASE-URL: https://openapivts.koreainvestment.com:29443    # 모의투자 URL
+    WS-URL: ws://ops.koreainvestment.com:31000                # 웹소켓 URL
+
+trade:
+  python-service:
+    url: http://localhost:8000
