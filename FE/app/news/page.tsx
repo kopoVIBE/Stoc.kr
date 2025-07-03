@@ -156,7 +156,7 @@ export default function NewsPage() {
             <Card className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(mainNews)}>
               <div className="relative">
                 <Image
-                  src="/placeholder.svg?height=400&width=800"
+                  src={mainNews.thumbnailUrl || "/placeholder.svg?height=400&width=800"}
                   alt={mainNews.title}
                   width={800}
                   height={400}
@@ -177,7 +177,7 @@ export default function NewsPage() {
             {subNews.map((news, index) => (
               <Card key={news.id} className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(news)}>
                 <Image
-                  src="/placeholder.svg?height=150&width=200"
+                  src={news.thumbnailUrl || "/placeholder.svg?height=150&width=200"}
                   alt={news.title}
                   width={200}
                   height={150}

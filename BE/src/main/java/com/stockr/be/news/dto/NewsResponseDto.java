@@ -20,6 +20,7 @@ public class NewsResponseDto {
     private String source;
     private List<String> category;
     private String url;
+    private String thumbnailUrl;
     private LocalDateTime publishedAt;
     private LocalDateTime crawledAt;
 
@@ -31,6 +32,7 @@ public class NewsResponseDto {
                 .source(news.getSource())
                 .category(news.getCategory())
                 .url(news.getUrl())
+                .thumbnailUrl(news.getThumbnailUrl())
                 .publishedAt(news.getPublishedAt())
                 .crawledAt(news.getCrawledAt())
                 .build();

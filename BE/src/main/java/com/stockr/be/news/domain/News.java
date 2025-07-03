@@ -27,6 +27,9 @@ public class News {
     private String source;       // 언론사
     private List<String> category; // 뉴스 카테고리 목록
     private String url;          // 뉴스 URL
+    
+    @Field("thumbnail_url")  // MongoDB의 thumbnail_url 필드와 매핑
+    private String thumbnailUrl; // 뉴스 썸네일 이미지 URL
 
     @Field("published_at")  // MongoDB의 published_at 필드와 매핑
     private LocalDateTime publishedAt; // 실제 발행 시각

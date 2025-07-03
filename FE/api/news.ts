@@ -7,6 +7,7 @@ export interface NewsResponse {
   source: string
   category: string[]
   url: string
+  thumbnailUrl: string
   publishedAt: string
   crawledAt: string
 }
