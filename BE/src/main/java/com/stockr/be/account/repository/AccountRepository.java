@@ -14,6 +14,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByUser(User user);
 
+    Optional<Account> findByUser_UserId(Long userId);
+
     // 수정된 부분
     boolean existsByUser_UserId(Long userId);
 }

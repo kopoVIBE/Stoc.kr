@@ -45,7 +45,7 @@ public class AccountService {
      */
     @Transactional
     public AccountResponseDto createAccount(Long userId, AccountCreateRequestDto requestDto) {
-        log.info("계좌 생성 시작 - userId: {}, bankName: {}, accountNumber: {}", 
+        log.info("계좌 생성 시작 - userId: {}, bankName: {}, accountNumber: {}",
                 userId, requestDto.getBankName(), requestDto.getAccountNumber());
 
         try {
@@ -87,19 +87,22 @@ public class AccountService {
      * @return 계좌 응답 DTO (없으면 null)
      */
     public AccountResponseDto getAccountByUserId(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(()-> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        log.debug("AccountService.getAccountByUserId 호출됨 - userId: {}", userId);
+        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        log.debug("사용자 조회 완료 - user: {}", user);
         Account account = accountRepository.findByUser(user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+        log.debug("계좌 조회 완료 - account: {}", account);
         return AccountResponseDto.fromEntity(account);
     }
 
     @Transactional
     public TradeResponseDto processTrade(Long userId, TradeRequestDto request) {
-        User user = userRepository.findById(userId).orElseThrow(()-> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
         // 1. 계좌와 주식 정보 조회
         Account account = accountRepository.findByUser(user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
-        
+
         Stock stock = stockRepository.findByTicker(request.getTicker())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STOCK_NOT_FOUND));
 
