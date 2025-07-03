@@ -47,12 +47,19 @@ async def fetch_article_details(page, url):
         datetime_str = soup_article.select_one('.media_end_head_info_datestamp_time')['data-date-time']
         published_at_dt = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
 
+        # 썸네일 수집 로직
+        # 1. meta[property="og:image"] 선택자로 요소를 찾는다.
+        thumbnail_element = soup_article.select_one('meta[property="og:image"]')
+        # 2. 요소가 존재하면 content 속성을, 없으면 None을 저장한다. (안전한 처리)
+        thumbnail_url = thumbnail_element['content'] if thumbnail_element else None
+
         print(f"✅ '{title[:20]}...' 수집 성공")
         return {
             'title': title,
             'content': content,
             'source': source,
             'category': category,
+            'thumbnail_url': thumbnail_url,
             'url': page.url, # 최종 도착 URL
             'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
             'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -93,9 +100,18 @@ async def main():
                  pass # 이 부분은 더 복잡한 구조가 필요할 수 있음. 지금은 생략.
                  
         await browser.close()
-    
-    print("\n--- 최종 수집 데이터 ---")
-    print(json.dumps(news_data, indent=2, ensure_ascii=False))
+    return news_data
+    #print("\n--- 최종 수집 데이터 ---")
+    #print(json.dumps(news_data, indent=2, ensure_ascii=False))
+
+def export_data_to_json(data, filename):
+    """주어진 데이터를 JSON 파일로 저장하는 범용 함수"""
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ 결과가 '{filename}' 파일에 성공적으로 저장되었습니다.")
+    except Exception as e:
+        print(f"❌ 파일 저장 중 오류 발생: {e}")
 
 # 4. 비동기 프로그램 실행
 if __name__ == "__main__":
@@ -104,13 +120,18 @@ if __name__ == "__main__":
     print("크롤링을 시작합니다...")
     
     # asyncio.run()으로 메인 함수 실행
-    asyncio.run(main())
+    final_crawled_data = asyncio.run(main())
     
     end_time = time.time()
     # ================== 시간 측정 종료 ==================
+
+    if final_crawled_data:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            export_data_to_json(final_crawled_data, f"news_results_main_{timestamp}.json")
+            print(f"\n✅ 결과가 파일로 저장되었습니다.")
 
     # 최종 소요 시간 계산 및 출력
     elapsed_time = end_time - start_time
     print("\n--- 성능 측정 결과 ---")
     print(f"총 소요 시간: {elapsed_time:.2f}초")
-    # =============================================================
+    # =============================================================dk wndy
