@@ -3,22 +3,12 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import Image from "next/image"
 import NewsDetailModal from "@/components/news-detail-modal"
 import { getMyInfo } from "@/api/user"
-
-const mainNews = {
-  title: "[오늘의 뉴욕증시 무버] 나이키, 실적 개선 기대감에 15%대 급등",
-  time: "9시간 전",
-  source: "이데일리",
-  imageUrl: "/placeholder.svg?height=400&width=800",
-}
-
-const subNews = [
-  { title: "이마존, '2년내 Prime 회원비 인상 예상'에 주가 +2.8%", imageUrl: "/placeholder.svg?height=150&width=200" },
-  { title: "나이키 +15.1%, VF 코퍼레이션 +1.9%", imageUrl: "/placeholder.svg?height=150&width=200" },
-  { title: "스타트업, 월가가 스시 사업에 열광하는 동안...", imageUrl: "/placeholder.svg?height=150&width=200" },
-]
+import { getAllNews, NewsResponse } from "@/api/news"
+import { formatTimeAgo } from "@/lib/utils"
 
 const userNews = [
   {
@@ -43,7 +33,11 @@ const userNews = [
 
 export default function NewsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedNews, setSelectedNews] = useState<NewsResponse | null>(null)
   const [user, setUser] = useState<any>(null)
+  const [allNews, setAllNews] = useState<NewsResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -58,8 +52,97 @@ export default function NewsPage() {
       }
     };
 
-    fetchUserInfo();
-  }, []);
+    const fetchNews = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const newsData = await getAllNews()
+        setAllNews(newsData)
+      } catch (error) {
+        console.error("뉴스 조회 실패:", error)
+        setError("뉴스를 불러오는데 실패했습니다.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserInfo()
+    fetchNews()
+  }, [])
+
+  const handleNewsClick = (news: NewsResponse) => {
+    setSelectedNews(news)
+    setIsModalOpen(true)
+  }
+
+  const mainNews = allNews[0] // 첫 번째 뉴스를 메인 뉴스로
+  const subNews = allNews.slice(1, 4) // 2-4번째 뉴스를 서브 뉴스로
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column Loading */}
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-8 w-48" />
+          {/* Main News Loading */}
+          <Card className="overflow-hidden">
+            <Skeleton className="w-full h-64" />
+            <div className="p-4">
+              <Skeleton className="h-6 w-full mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </Card>
+          {/* Sub News Loading */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <Skeleton className="w-full h-32" />
+                <div className="p-3">
+                  <Skeleton className="h-4 w-full mb-1" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column Loading */}
+        <div className="lg:col-span-1 space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <Card key={i}>
+                <div className="p-3 flex gap-3 items-center">
+                  <Skeleton className="w-20 h-20 rounded-md" />
+                  <div className="flex-grow">
+                    <Skeleton className="h-4 w-16 mb-1" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <p className="text-red-500 text-lg mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -67,30 +150,34 @@ export default function NewsPage() {
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           <h1 className="text-2xl font-bold">주요 뉴스</h1>
+          
           {/* Main News */}
-          <Card className="overflow-hidden cursor-pointer" onClick={() => setIsModalOpen(true)}>
-            <div className="relative">
-              <Image
-                src={mainNews.imageUrl || "/placeholder.svg"}
-                alt={mainNews.title}
-                width={800}
-                height={400}
-                className="w-full h-auto object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                <h2 className="text-xl font-bold text-white">{mainNews.title}</h2>
-                <p className="text-gray-300 mt-1 text-xs">
-                  {mainNews.time} · {mainNews.source}
-                </p>
+          {mainNews && (
+            <Card className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(mainNews)}>
+              <div className="relative">
+                <Image
+                  src={mainNews.thumbnailUrl || "/placeholder.svg?height=400&width=800"}
+                  alt={mainNews.title}
+                  width={800}
+                  height={400}
+                  className="w-full h-auto object-cover"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  <h2 className="text-xl font-bold text-white">{mainNews.title}</h2>
+                  <p className="text-gray-300 mt-1 text-xs">
+                    {formatTimeAgo(mainNews.publishedAt)} · {mainNews.source}
+                  </p>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
+
           {/* Sub News Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {subNews.map((news, index) => (
-              <Card key={index} className="overflow-hidden cursor-pointer" onClick={() => setIsModalOpen(true)}>
+              <Card key={news.id} className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(news)}>
                 <Image
-                  src={news.imageUrl || "/placeholder.svg"}
+                  src={news.thumbnailUrl || "/placeholder.svg?height=150&width=200"}
                   alt={news.title}
                   width={200}
                   height={150}
@@ -98,6 +185,9 @@ export default function NewsPage() {
                 />
                 <CardContent className="p-3">
                   <h3 className="font-semibold leading-tight">{news.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatTimeAgo(news.publishedAt)} · {news.source}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -139,7 +229,11 @@ export default function NewsPage() {
           </div>
         </div>
       </div>
-      <NewsDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <NewsDetailModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        news={selectedNews}
+      />
     </>
   )
 }

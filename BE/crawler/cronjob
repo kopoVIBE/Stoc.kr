@@ -1,0 +1,1 @@
+0 * * * * root python /app/news-crawler-main.py >> /app/crawl.log 2>&1
