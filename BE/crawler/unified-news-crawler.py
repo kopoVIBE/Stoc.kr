@@ -207,7 +207,7 @@ async def main():
     # 종목 뉴스 관련 설정
     BATCH_SIZE = 10           # 한 번에 처리할 종목 수 (메모리 관리용)
     MAX_PAGES_PER_STOCK = 1   # 종목당 수집할 최대 페이지 수
-    MAX_LINKS_PER_PAGE = 5  # 종목 뉴스 페이지당 최대 링크 수
+    MAX_LINKS_PER_PAGE = 3  # 종목 뉴스 페이지당 최대 링크 수
 
     # 동시성 설정
     CONCURRENT_TASKS = 10     # 동시 실행 작업 수
