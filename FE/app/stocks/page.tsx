@@ -246,6 +246,20 @@ export default function StocksPage() {
     router.push(`/stocks/${ticker}`);
   };
 
+  // 페이지 이동 시 구독 해제
+  useEffect(() => {
+    return () => {
+      console.log("Stocks page unmounting");
+      if (subscribedTickersRef.current.length > 0) {
+        subscribedTickersRef.current.forEach((ticker) => {
+          console.log(`Unsubscribing from ${ticker} on page unmount`);
+          unsubscribeFromStock(ticker);
+        });
+        subscribedTickersRef.current = [];
+      }
+    };
+  }, []); // 빈 dependency array로 설정
+
   return (
     <div className="container py-6 space-y-6">
       {error && (
@@ -317,8 +331,8 @@ export default function StocksPage() {
                 currentPageStocks.map((stock, index) => (
                   <TableRow
                     key={stock.ticker || `stock-${index}`}
-                    className="cursor-pointer hover:bg-gray-50"
                     onClick={() => handleStockClick(stock.ticker)}
+                    className="cursor-pointer hover:bg-gray-50"
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * itemsPerPage + index + 1}
@@ -332,7 +346,7 @@ export default function StocksPage() {
                           height={32}
                           className="rounded-full object-cover mr-3"
                           onError={(e) => {
-                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.style.display = "none";
                           }}
                         />
                         <span>{stock.name}</span>
@@ -370,7 +384,9 @@ export default function StocksPage() {
                           "%"
                         : "-"}
                     </TableCell>
-                    <TableCell className="text-center">{formatMarketCap(stock.marketCap)}</TableCell>
+                    <TableCell className="text-center">
+                      {formatMarketCap(stock.marketCap)}
+                    </TableCell>
                   </TableRow>
                 ))
               )}

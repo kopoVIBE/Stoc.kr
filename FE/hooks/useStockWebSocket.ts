@@ -29,8 +29,12 @@ export const useStockWebSocket = () => {
   const [error, setError] = useState<string | null>(null);
   const clientRef = useRef<Client | null>(null);
   const subscriptionsRef = useRef<{ [key: string]: any }>({});
+  const pathnameRef = useRef<string>("");
 
   useEffect(() => {
+    // 클라이언트 사이드에서만 pathname 설정
+    pathnameRef.current = window.location.pathname;
+
     const client = new Client({
       brokerURL: "ws://localhost:8080/ws",
       reconnectDelay: 5000,
@@ -56,17 +60,46 @@ export const useStockWebSocket = () => {
       },
     });
 
+    // pathname 변경 감지 함수
+    const handlePathChange = () => {
+      const currentPath = window.location.pathname;
+      if (currentPath !== pathnameRef.current) {
+        console.log("Path changed, cleaning up subscriptions");
+        Object.keys(subscriptionsRef.current).forEach((key) => {
+          const ticker = key.replace("price_", "").replace("orderbook_", "");
+          if (subscriptionsRef.current[key]) {
+            subscriptionsRef.current[key].unsubscribe();
+            delete subscriptionsRef.current[key];
+
+            // 서버에 구독 해제 알림
+            if (clientRef.current?.connected) {
+              clientRef.current.publish({
+                destination: `/app/stock/unsubscribe/${ticker}`,
+                body: JSON.stringify({ stockCode: ticker }),
+                headers: { "content-type": "application/json" },
+              });
+            }
+          }
+        });
+        pathnameRef.current = currentPath;
+      }
+    };
+
     clientRef.current = client;
     client.activate();
 
+    // popstate 이벤트 리스너 추가
+    window.addEventListener("popstate", handlePathChange);
+
     return () => {
+      window.removeEventListener("popstate", handlePathChange);
       console.log("WebSocket hook cleanup");
       if (client.connected) {
         Object.keys(subscriptionsRef.current).forEach(unsubscribeFromStock);
         client.deactivate();
       }
     };
-  }, []);
+  }, []); // 빈 dependency array 사용
 
   const subscribeToStock = useCallback((ticker: string) => {
     if (!clientRef.current?.connected) {
