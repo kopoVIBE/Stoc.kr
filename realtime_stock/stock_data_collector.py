@@ -53,7 +53,7 @@ class StockDataCollector:
                 host=os.getenv('MYSQL_HOST', 'localhost'),
                 user=os.getenv('MYSQL_USER', 'stockr'),
                 password=os.getenv('MYSQL_PASSWORD', 'stockr123!'),
-                database=os.getenv('MYSQL_DATABASE', 'stock_db'),
+                database=os.getenv('MYSQL_DATABASE', 'stockr'),
                 port=int(os.getenv('MYSQL_PORT', '13306')),  # Docker MySQL 포트로 변경
                 cursorclass=pymysql.cursors.DictCursor
             )
@@ -87,7 +87,7 @@ class StockDataCollector:
             # 연결 테스트
             self.mongo_client.admin.command('ping')
             
-            self.db = self.mongo_client['stock_db']
+            self.db = self.mongo_client['stockr']
             self.collection = self.db['stock_prices']
             
             # 기본 인덱스 생성 시도
