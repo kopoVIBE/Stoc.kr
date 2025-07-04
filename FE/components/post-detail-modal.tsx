@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, MessageSquare, Send, Edit2, Trash2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ThumbsUp, MessageSquare, Send, Edit2, Trash2, Save, X } from "lucide-react"
 import { 
   PostResponse, 
   CommentResponse, 
@@ -16,7 +18,12 @@ import {
   updateComment, 
   deleteComment, 
   togglePostLike,
-  CommentCreateRequest
+  updatePost,
+  deletePost,
+  getUserFavoriteStocks,
+  CommentCreateRequest,
+  PostCreateRequest,
+  FavoriteStock
 } from "@/api/community"
 import { getMyInfo } from "@/api/user"
 import { formatTimeAgo } from "@/lib/utils"
@@ -27,15 +34,23 @@ interface PostDetailModalProps {
   isOpen: boolean
   onClose: () => void
   onPostUpdate: (updatedPost: PostResponse) => void
+  onPostDelete?: () => void
 }
 
-export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate }: PostDetailModalProps) {
+export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate, onPostDelete }: PostDetailModalProps) {
   const [comments, setComments] = useState<CommentResponse[]>([])
   const [newComment, setNewComment] = useState("")
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
   const [editingCommentText, setEditingCommentText] = useState("")
   const [loading, setLoading] = useState(false)
   const [userNickname, setUserNickname] = useState<string | null>(null)
+  
+  // 게시글 수정 관련 상태
+  const [isEditingPost, setIsEditingPost] = useState(false)
+  const [editingTitle, setEditingTitle] = useState("")
+  const [editingContent, setEditingContent] = useState("")
+  const [editingStockCode, setEditingStockCode] = useState("")
+  const [favoriteStocks, setFavoriteStocks] = useState<FavoriteStock[]>([])
 
   useEffect(() => {
     if (isOpen && post) {
@@ -46,8 +61,12 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate }:
 
   const fetchUserInfo = async () => {
     try {
-      const userInfo = await getMyInfo()
+      const [userInfo, stocks] = await Promise.all([
+        getMyInfo(),
+        getUserFavoriteStocks().catch(() => [])
+      ])
       setUserNickname(userInfo?.nickname || null)
+      setFavoriteStocks(stocks)
     } catch (error) {
       console.error("사용자 정보 조회 실패:", error)
     }
@@ -166,11 +185,74 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate }:
     }
   }
 
+  const handleStartEditPost = () => {
+    if (!post) return
+    setEditingTitle(post.title)
+    setEditingContent(post.content)
+    setEditingStockCode(post.stockCode)
+    setIsEditingPost(true)
+  }
+
+  const handleSavePost = async () => {
+    if (!post || !editingTitle.trim() || !editingContent.trim() || !editingStockCode) return
+    
+    setLoading(true)
+    try {
+      const selectedStock = favoriteStocks.find(s => s.code === editingStockCode)
+      const updateData: PostCreateRequest = {
+        title: editingTitle.trim(),
+        content: editingContent.trim(),
+        stockCode: editingStockCode,
+        stockName: selectedStock?.name || ""
+      }
+      
+      const updatedPost = await updatePost(post.id, updateData)
+      onPostUpdate(updatedPost)
+      setIsEditingPost(false)
+      toast.success("게시글이 수정되었습니다.")
+    } catch (error: any) {
+      console.error("게시글 수정 실패:", error)
+      toast.error(error.response?.data?.message || "게시글 수정에 실패했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelEditPost = () => {
+    setIsEditingPost(false)
+    setEditingTitle("")
+    setEditingContent("")
+    setEditingStockCode("")
+  }
+
+  const handleDeletePost = async () => {
+    if (!post) return
+    
+    if (!confirm("정말 삭제하시겠습니까?")) return
+    
+    setLoading(true)
+    try {
+      await deletePost(post.id)
+      toast.success("게시글이 삭제되었습니다.")
+      onPostDelete?.()
+      handleClose()
+    } catch (error: any) {
+      console.error("게시글 삭제 실패:", error)
+      toast.error(error.response?.data?.message || "게시글 삭제에 실패했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleClose = () => {
     setComments([])
     setNewComment("")
     setEditingCommentId(null)
     setEditingCommentText("")
+    setIsEditingPost(false)
+    setEditingTitle("")
+    setEditingContent("")
+    setEditingStockCode("")
     onClose()
   }
 
@@ -196,37 +278,133 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate }:
         <div className="space-y-6">
           {/* 게시글 내용 */}
           <div className="space-y-4">
-            {post.stockName && (
-              <Badge variant="outline" className="w-fit border-[#248f5b] text-[#248f5b]">
-                {post.stockName}
-              </Badge>
-            )}
-            <h2 className="text-2xl font-bold">{post.title}</h2>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>{post.authorNickname}</span>
-              <span>·</span>
-              <span>{formatTimeAgo(post.createdAt)}</span>
-            </div>
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: post.content }} />
-            
-            {/* 좋아요 및 댓글 버튼 */}
-            <div className="flex gap-4 pt-4">
-              <button 
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                  post.isLikedByUser 
-                    ? 'bg-red-500 text-white hover:bg-red-600' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
-                }`}
-                onClick={handlePostLike}
-              >
-                <ThumbsUp className={`w-5 h-5 ${post.isLikedByUser ? 'fill-current' : ''}`} />
-                <span>{post.likes}</span>
-              </button>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-600">
-                <MessageSquare className="w-5 h-5" />
-                <span>{post.commentCount}</span>
+            {isEditingPost ? (
+              /* 수정 모드 */
+              <div className="space-y-4">
+                {/* 종목 선택 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">관련 종목</label>
+                  <Select value={editingStockCode} onValueChange={setEditingStockCode}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="종목을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {favoriteStocks.map((stock) => (
+                        <SelectItem key={stock.code} value={stock.code}>
+                          {stock.name} ({stock.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* 제목 입력 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">제목</label>
+                  <Input
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    placeholder="제목을 입력하세요"
+                    maxLength={200}
+                  />
+                </div>
+                
+                {/* 내용 입력 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">내용</label>
+                  <Textarea
+                    value={editingContent}
+                    onChange={(e) => setEditingContent(e.target.value)}
+                    placeholder="내용을 입력하세요"
+                    rows={8}
+                    className="resize-none"
+                  />
+                </div>
+                
+                {/* 수정 버튼 */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSavePost}
+                    disabled={loading || !editingTitle.trim() || !editingContent.trim() || !editingStockCode}
+                    className="bg-[#248f5b] hover:bg-[#248f5b]/90"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {loading ? "저장 중..." : "저장"}
+                  </Button>
+                  <Button
+                    onClick={handleCancelEditPost}
+                    variant="outline"
+                    disabled={loading}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    취소
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* 조회 모드 */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {post.stockName && (
+                      <Badge variant="outline" className="border-[#248f5b] text-[#248f5b]">
+                        {post.stockName}
+                      </Badge>
+                    )}
+                  </div>
+                  {userNickname === post.authorNickname && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleStartEditPost}
+                        disabled={loading}
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" />
+                        수정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeletePost}
+                        disabled={loading}
+                        className="text-red-500 hover:text-red-700 hover:border-red-300"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        삭제
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                <h2 className="text-2xl font-bold">{post.title}</h2>
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <span>{post.authorNickname}</span>
+                  <span>·</span>
+                  <span>{formatTimeAgo(post.createdAt)}</span>
+                </div>
+                <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: post.content }} />
+                
+                {/* 좋아요 및 댓글 버튼 */}
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                      post.isLikedByUser 
+                        ? 'bg-red-500 text-white hover:bg-red-600' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
+                    }`}
+                    onClick={handlePostLike}
+                  >
+                    <ThumbsUp className={`w-5 h-5 ${post.isLikedByUser ? 'fill-current' : ''}`} />
+                    <span>{post.likes}</span>
+                  </button>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-600">
+                    <MessageSquare className="w-5 h-5" />
+                    <span>{post.commentCount}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator />

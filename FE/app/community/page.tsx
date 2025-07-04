@@ -167,6 +167,14 @@ export default function CommunityPage() {
     setSelectedPost(updatedPost)
   }
 
+  const handlePostDelete = () => {
+    // 삭제된 게시글을 목록에서 제거
+    if (selectedPost) {
+      setPosts(prev => prev.filter(post => post.id !== selectedPost.id))
+      setSelectedPost(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -353,6 +361,7 @@ export default function CommunityPage() {
         isOpen={isPostDetailModalOpen}
         onClose={() => setIsPostDetailModalOpen(false)}
         onPostUpdate={handlePostUpdate}
+        onPostDelete={handlePostDelete}
       />
     </>
   )
