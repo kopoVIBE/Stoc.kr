@@ -135,6 +135,7 @@ export function CandlestickChart({
   useEffect(() => {
     if (
       !realtimeData ||
+      !realtimeData.timestamp ||
       !candlestickSeriesRef.current ||
       !lastDataRef.current ||
       period !== "day"

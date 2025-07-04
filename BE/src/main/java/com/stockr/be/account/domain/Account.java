@@ -62,4 +62,11 @@ public class Account {
     @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public void setBalance(BigDecimal balance) {
+        if (balance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("잔액은 0보다 작을 수 없습니다.");
+        }
+        this.balance = balance;
+    }
 }

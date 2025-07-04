@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 export interface StockPrice {
   ticker: string;
@@ -32,7 +33,10 @@ export const useStockWebSocket = () => {
 
   useEffect(() => {
     const client = new Client({
-      brokerURL: "ws://localhost:8080/ws",
+      // brokerURL: "ws://localhost:8080/ws", // SockJS를 위해 이 부분을 주석 처리
+      webSocketFactory: () => {
+        return new SockJS("http://localhost:8080/ws");
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -109,7 +113,7 @@ export const useStockWebSocket = () => {
         });
 
       clientRef.current.publish({
-        destination: `/app/stock/subscribe/${ticker}`,
+        destination: `/app/subscribe/${ticker}`,
         body: JSON.stringify({ stockCode: ticker }),
         headers: { "content-type": "application/json" },
       });
@@ -143,7 +147,7 @@ export const useStockWebSocket = () => {
       }
 
       clientRef.current.publish({
-        destination: `/app/stock/unsubscribe/${ticker}`,
+        destination: `/app/unsubscribe/${ticker}`,
         body: JSON.stringify({ stockCode: ticker }),
         headers: { "content-type": "application/json" },
       });
