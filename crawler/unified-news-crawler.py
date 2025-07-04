@@ -167,7 +167,7 @@ async def worker(semaphore, context, url, news_type, stock_info=None):
         await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", lambda route: route.abort())
         
         result = await fetch_article_details(page, url, news_type, stock_info)
-        await asyncio.sleep(random.uniform(0.5, 1.5)) # 자연스러운 딜레이
+        await asyncio.sleep(random.uniform(0.1, 0.5)) # 자연스러운 딜레이
         return result
 
 async def run_crawling_session(tasks):
@@ -185,7 +185,7 @@ async def main():
     # 종목 뉴스 관련 설정
     BATCH_SIZE = 10           # 한 번에 처리할 종목 수 (메모리 관리용)
     MAX_PAGES_PER_STOCK = 1   # 종목당 수집할 최대 페이지 수
-    MAX_LINKS_PER_PAGE = 5  # 종목 뉴스 페이지당 최대 링크 수
+    MAX_LINKS_PER_PAGE = 1  # 종목 뉴스 페이지당 최대 링크 수
 
     # 동시성 설정
     CONCURRENT_TASKS = 10     # 동시 실행 작업 수
@@ -215,38 +215,56 @@ async def main():
                 final_crawled_data.extend(main_news_results)
                 print(f"✅ 주요 뉴스 총 {len(main_news_results)}건 수집 완료.")
 
-        # --- 종목 뉴스 크롤링 (배치 처리) ---
+        # --- 종목 뉴스 크롤링 (개선된 방식) ---
         if CRAWL_MODE in ['STOCKS', 'ALL']:
             all_stocks = read_stocks_from_csv()
             if all_stocks:
+                total_batches = (len(all_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
+
                 for i in range(0, len(all_stocks), BATCH_SIZE):
                     batch_stocks = all_stocks[i:i+BATCH_SIZE]
-                    batch_num = i//BATCH_SIZE + 1
-                    total_batches = (len(all_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
                     
+                    batch_num = (i // BATCH_SIZE) + 1
+            
                     print("\n" + "="*60)
                     print(f"  종목 뉴스 배치 {batch_num} / {total_batches} 시작 (종목 {len(batch_stocks)}개)")
                     print("="*60)
 
+                    # ★★★ 1단계: 링크 일괄 수집 ★★★
+                    urls_to_crawl = []
+                    print(f"\n--- 배치 {batch_num}: 링크 선행 수집 시작 ---")
                     for stock in batch_stocks:
                         stock_info = {'code': stock['code'], 'name': stock['name']}
-                        print(f"\n--- '{stock_info['name']}({stock_info['code']})' 뉴스 수집 시작 ---")
                         
                         list_page = await context.new_page()
-                        article_urls = await fetch_stock_news_links(list_page, stock_info['code'], MAX_PAGES_PER_STOCK, links_per_page_limit=MAX_LINKS_PER_PAGE)
+                        article_urls = await fetch_stock_news_links(
+                            list_page, 
+                            stock_info['code'], 
+                            MAX_PAGES_PER_STOCK,
+                            links_per_page_limit=MAX_LINKS_PER_PAGE
+                        )
                         await list_page.close()
 
-                        if not article_urls:
-                            print(f"    - '{stock_info['name']}'에 대한 수집할 뉴스가 없습니다.")
-                            continue
-
-                        tasks = [worker(semaphore, context, url, 'stock', stock_info) for url in article_urls]
-                        stock_news_results = await run_crawling_session(tasks)
-                        final_crawled_data.extend(stock_news_results)
-                        print(f"    - ✅ '{stock_info['name']}' 뉴스 {len(stock_news_results)}건 수집 완료.")
+                        for url in article_urls:
+                            urls_to_crawl.append({'url': url, 'stock_info': stock_info})
                         
-                        await asyncio.sleep(random.uniform(1, 3)) # 종목 변경 시 휴식
+                        print(f"    - '{stock_info['name']}' 링크 {len(article_urls)}개 추가. (총 {len(urls_to_crawl)}개)")
 
+                    # ★★★ 2단계: 상세 기사 일괄 처리 ★★★
+                    if not urls_to_crawl:
+                        print(f"--- 배치 {batch_num}: 수집할 링크가 없습니다. ---")
+                        continue
+
+                    print(f"\n--- 배치 {batch_num}: 총 {len(urls_to_crawl)}개의 기사 상세 정보 수집 시작 ---")
+                    tasks = []
+                    for item in urls_to_crawl:
+                        task = worker(semaphore, context, item['url'], 'stock', item['stock_info'])
+                        tasks.append(task)
+                    
+                    batch_results = await run_crawling_session(tasks)
+                    final_crawled_data.extend(batch_results)
+                    print(f"--- ✅ 배치 {batch_num}: {len(batch_results)}건 수집 완료 ---")
+        
         await browser.close()
 
     # --- 최종 결과 저장 ---
