@@ -42,6 +42,7 @@ public class InternalTradeService {
         }
     }
 
+    @Transactional
     private void executeBuyOrder(LimitOrder order, BigDecimal executionPrice) {
         Account account = order.getAccount();
         Stock stock = order.getStock();
@@ -73,6 +74,7 @@ public class InternalTradeService {
         finishOrder(order, executionPrice);
     }
 
+    @Transactional
     private void executeSellOrder(LimitOrder order, BigDecimal executionPrice) {
         Account account = order.getAccount();
         Stock stock = order.getStock();
@@ -94,18 +96,24 @@ public class InternalTradeService {
         finishOrder(order, executionPrice);
     }
 
+    @Transactional
     private void finishOrder(LimitOrder order, BigDecimal executionPrice) {
+        // 주문 상태 업데이트
         order.updateStatus(TradingOrderStatus.EXECUTED);
-        limitOrderRepository.save(order);
 
-        TradeLog log = TradeLog.builder()
-                .executedOrder(order)
-                .account(order.getAccount())
-                .stock(order.getStock())
-                .orderType(order.getOrderType())
-                .executedQuantity(order.getQuantity())
+        // 주문을 먼저 저장하고 ID를 확보
+        LimitOrder savedOrder = limitOrderRepository.saveAndFlush(order);
+
+        // 거래 로그 생성 및 저장
+        TradeLog tradeLog = TradeLog.builder()
+                .executedOrder(savedOrder)
+                .account(savedOrder.getAccount())
+                .stock(savedOrder.getStock())
+                .orderType(savedOrder.getOrderType())
+                .executedQuantity(savedOrder.getQuantity())
                 .executedPrice(executionPrice)
                 .build();
-        tradeLogRepository.save(log);
+
+        tradeLogRepository.save(tradeLog);
     }
 }
