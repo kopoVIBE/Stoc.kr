@@ -213,7 +213,7 @@ export default function DashboardPage() {
         {/* 내게 맞는 주식 */}
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>내게 맞는 주식 골라보기</CardTitle>
+            <CardTitle>내 계좌</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-primary/10 rounded-lg text-primary-dark font-semibold">
