@@ -21,5 +21,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")
                 .setAllowedOrigins("http://localhost:3000", "http://stockr.site", "https://stockr.site")
                 .withSockJS();
+
+        // For python client
+        registry.addEndpoint("/ws-raw")
+                .setAllowedOrigins("*");
     }
 }

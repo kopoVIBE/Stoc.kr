@@ -29,10 +29,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://stockr.site", "https://stockr.site"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/api/v1/stocks/**",
                                 "/api/v1/test/**",  // 테스트 API 경로 추가
                                 "/ws/**",
+                                "/ws-raw/**", // Python client access
                                 "/ws",
                                 "/ws/info",
                                 "/ws/info/**",
