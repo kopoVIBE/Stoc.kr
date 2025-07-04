@@ -138,14 +138,14 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
-  # 뉴스 크롤러
-  news-crawler:   
+#  # 뉴스 크롤러
+  news-crawler:
     build:
       context: ./crawler
     container_name: news-crawler
     restart: always
     volumes:
-      - ./crawler:/app 
+      - ./crawler:/app
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}

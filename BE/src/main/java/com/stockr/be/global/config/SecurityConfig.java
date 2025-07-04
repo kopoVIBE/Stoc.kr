@@ -56,6 +56,7 @@ public class SecurityConfig {
                     "/api/users/signup",
                     "/api/users/login",
                     "/api/news",
+                    "api/news/crawl",
                     "/api/users/me",
                     "/api/v1/stocks/**",
                     "/ws/**",
