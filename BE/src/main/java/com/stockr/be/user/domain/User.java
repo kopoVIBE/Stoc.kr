@@ -26,6 +26,9 @@ public class User {
     @Column(length = 50)
     private String name;  // 사용자 이름
 
+    @Column(length = 20, unique = true)
+    private String nickname;  // 사용자 닉네임 (커뮤니티용, 중복 불가)
+
     @Column(length = 20)
     private String phone;  // 사용자 전화번호 (010-1234-5678 형식)
 

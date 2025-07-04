@@ -116,7 +116,8 @@ export default function MyPage() {
     { label: "휴대폰 번호", value: userInfo?.phone, icon: Phone },
     { label: "이메일", value: userInfo?.email, icon: Mail },
     { label: "생년월일", value: userInfo?.birthDate, icon: Calendar },
-    { label: "성별", value: userInfo?.gender, icon: UserCheck }
+    { label: "성별", value: userInfo?.gender, icon: UserCheck },
+    { label: "닉네임", value: userInfo?.nickname || "미설정", icon: User }
   ]
 
   return (

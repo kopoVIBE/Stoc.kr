@@ -13,5 +13,5 @@ RUN apt-get update && \
 # 크롤러 복사
 COPY . .
 
-# 기본 실행 명령 (원하면 바꿔도 됨)
+# 기본 실행 명령
 CMD ["python", "unified-news-crawler.py"]

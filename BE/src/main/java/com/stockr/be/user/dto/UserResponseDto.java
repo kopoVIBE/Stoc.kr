@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 public class UserResponseDto {
     private String name;
+    private String nickname;
     private String email;
     private String phone;
     private String birthDate;
@@ -19,6 +20,7 @@ public class UserResponseDto {
     public static UserResponseDto fromEntity(User user) {
         return UserResponseDto.builder()
                 .name(user.getName())
+                .nickname(user.getNickname())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .birthDate(user.getBirthDate())
