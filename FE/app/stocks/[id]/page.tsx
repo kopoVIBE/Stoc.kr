@@ -29,6 +29,8 @@ import {
   removeFavorite,
   getSimilarStocks,
   SimilarStock,
+  subscribeToRealtimeStock,
+  unsubscribeFromRealtimeStock,
 } from "@/api/stock";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
@@ -104,103 +106,13 @@ export default function StockDetailPage({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState({
     width: 0,
     transform: "translateX(0)",
   });
-
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  // 웹소켓 연결
-  const {
-    stockData,
-    orderBookData,
-    isConnected,
-    subscribeToStock,
-    unsubscribeFromStock,
-  } = useStockWebSocket();
-
-  // router.push로 인한 페이지 변경 감지를 위해 key prop 사용
-  useEffect(() => {
-    // 기존 구독 정리
-    if (isConnected) {
-      unsubscribeFromStock(ticker);
-    }
-
-    // 새로운 구독 시작
-    const initializeStock = async () => {
-      try {
-        const response = await stockApi.getStock(ticker);
-        setStock(response);
-        if (isConnected) {
-          subscribeToStock(ticker);
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch stock data:", error);
-        setIsLoading(false);
-      }
-    };
-
-    initializeStock();
-
-    // cleanup
-    return () => {
-      if (isConnected) {
-        unsubscribeFromStock(ticker);
-      }
-    };
-  }, [ticker, isConnected, subscribeToStock, unsubscribeFromStock]); // ticker가 변경될 때마다 재실행
-
-  // 웹소켓 데이터 처리
-  useEffect(() => {
-    if (!stockData || stockData.ticker !== ticker) return;
-
-    setStock((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        currentPrice: stockData.price,
-      };
-    });
-  }, [stockData, ticker]);
-
-  // 실시간 가격 정보 계산
-  const realtimePrice = useMemo(() => {
-    if (!stockData || stockData.ticker !== ticker) {
-      return null;
-    }
-    console.log("실시간 가격 업데이트:", stockData.price);
-    return stockData.price;
-  }, [stockData, ticker]);
-
-  // 가격 변동 계산
-  const priceInfo = useMemo(() => {
-    if (!stock) return null;
-
-    const basePrice = stock.closePrice;
-    const currentPrice = realtimePrice;
-
-    if (!currentPrice) {
-      return {
-        price: "-",
-        change: null,
-        changePercent: null,
-        isUp: null,
-      };
-    }
-
-    const change = currentPrice - basePrice;
-    const changePercent = (change / basePrice) * 100;
-
-    return {
-      price: currentPrice.toLocaleString(),
-      change: Math.abs(change).toLocaleString(),
-      changePercent: Math.abs(changePercent).toFixed(2),
-      isUp: change > 0,
-    };
-  }, [realtimePrice, stock]);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const tabs = useMemo(
     () =>
@@ -212,23 +124,75 @@ export default function StockDetailPage({
     []
   );
 
+  const {
+    stockData,
+    orderBookData,
+    isConnected,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
+  const subscribedTickerRef = useRef<string | null>(null);
+
+  // 탭 변경 핸들러
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId);
   }, []);
 
   useEffect(() => {
-    const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
-    const activeElement = tabRefs.current[activeIndex];
+    const fetchStock = async () => {
+      try {
+        setIsLoading(true);
+        const data = await stockApi.getStock(ticker);
+        setStock(data);
+      } catch (error) {
+        console.error("Failed to fetch stock:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    if (activeElement) {
-      setUnderlineStyle({
-        width: activeElement.offsetWidth,
-        transform: `translateX(${activeElement.offsetLeft}px)`,
-      });
+    fetchStock();
+  }, [ticker]);
+
+  useEffect(() => {
+    if (!isConnected || !ticker) return;
+
+    if (subscribedTickerRef.current && subscribedTickerRef.current !== ticker) {
+      unsubscribeFromStock(subscribedTickerRef.current);
     }
-  }, [activeTab]);
 
-  // 즐겨찾기 상태 확인
+    if (subscribedTickerRef.current !== ticker) {
+      subscribeToStock(ticker);
+      subscribedTickerRef.current = ticker;
+    }
+
+    return () => {
+      if (subscribedTickerRef.current) {
+        unsubscribeFromStock(subscribedTickerRef.current);
+        subscribedTickerRef.current = null;
+      }
+    };
+  }, [ticker, isConnected]);
+
+  useEffect(() => {
+    if (!stockData || stockData.ticker !== ticker || !stock) return;
+
+    const priceChange =
+      ((stockData.price - stock.closePrice) / stock.closePrice) * 100;
+
+    setStock((prev) =>
+      prev
+        ? {
+            ...prev,
+            closePrice: stockData.price,
+            priceDiff: stockData.price - prev.closePrice,
+            fluctuationRate: priceChange,
+            marketCap: prev.marketCap,
+          }
+        : null
+    );
+  }, [stockData, ticker]);
+
   useEffect(() => {
     const checkIsFavorite = async () => {
       try {
@@ -237,7 +201,6 @@ export default function StockDetailPage({
           setIsFavorite(response.data);
         }
       } catch (error) {
-        // API 호출 실패 시 즐겨찾기 상태를 false로 설정
         console.error("Failed to check favorite status:", error);
         setIsFavorite(false);
       }

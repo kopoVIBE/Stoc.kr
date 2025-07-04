@@ -1,5 +1,12 @@
 import axiosInstance from "./axiosInstance";
 
+// TODO: 백엔드와 동일한 ApiResponse 타입 정의 필요
+type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+};
+
 export interface Stock {
   ticker: string;
   name: string;
@@ -109,16 +116,35 @@ export const getSimilarStocks = async (
 ): Promise<SimilarStock[]> => {
   try {
     const response = await fetch(
-      `http://127.0.0.1:5001/recommend?stock_name=${encodeURIComponent(
-        stockName
-      )}`
+      `${process.env.NEXT_PUBLIC_SIMILARITY_API_URL}/similar-stocks?stock_name=${stockName}`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch similar stocks");
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Error fetching similar stocks:", error);
-    throw error;
+    return [];
   }
+};
+
+/**
+ * 백엔드에 특정 종목의 실시간 데이터 수집을 요청(구독)합니다.
+ * @param stockCode 구독할 종목 코드
+ */
+export const subscribeToRealtimeStock = async (
+  stockCode: string
+): Promise<ApiResponse<null>> => {
+  return axiosInstance.post(`/api/v1/stocks/${stockCode}/subscribe`);
+};
+
+/**
+ * 백엔드에 특정 종목의 실시간 데이터 수집 중단을 요청(구독 취소)합니다.
+ * @param stockCode 구독 취소할 종목 코드
+ */
+export const unsubscribeFromRealtimeStock = async (
+  stockCode: string
+): Promise<ApiResponse<null>> => {
+  return axiosInstance.post(`/api/v1/stocks/${stockCode}/unsubscribe`);
 };
