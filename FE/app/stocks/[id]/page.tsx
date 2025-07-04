@@ -29,6 +29,8 @@ import {
   removeFavorite,
   getSimilarStocks,
   SimilarStock,
+  subscribeToRealtimeStock,
+  unsubscribeFromRealtimeStock,
 } from "@/api/stock";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
@@ -189,10 +191,23 @@ export default function StockDetailPage({
     return () => {
       if (subscribedTickerRef.current) {
         unsubscribeFromStock(subscribedTickerRef.current);
+        unsubscribeFromRealtimeStock(subscribedTickerRef.current);
         subscribedTickerRef.current = null;
       }
     };
   }, [ticker, isConnected]);
+
+  // 백엔드에 실시간 데이터 수집 요청
+  useEffect(() => {
+    if (ticker) {
+      subscribeToRealtimeStock(ticker);
+    }
+    return () => {
+      if (ticker) {
+        unsubscribeFromRealtimeStock(ticker);
+      }
+    };
+  }, [ticker]);
 
   // 실시간 데이터 처리
   useEffect(() => {
