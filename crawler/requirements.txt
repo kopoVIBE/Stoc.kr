@@ -1,5 +1,5 @@
 # 웹 브라우저 자동화 및 동적 크롤링 라이브러리
-playwright>=1.44.0
+playwright>=1.53.0
 # HTML 및 XML 파싱 라이브러리
-beautifulsoup4>=4.12.3
-lxml>=4.9.0
+beautifulsoup4>=4.13.4
+lxml>=6.0.0
