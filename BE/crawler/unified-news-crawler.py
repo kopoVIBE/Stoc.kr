@@ -1,0 +1,296 @@
+# ====================================================================
+# 통합 뉴스 크롤러 (주요 뉴스 + 종목별 뉴스)
+# Playwright 비동기, 배치 처리, Semaphore 기반
+# ====================================================================
+import asyncio
+import os
+from playwright.async_api import async_playwright
+import csv, time, json, random
+from urllib.parse import urljoin
+from bs4 import BeautifulSoup
+from datetime import datetime
+from pymongo import MongoClient
+
+# --- 1. 설정 및 외부 데이터 처리 ---
+
+def read_stocks_from_csv(filename='stocks.csv'):
+    """CSV 파일에서 종목 코드와 종목명을 읽어오는 함수"""
+    stocks = []
+    try:
+        with open(filename, mode='r', encoding='utf-8-sig') as infile:
+            reader = csv.DictReader(infile)
+            for row in reader:
+                stocks.append({'code': row['stockCode'], 'name': row['stockName']})
+        print(f"✅ '{filename}'에서 {len(stocks)}개 종목 정보를 읽었습니다.")
+        return stocks
+    except FileNotFoundError:
+        print(f"❌ 에러: '{filename}'을 찾을 수 없습니다. 종목 뉴스 크롤링을 위해 파일을 생성해주세요.")
+        return []
+
+# --- 2. 개별 기사 상세 정보 수집 (통합 버전) ---
+async def fetch_article_details(page, url, news_type, stock_info=None):
+    """
+    단일 뉴스 템플릿에 맞춰 상세 정보를 수집하는 통합 함수
+    news_type: 'main' 또는 'stock'
+    stock_info: {'code': '005930', 'name': '삼성전자'} 형태의 딕셔너리 또는 None
+    """
+    try:
+        await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+
+        # 정책에 따라 지원하지 않는 기사 유형 건너뛰기
+        if "m.sports.naver.com" in page.url:
+            print(f"    - ℹ️  정책에 따라 지원하지 않는 기사 유형입니다. 건너뜁니다: {url}")
+            return None
+
+        html_article = await page.content()
+        soup_article = BeautifulSoup(html_article, 'lxml')
+
+        # 데이터 추출
+        title = soup_article.select_one('#title_area span').text
+        content_element = soup_article.select_one('#dic_area')
+        source = soup_article.select_one('.media_end_head_top_logo img')['alt']
+        category_elements = soup_article.select('em.media_end_categorize_item')
+        category = [el.text for el in category_elements] if category_elements else ['미분류']
+
+        datetime_element = soup_article.select_one('.media_end_head_info_datestamp_time')
+        published_at_str = datetime_element['data-date-time'] if datetime_element else None
+
+        # 썸네일 수집 로직 (og:image)
+        thumbnail_element = soup_article.select_one('meta[property="og:image"]')
+        thumbnail_url = thumbnail_element['content'] if thumbnail_element else None
+
+        # 필수 요소 확인
+        if not all([title, content_element, source, published_at_str]):
+            raise ValueError("페이지에서 필수 요소를 찾지 못함")
+
+        published_at_dt = datetime.strptime(published_at_str, '%Y-%m-%d %H:%M:%S')
+
+        # DB 저장을 위한 최종 데이터 구조
+        return {
+            'news_type': news_type,
+            'stock_code': stock_info['code'] if stock_info else None,
+            'stock_name': stock_info['name'] if stock_info else None,
+            'url': page.url,
+            'title': title.strip(),
+            'content': str(content_element),
+            'source': source.strip(),
+            'category': category,
+            'thumbnail_url': thumbnail_url,
+            'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+    except Exception as e:
+        print(f"    - ❌ 기사 상세 정보 수집 실패 ({url}): {e}")
+        return None
+    finally:
+        if not page.is_closed():
+            await page.close()
+
+# --- 3. 뉴스 링크 수집 함수들 ---
+async def fetch_main_news_links(page, limit=None):
+    """네이버 금융 메인 페이지에서 주요 뉴스 링크 수집"""
+    print("\n--- 주요 뉴스 링크 수집 시작 ---")
+    base_url = "https://finance.naver.com"
+    list_url = urljoin(base_url, '/news/mainnews.naver')
+
+    try:
+        await page.goto(list_url, wait_until='domcontentloaded')
+        link_elements = await page.locator('.articleSubject a').all()
+
+        full_urls = []
+        for el in link_elements:
+            href = await el.get_attribute("href")
+            if href:
+                full_urls.append(urljoin(base_url, href))
+
+        unique_urls = list(set(full_urls)) # 중복 제거
+
+        # limit이 지정된 경우, 해당 개수만큼만 잘라서 반환
+        if limit and limit > 0:
+            print(f"✅ 주요 뉴스 링크 {len(unique_urls)}개 중 {limit}개만 선택하여 수집합니다.")
+            return unique_urls[:limit]
+
+        print(f"✅ 주요 뉴스 링크 {len(unique_urls)}개 수집 완료.")
+        return unique_urls
+    except Exception as e:
+        print(f"❌ 주요 뉴스 링크 수집 중 오류 발생: {e}")
+        return []
+
+async def fetch_stock_news_links(page, stock_code, max_pages, links_per_page_limit=None):
+    """종목별 뉴스 목록에서 기사 링크 수집"""
+    all_links = []
+    base_url = "https://finance.naver.com"
+    print(f"    - '{stock_code}'의 뉴스를 최대 {max_pages} 페이지까지 수집합니다.")
+
+    for page_num in range(1, max_pages + 1):
+        stock_page_url = f"{base_url}/item/news.naver?code={stock_code}&page={page_num}"
+        try:
+            await page.goto(stock_page_url, wait_until='domcontentloaded', timeout=15000)
+            frame = page.frame_locator("#news_frame")
+
+            # 뉴스 테이블이 로드될 때까지 대기
+            await frame.locator("table.type5").first.wait_for(timeout=5000)
+
+            link_elements = await frame.locator("td.title > a").all()
+            if not link_elements:
+                print(f"    - {page_num} 페이지에 기사가 없어 수집을 중단합니다.")
+                break
+
+            # 페이지당 링크 수 제한 로직
+            if links_per_page_limit and links_per_page_limit > 0:
+                link_elements = link_elements[:links_per_page_limit]
+
+            page_links = [urljoin(base_url, await el.get_attribute("href")) for el in link_elements]
+            all_links.extend(page_links)
+            print(f"    - {page_num} 페이지에서 {len(page_links)}개의 링크 수집 완료.")
+            await asyncio.sleep(random.uniform(0.3, 0.7))
+        except Exception as e:
+            print(f"    - ❌ {page_num} 페이지 처리 중 예외 발생: {e}")
+            break
+
+    return list(set(all_links)) # 중복 제거
+
+# --- 4. 데이터 Export 함수 ---
+def export_data_to_json(data, filename):
+    """주어진 데이터를 JSON 파일로 저장하는 범용 함수"""
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ 결과가 '{filename}' 파일에 성공적으로 저장되었습니다.")
+    except Exception as e:
+        print(f"❌ 파일 저장 중 오류 발생: {e}")
+
+# --- 5. 크롤링 실행 로직 ---
+async def worker(semaphore, context, url, news_type, stock_info=None):
+    """Semaphore로 동시성을 제어하는 작업자 함수"""
+    async with semaphore:
+        page = await context.new_page()
+        # 불필요한 리소스(이미지, CSS 등) 로딩 차단으로 속도 향상
+        await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", lambda route: route.abort())
+
+        result = await fetch_article_details(page, url, news_type, stock_info)
+        await asyncio.sleep(random.uniform(0.5, 1.5)) # 자연스러운 딜레이
+        return result
+
+async def run_crawling_session(tasks):
+    """주어진 task 목록을 실행하고 결과를 반환하는 세션"""
+    results = await asyncio.gather(*tasks)
+    return [res for res in results if res] # None이 아닌 결과만 필터링
+
+# --- MongoDB 저장 함수 추가 ---
+def save_to_mongodb(data):
+    try:
+        mongo_user = os.environ.get("MONGO_INITDB_ROOT_USERNAME", "stockr")
+        mongo_pass = os.environ.get("MONGO_INITDB_ROOT_PASSWORD", "stockr123!")
+        mongo_host = os.environ.get("MONGO_HOST", "localhost")
+        mongo_port = os.environ.get("MONGO_PORT", "27017")
+        mongo_db   = os.environ.get("MONGO_DATABASE", "stockr")
+
+        mongo_uri = f"mongodb://{mongo_user}:{mongo_pass}@{mongo_host}:{mongo_port}"
+        client = MongoClient(mongo_uri)
+        db = client[mongo_db]
+        collection = db["news"]
+
+        if data:
+            collection.insert_many(data)
+            print(f"✅ MongoDB에 뉴스 {len(data)}건 저장 완료.")
+    except Exception as e:
+        print(f"❌ MongoDB 저장 실패: {e}")
+
+# --- 6. 메인 실행 함수 ---
+async def main():
+    # ==================== 설정 값 ====================
+    CRAWL_MODE = 'ALL'  # 'MAIN', 'STOCKS', 'ALL' 중 선택
+
+    MAX_MAIN_NEWS_LINKS = 5  # 주요 뉴스 최대 링크 수
+
+    # 종목 뉴스 관련 설정
+    BATCH_SIZE = 10           # 한 번에 처리할 종목 수 (메모리 관리용)
+    MAX_PAGES_PER_STOCK = 1   # 종목당 수집할 최대 페이지 수
+    MAX_LINKS_PER_PAGE = 5  # 종목 뉴스 페이지당 최대 링크 수
+
+    # 동시성 설정
+    CONCURRENT_TASKS = 10     # 동시 실행 작업 수
+    # ===============================================
+
+    start_time = time.time()
+    print(f"'{CRAWL_MODE}' 모드로 통합 뉴스 크롤링을 시작합니다...")
+
+    final_crawled_data = []
+    semaphore = asyncio.Semaphore(CONCURRENT_TASKS)
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        )
+
+        # --- 주요 뉴스 크롤링 ---
+        if CRAWL_MODE in ['MAIN', 'ALL']:
+            list_page = await context.new_page()
+            main_news_urls = await fetch_main_news_links(list_page, limit=MAX_MAIN_NEWS_LINKS)
+            await list_page.close()
+
+            if main_news_urls:
+                tasks = [worker(semaphore, context, url, 'main') for url in main_news_urls]
+                main_news_results = await run_crawling_session(tasks)
+                final_crawled_data.extend(main_news_results)
+                print(f"✅ 주요 뉴스 총 {len(main_news_results)}건 수집 완료.")
+
+        # --- 종목 뉴스 크롤링 (배치 처리) ---
+        if CRAWL_MODE in ['STOCKS', 'ALL']:
+            all_stocks = read_stocks_from_csv()
+            if all_stocks:
+                for i in range(0, len(all_stocks), BATCH_SIZE):
+                    batch_stocks = all_stocks[i:i+BATCH_SIZE]
+                    batch_num = i//BATCH_SIZE + 1
+                    total_batches = (len(all_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
+
+                    print("\n" + "="*60)
+                    print(f"  종목 뉴스 배치 {batch_num} / {total_batches} 시작 (종목 {len(batch_stocks)}개)")
+                    print("="*60)
+
+                    for stock in batch_stocks:
+                        stock_info = {'code': stock['code'], 'name': stock['name']}
+                        print(f"\n--- '{stock_info['name']}({stock_info['code']})' 뉴스 수집 시작 ---")
+
+                        list_page = await context.new_page()
+                        article_urls = await fetch_stock_news_links(list_page, stock_info['code'], MAX_PAGES_PER_STOCK, links_per_page_limit=MAX_LINKS_PER_PAGE)
+                        await list_page.close()
+
+                        if not article_urls:
+                            print(f"    - '{stock_info['name']}'에 대한 수집할 뉴스가 없습니다.")
+                            continue
+
+                        tasks = [worker(semaphore, context, url, 'stock', stock_info) for url in article_urls]
+                        stock_news_results = await run_crawling_session(tasks)
+                        final_crawled_data.extend(stock_news_results)
+                        print(f"    - ✅ '{stock_info['name']}' 뉴스 {len(stock_news_results)}건 수집 완료.")
+
+                        await asyncio.sleep(random.uniform(1, 3)) # 종목 변경 시 휴식
+
+        await browser.close()
+
+    # --- 최종 결과 저장 ---
+    if final_crawled_data:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"unified_news_{timestamp}.json"
+        export_data_to_json(final_crawled_data, filename)
+        save_to_mongodb(final_crawled_data)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print("\n" + "="*60)
+    print(f"크롤링 전체 완료! 총 {len(final_crawled_data)}건의 뉴스 수집.")
+    print(f"총 소요 시간: {elapsed_time:.2f}초")
+    print("="*60)
+
+if __name__ == "__main__":
+    # 이 스크립트를 실행하기 전에 stocks.csv 파일이 있는지 확인하세요.
+    # 예시 stocks.csv 파일 내용:
+    # stockCode,stockName
+    # 005930,삼성전자
+    # 000660,SK하이닉스
+    # 035720,카카오
+
+    asyncio.run(main())

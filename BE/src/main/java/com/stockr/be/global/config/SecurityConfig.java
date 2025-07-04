@@ -1,4 +1,5 @@
 package com.stockr.be.global.config;
+
 import com.stockr.be.global.jwt.JwtAuthFilter;
 import com.stockr.be.global.jwt.JwtUtil;
 import com.stockr.be.user.repository.UserRepository;
@@ -15,17 +16,22 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.Arrays;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -38,30 +44,32 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(
-                                "/api/users/signup",
-                                "/api/users/login",
-                                "/api/news",
-                                "/api/users/me",
-                                "/api/v1/stocks/**",
-                                "/api/v1/test/**",  // 테스트 API 경로 추가
-                                "/ws/**",
-                                "/ws-raw/**", // Python client access
-                                "/ws",
-                                "/ws/info",
-                                "/ws/info/**",
-                                "/topic/**",
-                                "/app/**"
-                        ).permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
-                        UsernamePasswordAuthenticationFilter.class);
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers(
+                    "/api/users/signup",
+                    "/api/users/login",
+                    "/api/news",
+                    "api/news/crawl",
+                    "/api/users/me",
+                    "/api/v1/stocks/**",
+                    "/api/v1/test/**",
+                    "/ws/**",
+                    "/ws-raw/**",
+                    "/ws",
+                    "/ws/info",
+                    "/ws/info/**",
+                    "/topic/**",
+                    "/app/**"
+                ).permitAll()
+                .anyRequest().authenticated())
+            .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
+                    UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -15,4 +15,8 @@ public interface NewsRepository extends MongoRepository<News, String> {
     // publishedAt이 null이 아닌 뉴스만 조회
     List<News> findByPublishedAtIsNotNullOrderByPublishedAtDesc(Pageable pageable);
     List<News> findByTitleContainingAndPublishedAtIsNotNullOrderByPublishedAtDesc(String keyword);
+    
+    // 뉴스 타입별 조회
+    List<News> findByTypeAndPublishedAtIsNotNullOrderByPublishedAtDesc(String type, Pageable pageable);
+    List<News> findByTypeAndStockCodeAndPublishedAtIsNotNullOrderByPublishedAtDesc(String type, String stockCode, Pageable pageable);
 }

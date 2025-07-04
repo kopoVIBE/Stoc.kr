@@ -62,3 +62,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb
 ### 뉴스 전체 목록 조회
 GET http://localhost:8080/api/news
 Accept: application/json
+
+### 수동 뉴스 크롤러 실행
+POST http://localhost:8080/api/news/crawl
