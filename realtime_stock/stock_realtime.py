@@ -6,9 +6,9 @@ import logging
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
-import pykis
 import websocket
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 로깅 설정
 logging.basicConfig(
@@ -115,28 +115,44 @@ class StockRealtime:
                         continue
                     
                     logger.info(f"추적 대상 종목: {stock_codes}")
+                    
+                    # 병렬 처리 전에 토큰 상태 확인 (race condition 방지)
+                    self._refresh_token_if_needed()
 
-                    for stock_code in stock_codes:
-                        if not self.is_running:
-                            break
+                    # ThreadPoolExecutor를 사용한 병렬 처리 - 속도 향상!
+                    max_workers = min(len(stock_codes), 10)  # 최대 10개 동시 처리
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        # 모든 종목에 대해 병렬로 API 호출 시작
+                        future_to_stock = {
+                            executor.submit(self.get_current_price, stock_code): stock_code 
+                            for stock_code in stock_codes
+                        }
                         
-                        result = self.get_current_price(stock_code)
-                        
-                        if result['status'] == 'success':
-                            data = {
-                                "ticker": stock_code,
-                                "stockCode": stock_code,
-                                "price": result['price'],
-                                "volume": result['volume'],
-                                "timestamp": int(time.time() * 1000)
-                            }
-                            
-                            self.send_stock_data(data)
-                            logger.info(f"[{stock_code}] 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
-                        else:
-                            logger.error(f"[{stock_code}] 데이터 조회 실패: {result.get('message', 'Unknown error')}")
-                        
-                        time.sleep(0.1)  # 각 종목 조회 사이에 0.1초 대기
+                        # 완료된 것부터 순서대로 처리
+                        for future in as_completed(future_to_stock):
+                            if not self.is_running:
+                                break
+                                
+                            stock_code = future_to_stock[future]
+                            try:
+                                result = future.result()
+                                
+                                if result['status'] == 'success':
+                                    data = {
+                                        "ticker": stock_code,
+                                        "stockCode": stock_code,
+                                        "price": result['price'],
+                                        "volume": result['volume'],
+                                        "timestamp": int(time.time() * 1000)
+                                    }
+                                    
+                                    self.send_stock_data(data)
+                                    logger.info(f"[{stock_code}] 현재가: {result['price']:,}원, 거래량: {result['volume']:,}")
+                                else:
+                                    logger.error(f"[{stock_code}] 데이터 조회 실패: {result.get('message', 'Unknown error')}")
+                                    
+                            except Exception as e:
+                                logger.error(f"[{stock_code}] 병렬 처리 중 예외 발생: {e}")
                     
                     time.sleep(1)  # 전체 루프 후 1초 대기
                     
@@ -288,8 +304,6 @@ class StockRealtime:
             
     def get_current_price(self, stock_code):
         """종목 현재가 조회 (KIS API 직접 호출)"""
-        self._refresh_token_if_needed()
-        
         try:
             headers = {
                 'Content-Type': 'application/json',
