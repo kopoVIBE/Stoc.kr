@@ -27,6 +27,8 @@ import {
   checkFavorite,
   addFavorite,
   removeFavorite,
+  getSimilarStocks,
+  SimilarStock,
 } from "@/api/stock";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
@@ -111,14 +113,19 @@ export default function StockDetailPage({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const tabs = [
-    { id: "price", label: "시세" },
-    { id: "info", label: "기업정보" },
-    { id: "recommend", label: "추천" },
+    { id: "price", label: "호가" },
+    { id: "info", label: "종목 상세" },
+    { id: "recommend", label: "추천 종목" },
   ] as const;
 
   // 웹소켓 연결
-  const { stockData, isConnected, subscribeToStock, unsubscribeFromStock } =
-    useStockWebSocket();
+  const {
+    stockData,
+    orderBookData,
+    isConnected,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
   const subscribedTickerRef = useRef<string | null>(null);
 
   // 탭 참조 설정 함수
@@ -307,7 +314,7 @@ export default function StockDetailPage({
         {/* Chart */}
         <Card>
           <CardContent className="p-2">
-            <CandlestickChart ticker={ticker} />
+            <CandlestickChart ticker={ticker} realtimeData={stockData} />
           </CardContent>
         </Card>
 
@@ -338,7 +345,9 @@ export default function StockDetailPage({
         <div className="pt-4">
           {activeTab === "price" && <PriceTabContent ticker={ticker} />}
           {activeTab === "info" && <InfoTabContent />}
-          {activeTab === "recommend" && <RecommendTabContent />}
+          {activeTab === "recommend" && stock?.name && (
+            <RecommendTabContent stockName={stock.name} />
+          )}
         </div>
       </div>
 
@@ -394,9 +403,40 @@ function PriceTabContent({ ticker }: { ticker: string }) {
     subscribeToStock,
     unsubscribeFromStock,
   } = useStockWebSocket();
+
   const [priceHistory, setPriceHistory] = useState<StockPrice[]>([]);
 
-  // 웹소켓 구독 설정
+  // 더미 호가 데이터
+  const dummyOrderBook = {
+    askPrices: [
+      { price: 64200, volume: 72335, diff: "+5.75%" },
+      { price: 64100, volume: 172480, diff: "+5.59%" },
+      { price: 64000, volume: 331536, diff: "+5.42%" },
+      { price: 63900, volume: 42868, diff: "+5.26%" },
+      { price: 63800, volume: 56071, diff: "+5.09%" },
+      { price: 63700, volume: 50747, diff: "+4.93%" },
+      { price: 63600, volume: 45587, diff: "+4.76%" },
+      { price: 63500, volume: 54436, diff: "+4.60%" },
+      { price: 63400, volume: 345136, diff: "+4.44%" },
+      { price: 63300, volume: 185477, diff: "+4.27%" },
+    ],
+    bidPrices: [
+      { price: 63200, volume: 229117, diff: "+4.11%" },
+      { price: 63100, volume: 72335, diff: "+3.94%" },
+      { price: 63000, volume: 172480, diff: "+3.78%" },
+      { price: 62900, volume: 331536, diff: "+3.61%" },
+      { price: 62800, volume: 42868, diff: "+3.45%" },
+      { price: 62700, volume: 56071, diff: "+3.28%" },
+      { price: 62600, volume: 50747, diff: "+3.12%" },
+      { price: 62500, volume: 45587, diff: "+2.95%" },
+      { price: 62400, volume: 54436, diff: "+2.79%" },
+      { price: 62300, volume: 345136, diff: "+2.62%" },
+    ],
+    totalAskVolume: 1086934,
+    totalBidVolume: 1066771,
+  };
+
+  // 웹소켓 구독 (기존 코드 유지)
   useEffect(() => {
     if (isConnected) {
       subscribeToStock(ticker);
@@ -404,12 +444,12 @@ function PriceTabContent({ ticker }: { ticker: string }) {
     }
   }, [ticker, isConnected, subscribeToStock, unsubscribeFromStock]);
 
-  // 실시간 데이터 업데이트
+  // 체결 내역 업데이트 (기존 코드 유지)
   useEffect(() => {
     if (stockData && stockData.ticker === ticker) {
       setPriceHistory((prev) => {
         const newHistory = [stockData, ...prev];
-        return newHistory.slice(0, 10); // 최근 10개 기록만 유지
+        return newHistory.slice(0, 10);
       });
     }
   }, [stockData, ticker]);
@@ -418,36 +458,119 @@ function PriceTabContent({ ticker }: { ticker: string }) {
   if (error) return <div>에러: {error}</div>;
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>체결가</TableHead>
-              <TableHead>체결량(주)</TableHead>
-              <TableHead>등락률</TableHead>
-              <TableHead>거래량(주)</TableHead>
-              <TableHead>시간</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {priceHistory.map((item, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-semibold">
-                  {item.price.toLocaleString()}원
-                </TableCell>
-                <TableCell>{item.volume.toLocaleString()}</TableCell>
-                <TableCell>-</TableCell>
-                <TableCell>{item.volume.toLocaleString()}</TableCell>
-                <TableCell>
-                  {new Date(item.timestamp).toLocaleTimeString()}
-                </TableCell>
+    <div className="space-y-4">
+      {/* 호가창 */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-1">
+            {/* 매도 호가 */}
+            <div className="space-y-1">
+              {dummyOrderBook.askPrices.map((item, index) => (
+                <div
+                  key={`ask-${index}`}
+                  className="grid grid-cols-12 text-xs items-center relative h-6"
+                >
+                  {/* 배경 막대 - 중앙에서 왼쪽으로 */}
+                  <div
+                    className="absolute inset-y-0 left-[50%] bg-red-100"
+                    style={{
+                      width: `${
+                        (item.volume / dummyOrderBook.totalAskVolume) * 50
+                      }%`,
+                      transform: "translateX(-100%)", // 오른쪽 끝이 중앙에 오도록
+                    }}
+                  />
+                  {/* 가격과 등락률 - 왼쪽에 배치 */}
+                  <div className="col-span-4 text-right text-red-500 font-semibold relative z-10">
+                    {item.price.toLocaleString()}
+                  </div>
+                  <div className="col-span-4 text-right text-red-500 relative z-10">
+                    {item.diff}
+                  </div>
+                  <div className="col-span-4 text-right relative z-10">
+                    {item.volume.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 매수 호가 */}
+            <div className="space-y-1">
+              {dummyOrderBook.bidPrices.map((item, index) => (
+                <div
+                  key={`bid-${index}`}
+                  className="grid grid-cols-12 text-xs items-center relative h-6"
+                >
+                  {/* 배경 막대 - 중앙에서 오른쪽으로 */}
+                  <div
+                    className="absolute inset-y-0 left-[50%] bg-blue-100"
+                    style={{
+                      width: `${
+                        (item.volume / dummyOrderBook.totalBidVolume) * 50
+                      }%`,
+                    }}
+                  />
+                  {/* 가격과 등락률 - 오른쪽에 배치 */}
+                  <div className="col-span-4 text-right text-blue-500 font-semibold relative z-10">
+                    {item.price.toLocaleString()}
+                  </div>
+                  <div className="col-span-4 text-right text-blue-500 relative z-10">
+                    {item.diff}
+                  </div>
+                  <div className="col-span-4 text-right relative z-10">
+                    {item.volume.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 매도/매수 잔량 합계 */}
+          <div className="grid grid-cols-2 gap-1 mt-4 text-xs border-t pt-2">
+            <div className="text-right">
+              <span className="text-gray-500">매도잔량 </span>
+              <span className="font-semibold">
+                {dummyOrderBook.totalAskVolume.toLocaleString()}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-gray-500">매수잔량 </span>
+              <span className="font-semibold">
+                {dummyOrderBook.totalBidVolume.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 체결 내역 테이블 */}
+      <Card>
+        <CardContent className="p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>체결가</TableHead>
+                <TableHead>체결량(주)</TableHead>
+                <TableHead>시간</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {priceHistory.map((item, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-semibold">
+                    {item.price.toLocaleString()}원
+                  </TableCell>
+                  <TableCell>{item.volume.toLocaleString()}</TableCell>
+                  <TableCell>
+                    {new Date(item.timestamp).toLocaleTimeString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -470,7 +593,7 @@ function InfoTabContent() {
         <div>
           <h3 className="text-lg font-semibold">매출·산업 구성</h3>
           <p className="text-sm text-gray-500">
-            24년 12월 기준 (출처: FnGuide 및 기업 IR자료)
+            25년 7월 기준 (출처: FnGuide 및 기업 IR자료)
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 items-center">
             <ResponsiveContainer width="100%" height={250}>
@@ -574,38 +697,96 @@ const recommendedStocks = [
   },
 ];
 
-function RecommendTabContent() {
+function RecommendTabContent({ stockName }: { stockName: string }) {
+  const [similarStocks, setSimilarStocks] = useState<SimilarStock[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchSimilarStocks = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await getSimilarStocks(stockName);
+        setSimilarStocks(data);
+      } catch (error) {
+        console.error("Error fetching similar stocks:", error);
+        setError("유사 종목을 불러오는데 실패했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (stockName) {
+      fetchSimilarStocks();
+    }
+  }, [stockName]);
+
+  const handleRowClick = (ticker: string) => {
+    router.push(`/stocks/${ticker}`);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-4 flex justify-center items-center h-40">
+          <div>로딩 중...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-4 flex justify-center items-center h-40 text-red-500">
+          {error}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardContent className="p-4">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>순위</TableHead>
               <TableHead>종목명</TableHead>
-              <TableHead>현재가</TableHead>
-              <TableHead>등락률</TableHead>
-              <TableHead>카테고리</TableHead>
-              <TableHead>시가총액</TableHead>
-              <TableHead>거래량</TableHead>
+              <TableHead>업종</TableHead>
+              <TableHead>유사도</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recommendedStocks.map((stock, index) => (
-              <TableRow key={stock.id}>
-                <TableCell className="font-semibold flex items-center gap-2">
-                  <span className="font-bold text-primary">{index + 1}</span>{" "}
-                  {stock.name}
+            {similarStocks.map((stock, index) => (
+              <TableRow
+                key={index}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => handleRowClick(stock.ticker)}
+              >
+                <TableCell>
+                  <span className="font-bold text-primary">{index + 1}</span>
                 </TableCell>
-                <TableCell>{stock.price}</TableCell>
-                <TableCell
-                  className={stock.isUp ? "text-red-500" : "text-blue-500"}
-                >
-                  <div>{stock.change}</div>
-                  <div className="text-xs">{stock.changeValue}</div>
+                <TableCell className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
+                      <img
+                        src={`/stock-images/${stock.ticker}.png`}
+                        alt={stock.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "/placeholder-logo.svg";
+                        }}
+                      />
+                    </div>
+                    {stock.name}
+                  </div>
                 </TableCell>
-                <TableCell>{stock.category}</TableCell>
-                <TableCell>{stock.marketCap}</TableCell>
-                <TableCell>{stock.volume}</TableCell>
+                <TableCell>{stock.industry}</TableCell>
+                <TableCell>{(stock.similarity * 100).toFixed(2)}%</TableCell>
               </TableRow>
             ))}
           </TableBody>
