@@ -142,6 +142,7 @@ export default function StockDetailPage({
 
         // 웹소켓 구독 설정
         if (isConnected) {
+          console.log("Subscribing to stock:", ticker);
           subscribeToStock(ticker);
           subscribeToRealtimeStock(ticker);
         }
@@ -156,6 +157,7 @@ export default function StockDetailPage({
 
     // 컴포넌트 언마운트 시 정리
     return () => {
+      console.log("Unsubscribing from stock:", ticker);
       unsubscribeFromStock(ticker);
       unsubscribeFromRealtimeStock(ticker);
     };
@@ -368,11 +370,15 @@ export default function StockDetailPage({
           />
         </div>
         <div className="pt-4">
-          {activeTab === "price" && <PriceTabContent ticker={ticker} />}
-          {activeTab === "info" && <InfoTabContent />}
-          {activeTab === "recommend" && stock?.name && (
-            <RecommendTabContent stockName={stock.name} />
-          )}
+          <div className={activeTab === "price" ? "block" : "hidden"}>
+            <PriceTabContent ticker={ticker} />
+          </div>
+          <div className={activeTab === "info" ? "block" : "hidden"}>
+            <InfoTabContent />
+          </div>
+          <div className={activeTab === "recommend" ? "block" : "hidden"}>
+            {stock?.name && <RecommendTabContent stockName={stock.name} />}
+          </div>
         </div>
       </div>
 
@@ -423,6 +429,7 @@ export default function StockDetailPage({
 function PriceTabContent({ ticker }: { ticker: string }) {
   const {
     stockData,
+    orderBookData,
     isConnected,
     error,
     subscribeToStock,
@@ -431,37 +438,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
 
   const [priceHistory, setPriceHistory] = useState<StockPrice[]>([]);
 
-  // 더미 호가 데이터
-  const dummyOrderBook = {
-    askPrices: [
-      { price: 64200, volume: 72335, diff: "+5.75%" },
-      { price: 64100, volume: 172480, diff: "+5.59%" },
-      { price: 64000, volume: 331536, diff: "+5.42%" },
-      { price: 63900, volume: 42868, diff: "+5.26%" },
-      { price: 63800, volume: 56071, diff: "+5.09%" },
-      { price: 63700, volume: 50747, diff: "+4.93%" },
-      { price: 63600, volume: 45587, diff: "+4.76%" },
-      { price: 63500, volume: 54436, diff: "+4.60%" },
-      { price: 63400, volume: 345136, diff: "+4.44%" },
-      { price: 63300, volume: 185477, diff: "+4.27%" },
-    ],
-    bidPrices: [
-      { price: 63200, volume: 229117, diff: "+4.11%" },
-      { price: 63100, volume: 72335, diff: "+3.94%" },
-      { price: 63000, volume: 172480, diff: "+3.78%" },
-      { price: 62900, volume: 331536, diff: "+3.61%" },
-      { price: 62800, volume: 42868, diff: "+3.45%" },
-      { price: 62700, volume: 56071, diff: "+3.28%" },
-      { price: 62600, volume: 50747, diff: "+3.12%" },
-      { price: 62500, volume: 45587, diff: "+2.95%" },
-      { price: 62400, volume: 54436, diff: "+2.79%" },
-      { price: 62300, volume: 345136, diff: "+2.62%" },
-    ],
-    totalAskVolume: 1086934,
-    totalBidVolume: 1066771,
-  };
-
-  // 웹소켓 구독 (기존 코드 유지)
+  // 웹소켓 구독 설정
   useEffect(() => {
     if (isConnected) {
       subscribeToStock(ticker);
@@ -469,7 +446,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
     }
   }, [ticker, isConnected, subscribeToStock, unsubscribeFromStock]);
 
-  // 체결 내역 업데이트 (기존 코드 유지)
+  // 체결 내역 업데이트
   useEffect(() => {
     if (stockData && stockData.ticker === ticker) {
       setPriceHistory((prev) => {
@@ -479,8 +456,35 @@ function PriceTabContent({ ticker }: { ticker: string }) {
     }
   }, [stockData, ticker]);
 
+  // orderBookData 상태 변화 확인
+  useEffect(() => {
+    console.log("Current orderBookData:", orderBookData);
+  }, [orderBookData]);
+
   if (!isConnected) return <div>연결 중...</div>;
   if (error) return <div>에러: {error}</div>;
+
+  // 호가 데이터가 없는 경우 로딩 표시
+  if (!orderBookData) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-4 flex justify-center items-center h-40">
+            <div>호가 정보를 불러오는 중입니다...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 등락률 계산 함수
+  const calculateDiff = (price: number, basePrice: number) => {
+    const diff = ((price - basePrice) / basePrice) * 100;
+    return `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
+  };
+
+  // 기준가 (임시로 첫 번째 매수 호가 사용)
+  const basePrice = orderBookData.bidPrices[0]?.price || 0;
 
   return (
     <div className="space-y-4">
@@ -490,7 +494,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
           <div className="grid grid-cols-2 gap-1">
             {/* 매도 호가 */}
             <div className="space-y-1">
-              {dummyOrderBook.askPrices.map((item, index) => (
+              {orderBookData.askPrices.map((item, index) => (
                 <div
                   key={`ask-${index}`}
                   className="grid grid-cols-12 text-xs items-center relative h-6"
@@ -500,7 +504,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     className="absolute inset-y-0 left-[50%] bg-red-100"
                     style={{
                       width: `${
-                        (item.volume / dummyOrderBook.totalAskVolume) * 50
+                        (item.volume / orderBookData.totalAskVolume) * 50
                       }%`,
                       transform: "translateX(-100%)", // 오른쪽 끝이 중앙에 오도록
                     }}
@@ -510,7 +514,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     {item.price.toLocaleString()}
                   </div>
                   <div className="col-span-4 text-right text-red-500 relative z-10">
-                    {item.diff}
+                    {calculateDiff(item.price, basePrice)}
                   </div>
                   <div className="col-span-4 text-right relative z-10">
                     {item.volume.toLocaleString()}
@@ -521,7 +525,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
 
             {/* 매수 호가 */}
             <div className="space-y-1">
-              {dummyOrderBook.bidPrices.map((item, index) => (
+              {orderBookData.bidPrices.map((item, index) => (
                 <div
                   key={`bid-${index}`}
                   className="grid grid-cols-12 text-xs items-center relative h-6"
@@ -531,7 +535,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     className="absolute inset-y-0 left-[50%] bg-blue-100"
                     style={{
                       width: `${
-                        (item.volume / dummyOrderBook.totalBidVolume) * 50
+                        (item.volume / orderBookData.totalBidVolume) * 50
                       }%`,
                     }}
                   />
@@ -540,7 +544,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     {item.price.toLocaleString()}
                   </div>
                   <div className="col-span-4 text-right text-blue-500 relative z-10">
-                    {item.diff}
+                    {calculateDiff(item.price, basePrice)}
                   </div>
                   <div className="col-span-4 text-right relative z-10">
                     {item.volume.toLocaleString()}
@@ -555,13 +559,13 @@ function PriceTabContent({ ticker }: { ticker: string }) {
             <div className="text-right">
               <span className="text-gray-500">매도잔량 </span>
               <span className="font-semibold">
-                {dummyOrderBook.totalAskVolume.toLocaleString()}
+                {orderBookData.totalAskVolume.toLocaleString()}
               </span>
             </div>
             <div className="text-right">
               <span className="text-gray-500">매수잔량 </span>
               <span className="font-semibold">
-                {dummyOrderBook.totalBidVolume.toLocaleString()}
+                {orderBookData.totalBidVolume.toLocaleString()}
               </span>
             </div>
           </div>
@@ -686,42 +690,6 @@ function InfoTabContent() {
   );
 }
 
-const recommendedStocks = [
-  {
-    id: 1,
-    name: "JTC",
-    price: "6,480원",
-    change: "+3.8%",
-    changeValue: "+240원",
-    isUp: true,
-    category: "면세점",
-    marketCap: "3,353.2억원",
-    volume: "1,050,316주",
-  },
-  {
-    id: 2,
-    name: "하나투어",
-    price: "54,300원",
-    change: "-1.0%",
-    changeValue: "-600원",
-    isUp: false,
-    category: "여행용품",
-    marketCap: "8,426.5억원",
-    volume: "63,506주",
-  },
-  {
-    id: 3,
-    name: "서원",
-    price: "1,304원",
-    change: "+0.7%",
-    changeValue: "+10원",
-    isUp: true,
-    category: "구리",
-    marketCap: "619.1억원",
-    volume: "353,222주",
-  },
-];
-
 function RecommendTabContent({ stockName }: { stockName: string }) {
   const [similarStocks, setSimilarStocks] = useState<SimilarStock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -733,6 +701,9 @@ function RecommendTabContent({ stockName }: { stockName: string }) {
       try {
         setIsLoading(true);
         setError(null);
+        if (!stockName) {
+          throw new Error("종목명이 없습니다.");
+        }
         const data = await getSimilarStocks(stockName);
         setSimilarStocks(data);
       } catch (error) {
@@ -743,9 +714,7 @@ function RecommendTabContent({ stockName }: { stockName: string }) {
       }
     };
 
-    if (stockName) {
-      fetchSimilarStocks();
-    }
+    fetchSimilarStocks();
   }, [stockName]);
 
   const handleRowClick = (ticker: string) => {

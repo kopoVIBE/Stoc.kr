@@ -116,7 +116,7 @@ export const getSimilarStocks = async (
 ): Promise<SimilarStock[]> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SIMILARITY_API_URL}/similar-stocks?stock_name=${stockName}`
+      `${process.env.NEXT_PUBLIC_SIMILARITY_API_URL}/recommend?stock_name=${stockName}`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch similar stocks");
