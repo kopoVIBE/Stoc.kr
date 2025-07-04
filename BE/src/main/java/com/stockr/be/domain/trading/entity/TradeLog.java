@@ -21,9 +21,9 @@ public class TradeLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "executed_order_id", nullable = false)
-    private LimitOrder executedOrder;
+    // FK 제거하고 orderId만 저장
+    @Column(name = "executed_order_id", nullable = false)
+    private Long executedOrderId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
@@ -47,9 +47,9 @@ public class TradeLog {
     private LocalDateTime executedAt;
 
     @Builder
-    public TradeLog(LimitOrder executedOrder, Account account, Stock stock, TradingOrderType orderType,
+    public TradeLog(Long executedOrderId, Account account, Stock stock, TradingOrderType orderType,
             Long executedQuantity, BigDecimal executedPrice) {
-        this.executedOrder = executedOrder;
+        this.executedOrderId = executedOrderId;
         this.account = account;
         this.stock = stock;
         this.orderType = orderType;

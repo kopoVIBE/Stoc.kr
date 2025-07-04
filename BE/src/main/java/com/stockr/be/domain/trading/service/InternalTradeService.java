@@ -11,10 +11,12 @@ import com.stockr.be.domain.trading.repository.LimitOrderRepository;
 import com.stockr.be.domain.trading.repository.TradeLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
 
 @Service
@@ -28,7 +30,6 @@ public class InternalTradeService {
     @Transactional
     public void processOrder(LimitOrder order, BigDecimal executionPrice) {
         if (order.getStatus() != TradingOrderStatus.PENDING) {
-            // Already processed or cancelled
             return;
         }
 
@@ -98,15 +99,11 @@ public class InternalTradeService {
 
     @Transactional
     private void finishOrder(LimitOrder order, BigDecimal executionPrice) {
-        // 주문 상태 업데이트
         order.updateStatus(TradingOrderStatus.EXECUTED);
+        LimitOrder savedOrder = limitOrderRepository.save(order);
 
-        // 주문을 먼저 저장하고 ID를 확보
-        LimitOrder savedOrder = limitOrderRepository.saveAndFlush(order);
-
-        // 거래 로그 생성 및 저장
         TradeLog tradeLog = TradeLog.builder()
-                .executedOrder(savedOrder)
+                .executedOrderId(savedOrder.getId())
                 .account(savedOrder.getAccount())
                 .stock(savedOrder.getStock())
                 .orderType(savedOrder.getOrderType())
@@ -115,5 +112,6 @@ public class InternalTradeService {
                 .build();
 
         tradeLogRepository.save(tradeLog);
+        System.out.println("Order executed successfully - Order ID: " + savedOrder.getId());
     }
 }
