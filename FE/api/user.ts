@@ -81,3 +81,28 @@ export const updateUserPassword = async (currentPassword: string, newPassword: s
   
   return res.data;
 };
+
+export const checkNicknameDuplicate = async (nickname: string): Promise<{ isDuplicate: boolean; message: string }> => {
+  const res = await axiosInstance.get('/api/users/check-nickname', {
+    params: { nickname }
+  });
+  
+  if (!res.data.success) {
+    throw new Error(res.data.message || '닉네임 확인에 실패했습니다.');
+  }
+  
+  return {
+    isDuplicate: res.data.isDuplicate,
+    message: res.data.message
+  };
+};
+
+export const updateUserNickname = async (nickname: string) => {
+  const res = await axiosInstance.put('/api/users/me/nickname', { nickname });
+  
+  if (!res.data.success) {
+    throw new Error(res.data.message);
+  }
+  
+  return res.data;
+};

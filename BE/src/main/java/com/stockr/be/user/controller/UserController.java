@@ -102,4 +102,36 @@ public class UserController {
         }
     }
 
+    /**
+     * 닉네임 중복 확인
+     */
+    @GetMapping("/check-nickname")
+    public ResponseEntity<?> checkNickname(@RequestParam String nickname) {
+        try {
+            boolean isDuplicate = userService.isNicknameDuplicate(nickname);
+            return ResponseEntity.ok().body(Map.of(
+                "success", true, 
+                "isDuplicate", isDuplicate,
+                "message", isDuplicate ? "이미 사용 중인 닉네임입니다." : "사용 가능한 닉네임입니다."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.ok().body(Map.of("success", false, "message", "닉네임 확인 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 사용자 닉네임 수정
+     */
+    @PutMapping("/me/nickname")
+    public ResponseEntity<?> updateNickname(@RequestBody Map<String, String> request) {
+        try {
+            User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            String nickname = request.get("nickname");
+            userService.updateNickname(user.getUserId(), nickname);
+            return ResponseEntity.ok().body(Map.of("success", true, "message", "닉네임이 수정되었습니다."));
+        } catch (IllegalArgumentException | EntityNotFoundException e) {
+            return ResponseEntity.ok().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
 }
