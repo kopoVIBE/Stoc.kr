@@ -25,7 +25,7 @@ load_dotenv(env_path)
 REDIS_HOST = 'localhost'  # 로컬 환경에서는 무조건 localhost 사용
 REDIS_PORT = 6379
 REDIS_PASSWORD = 'stockr123!'
-WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws')
+WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws-raw')
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'kis_token.json')
 
 # KIS API 설정
@@ -161,7 +161,7 @@ class StockRealtime:
             # 1. Redis에서 먼저 확인
             if self.redis_client is not None:
                 redis_token = self.redis_client.get("kis_token")
-                if redis_token:
+                if isinstance(redis_token, (str, bytes)):
                     token_data = json.loads(redis_token)
                     expires_at = datetime.fromisoformat(token_data.get('expires_at', ''))
                     
