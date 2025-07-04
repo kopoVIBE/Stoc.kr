@@ -19,18 +19,12 @@ import { FavoriteAddDialog } from "@/components/favorite-add-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { getMyInfo } from "@/api/user";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const recommendedStocks: Stock[] = [
-  {
-    ticker: "JTC",
-    name: "JTC",
-    closePrice: 6480,
-    fluctuationRate: 3.8,
-    category: "면세점",
-    marketCap: "3,353.2억원",
-    volume: "1,050,316주",
-    logo: "/placeholder.svg?height=32&width=32",
-  },
   {
     ticker: "039130",
     name: "하나투어",
@@ -39,16 +33,6 @@ const recommendedStocks: Stock[] = [
     category: "여행용품",
     marketCap: "8,426.5억원",
     volume: "63,506주",
-    logo: "/placeholder.svg?height=32&width=32",
-  },
-  {
-    ticker: "003100",
-    name: "서원",
-    closePrice: 1304,
-    fluctuationRate: 0.7,
-    category: "구리",
-    marketCap: "619.1억원",
-    volume: "353,222주",
     logo: "/placeholder.svg?height=32&width=32",
   },
   {
@@ -121,9 +105,9 @@ export default function DashboardPage() {
         // 사용자 정보와 관심 종목을 병렬로 가져오기
         const [userResponse, favoritesResponse] = await Promise.all([
           getMyInfo(),
-          getFavorites()
+          getFavorites(),
         ]);
-        
+
         setUser(userResponse);
         setFavoriteStocks(favoritesResponse.data);
       } catch (error) {
@@ -229,7 +213,7 @@ export default function DashboardPage() {
         {/* 내게 맞는 주식 */}
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>내게 맞는 주식 골라보기</CardTitle>
+            <CardTitle>내 계좌</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-primary/10 rounded-lg text-primary-dark font-semibold">
@@ -316,6 +300,13 @@ function StockTable({
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+  const itemsPerPage = 4;
+  const totalPages = Math.ceil(stocks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentStocks = stocks.slice(startIndex, endIndex);
 
   const handleHeartClick = (stock: Stock) => {
     setSelectedStock(stock);
@@ -343,101 +334,121 @@ function StockTable({
   };
 
   return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]"></TableHead>
-            <TableHead>종목명</TableHead>
-            <TableHead className="text-right">현재가</TableHead>
-            <TableHead className="text-right">등락률</TableHead>
-            {isRecommended && (
-              <TableHead className="hidden sm:table-cell text-right">
-                시가총액
-              </TableHead>
-            )}
-            {isRecommended && (
-              <TableHead className="hidden lg:table-cell text-right">
-                거래량
-              </TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {stocks.map((stock, index) => (
-            <TableRow key={stock.ticker}>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {onToggleFavorite && (
-                    <Heart
-                      className={`w-5 h-5 cursor-pointer ${
-                        isFavorite?.(stock)
-                          ? "text-red-500 fill-current"
-                          : "text-gray-300"
-                      }`}
-                      onClick={() => handleHeartClick(stock)}
-                    />
-                  )}
-                  <span className="font-bold text-primary">{index + 1}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/stocks/${stock.ticker}`}
-                  className="hover:underline"
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={stock.logo || "/placeholder.svg"}
-                      alt={stock.name}
-                      className="w-8 h-8 rounded-full"
-                    />
-                    <span className="font-semibold">{stock.name}</span>
-                  </div>
-                </Link>
-              </TableCell>
-              <TableCell className="text-right font-semibold">
-                {stock.closePrice}
-              </TableCell>
-              <TableCell
-                className={`text-right ${
-                  stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
-                }`}
-              >
-                <div>
-                  {stock.fluctuationRate > 0 ? "+" : ""}
-                  {stock.fluctuationRate}%
-                </div>
-              </TableCell>
+    <div className="flex flex-col">
+      <div className="h-[264px]">
+        <Table>
+          <TableHeader>
+            <TableRow className="h-11">
+              <TableHead className="w-[50px]"></TableHead>
+              <TableHead>종목명</TableHead>
+              <TableHead className="text-right">현재가</TableHead>
+              <TableHead className="text-right">등락률</TableHead>
               {isRecommended && (
-                <TableCell className="hidden sm:table-cell text-right">
-                  {stock.marketCap}
-                </TableCell>
-              )}
-              {isRecommended && (
-                <TableCell className="hidden lg:table-cell text-right">
-                  {stock.volume}
-                </TableCell>
+                <TableHead className="hidden sm:table-cell text-right">
+                  유사도
+                </TableHead>
               )}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      <FavoriteConfirmDialog
-        isOpen={isRemoveDialogOpen}
-        onClose={() => setIsRemoveDialogOpen(false)}
-        onConfirm={handleConfirmRemove}
-        stockName={selectedStock?.name || ""}
-        action="remove"
-      />
-
-      <FavoriteAddDialog
-        isOpen={isAddDialogOpen}
-        onClose={() => setIsAddDialogOpen(false)}
-        onConfirm={handleConfirmAdd}
-        stockName={selectedStock?.name || ""}
-      />
-    </>
+          </TableHeader>
+          <TableBody>
+            {currentStocks.map((stock) => (
+              <TableRow key={stock.ticker} className="h-[55px]">
+                <TableCell className="p-0">
+                  <Button
+                    variant="ghost"
+                    className="h-[55px] w-full"
+                    onClick={() => onToggleFavorite && onToggleFavorite(stock)}
+                  >
+                    <Heart
+                      className={cn(
+                        "h-5 w-5",
+                        isFavorite ? "fill-red-500 text-red-500" : ""
+                      )}
+                    />
+                  </Button>
+                </TableCell>
+                <TableCell
+                  className="h-[55px] cursor-pointer"
+                  onClick={() => router.push(`/stocks/${stock.ticker}`)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src={`/stock-images/${stock.ticker}.png`}
+                      alt={stock.name}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                    {stock.name}
+                  </div>
+                </TableCell>
+                <TableCell
+                  className="text-right h-[55px] cursor-pointer"
+                  onClick={() => router.push(`/stocks/${stock.ticker}`)}
+                >
+                  {stock.closePrice.toLocaleString()}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right h-[55px] cursor-pointer",
+                    stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
+                  )}
+                  onClick={() => router.push(`/stocks/${stock.ticker}`)}
+                >
+                  <div>
+                    {stock.fluctuationRate > 0 ? "+" : ""}
+                    {stock.fluctuationRate}%
+                  </div>
+                </TableCell>
+                {isRecommended && (
+                  <TableCell className="hidden sm:table-cell text-right h-[55px]">
+                    {stock.marketCap}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+            {/* 빈 행 유지 */}
+            {Array.from({ length: itemsPerPage - currentStocks.length }).map(
+              (_, index) => (
+                <TableRow key={`empty-${index}`} className="h-[55px]">
+                  {Array.from({ length: isRecommended ? 5 : 4 }).map(
+                    (_, cellIndex) => (
+                      <TableCell
+                        key={`empty-cell-${cellIndex}`}
+                        className="h-[55px]"
+                      />
+                    )
+                  )}
+                </TableRow>
+              )
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {/* 페이지네이션 유지 */}
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="mx-4">
+          {currentPage} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+          }
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
-} 
+}
