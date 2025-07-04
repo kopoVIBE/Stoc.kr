@@ -13,7 +13,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Setter
 public class KISConfig {
     private App app;
-    private Api api;
+    private Api api = new Api();
+    private Virtual virtual = new Virtual();
 
     @Getter
     @Setter
@@ -27,6 +28,19 @@ public class KISConfig {
     public static class Api {
         private String baseUrl;
         private String wsUrl;
+        private String appKey;
+        private String appSecret;
+        private String account;
+        private String productCode;
+    }
+
+    @Getter
+    @Setter
+    public static class Virtual {
+        private String key;
+        private String secret;
+        private String account;
+        private String productCode;
     }
 
     @Bean
