@@ -131,19 +131,20 @@ export default function StockDetailPage({
     subscribeToStock,
     unsubscribeFromStock,
   } = useStockWebSocket();
-  const subscribedTickerRef = useRef<string | null>(null);
 
-  // 탭 변경 핸들러
-  const handleTabChange = useCallback((tabId: string) => {
-    setActiveTab(tabId);
-  }, []);
-
+  // 초기 데이터 로딩
   useEffect(() => {
-    const fetchStock = async () => {
+    const fetchStockAndInitialize = async () => {
       try {
         setIsLoading(true);
         const data = await stockApi.getStock(ticker);
         setStock(data);
+
+        // 웹소켓 구독 설정
+        if (isConnected) {
+          subscribeToStock(ticker);
+          subscribeToRealtimeStock(ticker);
+        }
       } catch (error) {
         console.error("Failed to fetch stock:", error);
       } finally {
@@ -151,47 +152,52 @@ export default function StockDetailPage({
       }
     };
 
-    fetchStock();
-  }, [ticker]);
+    fetchStockAndInitialize();
 
-  useEffect(() => {
-    if (!isConnected || !ticker) return;
-
-    if (subscribedTickerRef.current && subscribedTickerRef.current !== ticker) {
-      unsubscribeFromStock(subscribedTickerRef.current);
-    }
-
-    if (subscribedTickerRef.current !== ticker) {
-      subscribeToStock(ticker);
-      subscribedTickerRef.current = ticker;
-    }
-
+    // 컴포넌트 언마운트 시 정리
     return () => {
-      if (subscribedTickerRef.current) {
-        unsubscribeFromStock(subscribedTickerRef.current);
-        subscribedTickerRef.current = null;
-      }
+      unsubscribeFromStock(ticker);
+      unsubscribeFromRealtimeStock(ticker);
     };
   }, [ticker, isConnected]);
 
+  // 실시간 데이터 업데이트
   useEffect(() => {
-    if (!stockData || stockData.ticker !== ticker || !stock) return;
+    if (!stockData || !stock) return;
 
-    const priceChange =
-      ((stockData.price - stock.closePrice) / stock.closePrice) * 100;
+    if (stockData.ticker === ticker) {
+      const priceChange =
+        ((stockData.price - stock.closePrice) / stock.closePrice) * 100;
 
-    setStock((prev) =>
-      prev
-        ? {
-            ...prev,
-            closePrice: stockData.price,
-            priceDiff: stockData.price - prev.closePrice,
-            fluctuationRate: priceChange,
-            marketCap: prev.marketCap,
-          }
-        : null
-    );
+      setStock((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          closePrice: stockData.price,
+          priceDiff: stockData.price - prev.closePrice,
+          fluctuationRate: priceChange,
+        };
+      });
+    }
   }, [stockData, ticker]);
+
+  // 탭 변경 핸들러
+  const handleTabChange = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+  }, []);
+
+  // 언더라인 스타일 업데이트
+  useEffect(() => {
+    const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+    const activeElement = tabRefs.current[activeIndex];
+
+    if (activeElement) {
+      setUnderlineStyle({
+        width: activeElement.offsetWidth,
+        transform: `translateX(${activeElement.offsetLeft}px)`,
+      });
+    }
+  }, [activeTab, tabs]);
 
   useEffect(() => {
     const checkIsFavorite = async () => {
@@ -265,7 +271,13 @@ export default function StockDetailPage({
     }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50/50 p-4 rounded-lg">
@@ -292,7 +304,7 @@ export default function StockDetailPage({
             <p className="text-2xl font-bold">
               현재가:{" "}
               {stockData?.price ? stockData.price.toLocaleString() : "-"}원
-              {stockData && stock && (
+              {stock && stockData && (
                 <span
                   className={`ml-2 ${
                     stockData.price > stock.closePrice

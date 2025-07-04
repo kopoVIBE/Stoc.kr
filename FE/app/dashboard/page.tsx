@@ -12,8 +12,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { getFavorites, removeFavorite, addFavorite } from "@/api/stock";
+import { useState, useEffect, useRef } from "react";
+import {
+  getFavorites,
+  removeFavorite,
+  addFavorite,
+  subscribeToRealtimeStock,
+  unsubscribeFromRealtimeStock,
+} from "@/api/stock";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { FavoriteAddDialog } from "@/components/favorite-add-dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -23,8 +29,9 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
-const recommendedStocks: Stock[] = [
+const initialRecommendedStocks: Stock[] = [
   {
     ticker: "039130",
     name: "하나투어",
@@ -66,6 +73,7 @@ interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
+  currentPrice?: number;
   fluctuationRate: number;
   logo?: string;
   category?: string;
@@ -78,15 +86,116 @@ interface StockTableProps {
   isRecommended: boolean;
   onToggleFavorite?: (stock: Stock) => void;
   isFavorite?: (stock: Stock) => boolean;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+  isConnected: boolean;
 }
 
 export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
+  const [recommendedStocks, setRecommendedStocks] = useState<Stock[]>(
+    initialRecommendedStocks
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [favoritePage, setFavoritePage] = useState(1);
+  const [recommendedPage, setRecommendedPage] = useState(1);
+  const subscribedTickersRef = useRef<string[]>([]);
+  const itemsPerPage = 4; // 한 페이지당 표시할 종목 수
   const { toast } = useToast();
   const router = useRouter();
+
+  // 웹소켓 연결
+  const {
+    stockData,
+    isConnected,
+    error,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
+
+  // 실시간 데이터 처리
+  useEffect(() => {
+    if (!stockData) return;
+
+    const updateStockData = (prevStocks: Stock[]) =>
+      prevStocks.map((stock) => {
+        if (stock.ticker === stockData.ticker) {
+          return {
+            ...stock,
+            currentPrice: stockData.price,
+          };
+        }
+        return stock;
+      });
+
+    setFavoriteStocks((prev) => updateStockData(prev));
+    setRecommendedStocks((prev) => updateStockData(prev));
+  }, [stockData]);
+
+  // 현재 페이지의 종목들 계산
+  const getFavoritePageStocks = () => {
+    const startIndex = (favoritePage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return favoriteStocks.slice(startIndex, endIndex);
+  };
+
+  const getRecommendedPageStocks = () => {
+    const startIndex = (recommendedPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return recommendedStocks.slice(startIndex, endIndex);
+  };
+
+  // 웹소켓 구독 관리
+  useEffect(() => {
+    if (!isConnected) return;
+
+    // 현재 페이지의 종목들만 구독
+    const currentFavorites = getFavoritePageStocks();
+    const currentRecommended = getRecommendedPageStocks();
+    const allCurrentTickers = [...currentFavorites, ...currentRecommended].map(
+      (stock) => stock.ticker
+    );
+    const uniqueTickers = Array.from(new Set(allCurrentTickers));
+
+    console.log("현재 구독 중인 종목들:", subscribedTickersRef.current);
+    console.log("새로 구독할 종목들:", uniqueTickers);
+
+    // 이전 구독 해제
+    if (subscribedTickersRef.current.length > 0) {
+      subscribedTickersRef.current.forEach((ticker) => {
+        console.log("구독 해제:", ticker);
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      });
+      subscribedTickersRef.current = [];
+    }
+
+    // 새로운 구독 설정
+    uniqueTickers.forEach((ticker) => {
+      console.log("새로운 구독:", ticker);
+      subscribeToStock(ticker);
+      subscribeToRealtimeStock(ticker);
+    });
+
+    subscribedTickersRef.current = uniqueTickers;
+
+    // 컴포넌트 언마운트 시 구독 해제
+    return () => {
+      subscribedTickersRef.current.forEach((ticker) => {
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      });
+      subscribedTickersRef.current = [];
+    };
+  }, [
+    isConnected,
+    favoritePage,
+    recommendedPage,
+    favoriteStocks,
+    recommendedStocks,
+  ]);
 
   useEffect(() => {
     const now = new Date();
@@ -188,6 +297,9 @@ export default function DashboardPage() {
                 isRecommended={false}
                 onToggleFavorite={handleToggleFavorite}
                 isFavorite={() => true}
+                currentPage={favoritePage}
+                setCurrentPage={setFavoritePage}
+                isConnected={isConnected}
               />
             )}
           </CardContent>
@@ -204,7 +316,13 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <StockTable stocks={recommendedStocks} isRecommended={true} />
+            <StockTable
+              stocks={recommendedStocks}
+              isRecommended={true}
+              currentPage={recommendedPage}
+              setCurrentPage={setRecommendedPage}
+              isConnected={isConnected}
+            />
           </CardContent>
         </Card>
       </div>
@@ -296,11 +414,13 @@ function StockTable({
   isRecommended,
   onToggleFavorite,
   isFavorite,
+  currentPage,
+  setCurrentPage,
+  isConnected,
 }: StockTableProps) {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   const itemsPerPage = 4;
   const totalPages = Math.ceil(stocks.length / itemsPerPage);
@@ -343,11 +463,6 @@ function StockTable({
               <TableHead>종목명</TableHead>
               <TableHead className="text-right">현재가</TableHead>
               <TableHead className="text-right">등락률</TableHead>
-              {isRecommended && (
-                <TableHead className="hidden sm:table-cell text-right">
-                  유사도
-                </TableHead>
-              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -362,7 +477,7 @@ function StockTable({
                     <Heart
                       className={cn(
                         "h-5 w-5",
-                        isFavorite ? "fill-red-500 text-red-500" : ""
+                        isFavorite?.(stock) ? "fill-red-500 text-red-500" : ""
                       )}
                     />
                   </Button>
@@ -386,51 +501,40 @@ function StockTable({
                   className="text-right h-[55px] cursor-pointer"
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
-                  {stock.closePrice.toLocaleString()}
+                  {!isConnected || !stock.currentPrice
+                    ? "-"
+                    : stock.currentPrice.toLocaleString()}
                 </TableCell>
                 <TableCell
-                  className={cn(
-                    "text-right h-[55px] cursor-pointer",
-                    stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
-                  )}
+                  className="text-right h-[55px] cursor-pointer"
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
-                  <div>
-                    {stock.fluctuationRate > 0 ? "+" : ""}
-                    {stock.fluctuationRate}%
-                  </div>
+                  {"-"}
                 </TableCell>
-                {isRecommended && (
-                  <TableCell className="hidden sm:table-cell text-right h-[55px]">
-                    {stock.marketCap}
-                  </TableCell>
-                )}
               </TableRow>
             ))}
             {/* 빈 행 유지 */}
             {Array.from({ length: itemsPerPage - currentStocks.length }).map(
               (_, index) => (
                 <TableRow key={`empty-${index}`} className="h-[55px]">
-                  {Array.from({ length: isRecommended ? 5 : 4 }).map(
-                    (_, cellIndex) => (
-                      <TableCell
-                        key={`empty-cell-${cellIndex}`}
-                        className="h-[55px]"
-                      />
-                    )
-                  )}
+                  {Array.from({ length: 4 }).map((_, cellIndex) => (
+                    <TableCell
+                      key={`empty-cell-${cellIndex}`}
+                      className="h-[55px]"
+                    />
+                  ))}
                 </TableRow>
               )
             )}
           </TableBody>
         </Table>
       </div>
-      {/* 페이지네이션 유지 */}
+      {/* 페이지네이션 */}
       <div className="flex justify-center items-center mt-4">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -441,9 +545,7 @@ function StockTable({
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-          }
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
         >
           <ChevronRight className="h-4 w-4" />
