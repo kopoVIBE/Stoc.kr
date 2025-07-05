@@ -43,6 +43,7 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate, o
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
   const [editingCommentText, setEditingCommentText] = useState("")
   const [loading, setLoading] = useState(false)
+  const [likeLoading, setLikeLoading] = useState(false)
   const [userNickname, setUserNickname] = useState<string | null>(null)
   
   // 게시글 수정 관련 상태
@@ -166,22 +167,20 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate, o
   const handlePostLike = async () => {
     if (!post) return
     
-    // 즉시 UI 업데이트 (낙관적 업데이트)
-    const optimisticPost = {
-      ...post,
-      isLikedByUser: !post.isLikedByUser,
-      likes: post.isLikedByUser ? post.likes - 1 : post.likes + 1
-    }
-    onPostUpdate(optimisticPost)
+    console.log("좋아요 처리 시작 - postId:", post.id, "현재 상태:", post.isLikedByUser)
     
+    setLikeLoading(true)
     try {
-      await togglePostLike(post.id)
+      const serverResponse = await togglePostLike(post.id)
+      console.log("서버 응답:", serverResponse)
+      
+      // 서버 응답으로만 상태 업데이트
+      onPostUpdate(serverResponse)
     } catch (error) {
       console.error("좋아요 처리 실패:", error)
       toast.error("좋아요 처리에 실패했습니다.")
-      
-      // 에러 시 원래 상태로 되돌리기
-      onPostUpdate(post)
+    } finally {
+      setLikeLoading(false)
     }
   }
 
@@ -394,6 +393,7 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate, o
                         : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
                     }`}
                     onClick={handlePostLike}
+                    disabled={likeLoading}
                   >
                     <ThumbsUp className={`w-5 h-5 ${post.isLikedByUser ? 'fill-current' : ''}`} />
                     <span>{post.likes}</span>

@@ -19,6 +19,18 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+ // ✅ 중복 제거 유틸 함수
+ const deduplicateByTitle = (newsList: NewsResponse[]): NewsResponse[] => {
+      const map = new Map<string, NewsResponse>();
+      for (const news of newsList) {
+        if (!map.has(news.title)) {
+          map.set(news.title, news);
+        }
+      }
+      return Array.from(map.values());
+    };
+     
+   
   useEffect(() => {
     const fetchUserInfo = async () => {
       const token = localStorage.getItem("token");
@@ -39,14 +51,14 @@ export default function NewsPage() {
         
         // 주요 뉴스는 항상 조회
         const mainNewsData = await getMainNews();
-        setMainNews(mainNewsData);
+        setMainNews(deduplicateByTitle(mainNewsData));
         
         // 맞춤 뉴스는 로그인된 사용자에게만 제공
         const token = localStorage.getItem("token");
         if (token) {
           try {
             const personalizedNewsData = await getPersonalizedNews();
-            setPersonalizedNews(personalizedNewsData);
+            setPersonalizedNews(deduplicateByTitle(personalizedNewsData));
           } catch (error) {
             console.error("맞춤 뉴스 조회 실패:", error);
             setPersonalizedNews([]);

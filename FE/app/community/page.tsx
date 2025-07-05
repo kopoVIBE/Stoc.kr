@@ -21,6 +21,7 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<PostResponse[]>([])
   const [favoriteStocks, setFavoriteStocks] = useState<FavoriteStock[]>([])
   const [loading, setLoading] = useState(true)
+  const [likeLoading, setLikeLoading] = useState<number | null>(null)
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [selectedPost, setSelectedPost] = useState<PostResponse | null>(null)
   const [isPostDetailModalOpen, setIsPostDetailModalOpen] = useState(false)
@@ -100,47 +101,33 @@ export default function CommunityPage() {
   }
 
   const handlePostLike = async (postId: number) => {
-    // 즉시 UI 업데이트 (낙관적 업데이트)
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        const updatedPost = {
-          ...post,
-          isLikedByUser: !post.isLikedByUser,
-          likes: post.isLikedByUser ? post.likes - 1 : post.likes + 1
-        }
-        
-        // 만약 현재 선택된 게시글이라면 selectedPost도 함께 업데이트
-        if (selectedPost && selectedPost.id === postId) {
-          setSelectedPost(updatedPost)
-        }
-        
-        return updatedPost
-      }
-      return post
-    }))
+    const currentPost = posts.find(post => post.id === postId)
+    if (!currentPost) return
 
+    console.log("좋아요 처리 시작 - postId:", postId, "현재 상태:", currentPost.isLikedByUser)
+    
+    setLikeLoading(postId)
     try {
-      await togglePostLike(postId)
+      const serverResponse = await togglePostLike(postId)
+      console.log("서버 응답:", serverResponse)
+      
+      // 서버 응답으로 상태 업데이트
+      setPosts(prev => {
+        const updatedPosts = prev.map(post => 
+          post.id === postId ? serverResponse : post
+        )
+        console.log("업데이트된 게시글:", updatedPosts.find(p => p.id === postId))
+        return updatedPosts
+      })
+      
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost(serverResponse)
+      }
     } catch (error) {
-      // 에러 시 원래 상태로 되돌리기
-      setPosts(prev => prev.map(post => {
-        if (post.id === postId) {
-          const revertedPost = {
-            ...post,
-            isLikedByUser: !post.isLikedByUser,
-            likes: post.isLikedByUser ? post.likes - 1 : post.likes + 1
-          }
-          
-          // selectedPost도 함께 되돌리기
-          if (selectedPost && selectedPost.id === postId) {
-            setSelectedPost(revertedPost)
-          }
-          
-          return revertedPost
-        }
-        return post
-      }))
+      console.error("좋아요 처리 실패:", error)
       toast.error("좋아요 처리에 실패했습니다.")
+    } finally {
+      setLikeLoading(null)
     }
   }
 
@@ -332,6 +319,7 @@ export default function CommunityPage() {
                         : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
                     }`}
                     onClick={() => handlePostLike(post.id)}
+                    disabled={likeLoading === post.id}
                   >
                     <ThumbsUp className={`w-4 h-4 ${post.isLikedByUser ? 'fill-current' : ''}`} />
                     <span>{post.likes}</span>

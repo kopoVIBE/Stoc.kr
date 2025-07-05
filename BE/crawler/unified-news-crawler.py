@@ -3,13 +3,13 @@
 # Playwright 비동기, 배치 처리, Semaphore 기반
 # ====================================================================
 import asyncio
-import os
 from playwright.async_api import async_playwright
 import csv, time, json, random
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from datetime import datetime
 from pymongo import MongoClient
+import os
 
 # --- 1. 설정 및 외부 데이터 처리 ---
 
@@ -35,7 +35,7 @@ async def fetch_article_details(page, url, news_type, stock_info=None):
     stock_info: {'code': '005930', 'name': '삼성전자'} 형태의 딕셔너리 또는 None
     """
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+        await page.goto(url, wait_until='load', timeout=15000)
 
         # 정책에 따라 지원하지 않는 기사 유형 건너뛰기
         if "m.sports.naver.com" in page.url:
@@ -125,11 +125,11 @@ async def fetch_stock_news_links(page, stock_code, max_pages, links_per_page_lim
     for page_num in range(1, max_pages + 1):
         stock_page_url = f"{base_url}/item/news.naver?code={stock_code}&page={page_num}"
         try:
-            await page.goto(stock_page_url, wait_until='domcontentloaded', timeout=15000)
+            await page.goto(stock_page_url, wait_until='domcontentloaded', timeout=25000)
             frame = page.frame_locator("#news_frame")
 
             # 뉴스 테이블이 로드될 때까지 대기
-            await frame.locator("table.type5").first.wait_for(timeout=5000)
+            await frame.locator("table.type5").first.wait_for(timeout=10000)
 
             link_elements = await frame.locator("td.title > a").all()
             if not link_elements:
@@ -169,7 +169,7 @@ async def worker(semaphore, context, url, news_type, stock_info=None):
         await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", lambda route: route.abort())
 
         result = await fetch_article_details(page, url, news_type, stock_info)
-        await asyncio.sleep(random.uniform(0.5, 1.5)) # 자연스러운 딜레이
+        await asyncio.sleep(random.uniform(0.1, 0.5)) # 자연스러운 딜레이
         return result
 
 async def run_crawling_session(tasks):
@@ -197,20 +197,40 @@ def save_to_mongodb(data):
     except Exception as e:
         print(f"❌ MongoDB 저장 실패: {e}")
 
+async def link_collection_worker(context, stock_info, max_pages, links_per_page_limit):
+    """단일 종목의 뉴스 링크를 수집하는 비동기 작업자 함수"""
+    list_page = await context.new_page()
+    await list_page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,mp4,ttf}", lambda route: route.abort())
+
+    try:
+        article_urls = await fetch_stock_news_links(
+            list_page,
+            stock_info['code'],
+            max_pages,
+            links_per_page_limit=links_per_page_limit
+        )
+        print(f"    - '{stock_info['name']}' 링크 {len(article_urls)}개 수집 완료.")
+        return [{'url': url, 'stock_info': stock_info} for url in article_urls]
+    except Exception as e:
+        print(f"❌ 링크 수집 worker 오류 ({stock_info['name']}): {e}")
+        return []
+    finally:
+        if not list_page.is_closed():
+            await list_page.close()
+
 # --- 6. 메인 실행 함수 ---
 async def main():
     # ==================== 설정 값 ====================
-    CRAWL_MODE = 'ALL'  # 'MAIN', 'STOCKS', 'ALL' 중 선택
-
-    MAX_MAIN_NEWS_LINKS = 5  # 주요 뉴스 최대 링크 수
-
-    # 종목 뉴스 관련 설정
-    BATCH_SIZE = 10           # 한 번에 처리할 종목 수 (메모리 관리용)
-    MAX_PAGES_PER_STOCK = 1   # 종목당 수집할 최대 페이지 수
-    MAX_LINKS_PER_PAGE = 3  # 종목 뉴스 페이지당 최대 링크 수
+    CRAWL_MODE = 'ALL'
+    MAX_MAIN_NEWS_LINKS = 5
+    MAX_PAGES_PER_STOCK = 1
+    MAX_LINKS_PER_PAGE = 5
 
     # 동시성 설정
-    CONCURRENT_TASKS = 10     # 동시 실행 작업 수
+    # 링크 수집과 상세 기사 수집에 모두 적용됩니다.
+    # 시스템 부하를 안정적으로 유지하는 핵심 변수입니다.
+    CONCURRENT_TASKS = 5
+    BATCH_SIZE = 20
     # ===============================================
 
     start_time = time.time()
@@ -237,37 +257,55 @@ async def main():
                 final_crawled_data.extend(main_news_results)
                 print(f"✅ 주요 뉴스 총 {len(main_news_results)}건 수집 완료.")
 
-        # --- 종목 뉴스 크롤링 (배치 처리) ---
+        # --- 종목 뉴스 크롤링 ---
         if CRAWL_MODE in ['STOCKS', 'ALL']:
             all_stocks = read_stocks_from_csv()
             if all_stocks:
+                total_batches = (len(all_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
+
                 for i in range(0, len(all_stocks), BATCH_SIZE):
                     batch_stocks = all_stocks[i:i+BATCH_SIZE]
-                    batch_num = i//BATCH_SIZE + 1
-                    total_batches = (len(all_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
+                    batch_num = (i // BATCH_SIZE) + 1
 
                     print("\n" + "="*60)
                     print(f"  종목 뉴스 배치 {batch_num} / {total_batches} 시작 (종목 {len(batch_stocks)}개)")
                     print("="*60)
 
+                    # 링크 병렬 수집 (Semaphore 적용)
+                    print(f"\n--- 배치 {batch_num}: 링크 병렬 수집 시작 (최대 {CONCURRENT_TASKS}개 동시 실행) ---")
+
+                    # Semaphore로 감싸진 링크 수집 태스크를 생성하는 helper 함수
+                    async def semaphore_link_worker(stock_info):
+                        async with semaphore:
+                            # Semaphore가 허용하면 link_collection_worker 실행
+                            return await link_collection_worker(
+                                context, stock_info, MAX_PAGES_PER_STOCK, MAX_LINKS_PER_PAGE
+                            )
+
+                    link_tasks = []
                     for stock in batch_stocks:
                         stock_info = {'code': stock['code'], 'name': stock['name']}
-                        print(f"\n--- '{stock_info['name']}({stock_info['code']})' 뉴스 수집 시작 ---")
+                        link_tasks.append(semaphore_link_worker(stock_info))
 
-                        list_page = await context.new_page()
-                        article_urls = await fetch_stock_news_links(list_page, stock_info['code'], MAX_PAGES_PER_STOCK, links_per_page_limit=MAX_LINKS_PER_PAGE)
-                        await list_page.close()
+                    results_from_link_workers = await asyncio.gather(*link_tasks)
+                    urls_to_crawl = [item for sublist in results_from_link_workers for item in sublist]
+                    print(f"--- ✅ 배치 {batch_num}: 총 {len(urls_to_crawl)}개의 링크 수집 완료 ---")
 
-                        if not article_urls:
-                            print(f"    - '{stock_info['name']}'에 대한 수집할 뉴스가 없습니다.")
-                            continue
+                    # 상세 기사 일괄 처리
+                    if not urls_to_crawl:
+                        print(f"--- 배치 {batch_num}: 수집할 링크가 없습니다. ---")
+                        continue
 
-                        tasks = [worker(semaphore, context, url, 'stock', stock_info) for url in article_urls]
-                        stock_news_results = await run_crawling_session(tasks)
-                        final_crawled_data.extend(stock_news_results)
-                        print(f"    - ✅ '{stock_info['name']}' 뉴스 {len(stock_news_results)}건 수집 완료.")
+                    print(f"\n--- 배치 {batch_num}: 총 {len(urls_to_crawl)}개의 기사 상세 정보 수집 시작 ---")
+                    article_tasks = []
+                    for item in urls_to_crawl:
+                        # worker 함수는 이미 내부에 'async with semaphore' 로직이 있으므로 그대로 사용
+                        task = worker(semaphore, context, item['url'], 'stock', item['stock_info'])
+                        article_tasks.append(task)
 
-                        await asyncio.sleep(random.uniform(1, 3)) # 종목 변경 시 휴식
+                    batch_results = await run_crawling_session(article_tasks)
+                    final_crawled_data.extend(batch_results)
+                    print(f"--- ✅ 배치 {batch_num}: {len(batch_results)}건 수집 완료 ---")
 
         await browser.close()
 
