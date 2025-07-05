@@ -22,4 +22,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     
     // 특정 게시글의 댓글 수 카운트
     long countByPost(Post post);
+    
+    // 특정 게시글의 모든 댓글 삭제
+    void deleteByPost(Post post);
 } 

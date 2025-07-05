@@ -5,6 +5,7 @@ import com.stockr.be.community.domain.PostLike;
 import com.stockr.be.community.dto.FavoriteStockDto;
 import com.stockr.be.community.dto.PostCreateRequestDto;
 import com.stockr.be.community.dto.PostResponseDto;
+import com.stockr.be.community.repository.CommentRepository;
 import com.stockr.be.community.repository.PostLikeRepository;
 import com.stockr.be.community.repository.PostRepository;
 import com.stockr.be.domain.stock.entity.Stock;
@@ -31,6 +32,7 @@ public class PostService {
     
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final FavoriteService favoriteService;
     
@@ -153,6 +155,14 @@ public class PostService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
         
+        // 게시글과 연관된 좋아요들 먼저 삭제
+        postLikeRepository.deleteByPost(post);
+        
+        // 게시글과 연관된 댓글들도 함께 삭제
+        // JPA의 cascade 설정이 없으므로 수동으로 댓글들을 먼저 삭제
+        commentRepository.deleteByPost(post);
+        
+        // 게시글 삭제
         postRepository.delete(post);
     }
     
