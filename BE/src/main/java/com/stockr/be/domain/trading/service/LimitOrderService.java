@@ -1,5 +1,13 @@
 package com.stockr.be.domain.trading.service;
 
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.stockr.be.account.domain.Account;
 import com.stockr.be.account.repository.AccountRepository;
 import com.stockr.be.domain.stock.entity.Stock;
 import com.stockr.be.domain.stock.repository.StockHoldingRepository;
@@ -9,16 +17,9 @@ import com.stockr.be.domain.trading.entity.LimitOrder;
 import com.stockr.be.domain.trading.entity.TradingOrderStatus;
 import com.stockr.be.domain.trading.entity.TradingOrderType;
 import com.stockr.be.domain.trading.repository.LimitOrderRepository;
-import com.stockr.be.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.stockr.be.account.domain.Account;
-import org.springframework.security.core.context.SecurityContextHolder;
 import com.stockr.be.user.domain.User;
 
-import java.util.List;
-import java.util.NoSuchElementException;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
