@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://13.125.23.79:8080", // 백엔드 주소
+  baseURL: "http://54.180.117.219:8080", // 백엔드 주소
   headers: {
     "Content-Type": "application/json",
   },
@@ -40,9 +40,9 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       // 토큰이 만료되거나 유효하지 않은 경우
-      localStorage.removeItem('token');
-      alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
-      window.location.href = '/login';
+      localStorage.removeItem("token");
+      alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
+      window.location.href = "/login";
     }
     console.error(
       "Request Error:",
