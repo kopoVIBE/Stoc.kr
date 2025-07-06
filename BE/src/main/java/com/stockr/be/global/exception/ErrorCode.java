@@ -34,8 +34,7 @@ public enum ErrorCode {
     DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S004", "Duplicate Favorite"),
     INVALID_INTERVAL(HttpStatus.BAD_REQUEST, "S005", "Invalid interval value. Use 'daily', 'weekly', or 'monthly'"),
     STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S006", "Stock price not found"),
-    STOCK_HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "S007", "Stock Holding Not Found");
-
+    STOCK_HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "S007", "Stock Holding Not Found"),
 
     // Community
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "게시글을 찾을 수 없습니다."),
