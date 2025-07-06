@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://54.180.117.219:8080", // 백엔드 서버
+  baseURL: "https://54.180.117.219", // HTTPS로 변경, 포트 443은 생략
   headers: {
     "Content-Type": "application/json",
   },
