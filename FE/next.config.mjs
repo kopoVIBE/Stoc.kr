@@ -12,20 +12,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value:
-              "upgrade-insecure-requests 'unsafe-inline' 'unsafe-eval' data: blob:;",
-          },
-        ],
-      },
-    ];
-  },
   images: {
     unoptimized: true,
     remotePatterns: [
