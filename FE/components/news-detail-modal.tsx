@@ -35,6 +35,16 @@ export default function NewsDetailModal({
         </DialogHeader>
         <div className="p-6 flex-grow overflow-y-auto">
           <div className="flex flex-wrap gap-4 mb-6">
+            {/* 종목명 태그 (종목 뉴스인 경우) */}
+            {news.stockName && (
+              <Badge
+                variant="outline"
+                className="text-green-600 border-green-200 bg-green-50 font-medium"
+              >
+                {news.stockName}
+              </Badge>
+            )}
+            {/* 카테고리 태그들 */}
             {news.category.map((cat, index) => (
               <Badge
                 key={index}
