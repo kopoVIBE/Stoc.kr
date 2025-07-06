@@ -37,7 +37,7 @@ spring:
 
   # KAFKA
   kafka:
-    bootstrap-servers: stockr-kafka:29092
+    bootstrap-servers: localhost:19092
     consumer:
       group-id: stockr-group
       auto-offset-reset: earliest
@@ -74,7 +74,18 @@ logging:
     io.lettuce.core: WARN  # debug에서 WARN으로 변경
     org.springframework.data.mongodb: DEBUG
 
-KIS:
-  APP:
-    KEY: ${KIS_APP_KEY}
-    SECRET: ${KIS_APP_SECRET}
+kis:
+  api:
+    base-url: https://openapivts.koreainvestment.com:29443
+    ws-url: ws://ops.koreainvestment.com:31000
+    app-key: ${KIS_APP_KEY}
+    app-secret: ${KIS_APP_SECRET}
+  virtual:
+    key: ${KIS_VIRTUAL_APP_KEY}
+    secret: ${KIS_VIRTUAL_APP_SECRET}
+    account: ${KIS_VIRTUAL_ACCOUNT}
+    product-code: ${KIS_VIRTUAL_PRODUCT_CODE}
+
+trade:
+  python-service:
+    url: http://localhost:8000
