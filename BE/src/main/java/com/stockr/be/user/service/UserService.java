@@ -199,4 +199,41 @@ public class UserService {
     private boolean isValidPhone(String phone) {
         return Pattern.matches("^010-\\d{4}-\\d{4}$", phone);
     }
+
+    /**
+     * 닉네임 중복 확인
+     * @param nickname 확인할 닉네임
+     * @return 중복 여부 (true: 중복, false: 사용 가능)
+     */
+    public boolean isNicknameDuplicate(String nickname) {
+        return userRepository.existsByNickname(nickname);
+    }
+
+    /**
+     * 사용자 닉네임 수정
+     * @param userId 사용자 ID
+     * @param nickname 새로운 닉네임
+     */
+    @Transactional
+    public void updateNickname(Long userId, String nickname) {
+        if (nickname == null || nickname.trim().isEmpty()) {
+            throw new IllegalArgumentException("닉네임을 입력해주세요.");
+        }
+
+        // 닉네임 길이 검증
+        if (nickname.trim().length() < 2 || nickname.trim().length() > 20) {
+            throw new IllegalArgumentException("닉네임은 2-20자로 입력해주세요.");
+        }
+
+        // 닉네임 중복 확인
+        if (userRepository.existsByNickname(nickname.trim())) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        user.setNickname(nickname.trim());
+        userRepository.save(user);
+    }
 }

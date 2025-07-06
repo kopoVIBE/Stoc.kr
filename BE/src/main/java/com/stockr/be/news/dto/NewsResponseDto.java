@@ -23,6 +23,9 @@ public class NewsResponseDto {
     private String thumbnailUrl;
     private LocalDateTime publishedAt;
     private LocalDateTime crawledAt;
+    private String type;
+    private String stockCode;
+    private String stockName;
 
     public static NewsResponseDto from(News news) {
         return NewsResponseDto.builder()
@@ -35,6 +38,9 @@ public class NewsResponseDto {
                 .thumbnailUrl(news.getThumbnailUrl())
                 .publishedAt(news.getPublishedAt())
                 .crawledAt(news.getCrawledAt())
+                .type(news.getType())
+                .stockCode(news.getStockCode())
+                .stockName(news.getStockName())
                 .build();
     }
 }

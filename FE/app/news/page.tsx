@@ -7,38 +7,30 @@ import { Skeleton } from "@/components/ui/skeleton"
 import Image from "next/image"
 import NewsDetailModal from "@/components/news-detail-modal"
 import { getMyInfo } from "@/api/user"
-import { getAllNews, NewsResponse } from "@/api/news"
+import { getMainNews, getPersonalizedNews, NewsResponse } from "@/api/news"
 import { formatTimeAgo } from "@/lib/utils"
-
-const userNews = [
-  {
-    title: "코스피, 유상증자 계획 발표에 프리마켓서 10%↓",
-    stock: "코스피스",
-    change: "-16.4%",
-    isUp: false,
-    time: "21시간 전",
-    source: "이데일리",
-    imageUrl: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    title: "S&P500, 최고치 넘어서자 경고음… '가치주·해외주식 주목'",
-    stock: "모더나",
-    change: "+0.3%",
-    isUp: true,
-    time: "18시간 전",
-    source: "이데일리",
-    imageUrl: "/placeholder.svg?height=80&width=80",
-  },
-]
 
 export default function NewsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedNews, setSelectedNews] = useState<NewsResponse | null>(null)
   const [user, setUser] = useState<any>(null)
-  const [allNews, setAllNews] = useState<NewsResponse[]>([])
+  const [mainNews, setMainNews] = useState<NewsResponse[]>([])
+  const [personalizedNews, setPersonalizedNews] = useState<NewsResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+ // ✅ 중복 제거 유틸 함수
+ const deduplicateByTitle = (newsList: NewsResponse[]): NewsResponse[] => {
+      const map = new Map<string, NewsResponse>();
+      for (const news of newsList) {
+        if (!map.has(news.title)) {
+          map.set(news.title, news);
+        }
+      }
+      return Array.from(map.values());
+    };
+     
+   
   useEffect(() => {
     const fetchUserInfo = async () => {
       const token = localStorage.getItem("token");
@@ -56,8 +48,22 @@ export default function NewsPage() {
       try {
         setLoading(true)
         setError(null)
-        const newsData = await getAllNews()
-        setAllNews(newsData)
+        
+        // 주요 뉴스는 항상 조회
+        const mainNewsData = await getMainNews();
+        setMainNews(deduplicateByTitle(mainNewsData));
+        
+        // 맞춤 뉴스는 로그인된 사용자에게만 제공
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const personalizedNewsData = await getPersonalizedNews();
+            setPersonalizedNews(deduplicateByTitle(personalizedNewsData));
+          } catch (error) {
+            console.error("맞춤 뉴스 조회 실패:", error);
+            setPersonalizedNews([]);
+          }
+        }
       } catch (error) {
         console.error("뉴스 조회 실패:", error)
         setError("뉴스를 불러오는데 실패했습니다.")
@@ -75,8 +81,8 @@ export default function NewsPage() {
     setIsModalOpen(true)
   }
 
-  const mainNews = allNews[0] // 첫 번째 뉴스를 메인 뉴스로
-  const subNews = allNews.slice(1, 4) // 2-4번째 뉴스를 서브 뉴스로
+  const mainNewsItem = mainNews[0] // 첫 번째 뉴스를 메인 뉴스로
+  const subNews = mainNews.slice(1, 4) // 2-4번째 뉴스를 서브 뉴스로
 
   if (loading) {
     return (
@@ -152,20 +158,20 @@ export default function NewsPage() {
           <h1 className="text-2xl font-bold">주요 뉴스</h1>
           
           {/* Main News */}
-          {mainNews && (
-            <Card className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(mainNews)}>
+          {mainNewsItem && (
+            <Card className="overflow-hidden cursor-pointer" onClick={() => handleNewsClick(mainNewsItem)}>
               <div className="relative">
                 <Image
-                  src={mainNews.thumbnailUrl || "/placeholder.svg?height=400&width=800"}
-                  alt={mainNews.title}
+                  src={mainNewsItem.thumbnailUrl || "/placeholder.svg?height=400&width=800"}
+                  alt={mainNewsItem.title}
                   width={800}
                   height={400}
                   className="w-full h-auto object-cover"
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <h2 className="text-xl font-bold text-white">{mainNews.title}</h2>
+                  <h2 className="text-xl font-bold text-white">{mainNewsItem.title}</h2>
                   <p className="text-gray-300 mt-1 text-xs">
-                    {formatTimeAgo(mainNews.publishedAt)} · {mainNews.source}
+                    {formatTimeAgo(mainNewsItem.publishedAt)} · {mainNewsItem.source}
                   </p>
                 </div>
               </div>
@@ -198,34 +204,41 @@ export default function NewsPage() {
         <div className="lg:col-span-1 space-y-4">
           <h1 className="text-2xl font-bold">{user?.name || "회원"}님을 위한 맞춤 뉴스</h1>
           <div className="space-y-3">
-            {userNews.map((news, index) => (
-              <Card key={index} className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
-                <CardContent className="p-3 flex gap-3 items-center">
-                  <Image
-                    src={news.imageUrl || "/placeholder.svg"}
-                    alt={news.title}
-                    width={80}
-                    height={80}
-                    className="rounded-md object-cover"
-                  />
-                  <div className="flex-grow">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-xs">{news.stock}</span>
-                      <Badge
-                        variant={news.isUp ? "destructive" : "default"}
-                        className={`text-xs ${news.isUp ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}
-                      >
-                        {news.change}
-                      </Badge>
+            {personalizedNews.length > 0 ? (
+              personalizedNews.map((news) => (
+                <Card key={news.id} className="cursor-pointer" onClick={() => handleNewsClick(news)}>
+                  <CardContent className="p-3 flex gap-3 items-center">
+                    <Image
+                      src={news.thumbnailUrl || "/placeholder.svg"}
+                      alt={news.title}
+                      width={80}
+                      height={80}
+                      className="rounded-md object-cover"
+                    />
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-xs">{news.source}</span>
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-blue-100 text-blue-700 border-blue-300"
+                        >
+                          {news.stockName}
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold leading-tight">{news.title}</h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatTimeAgo(news.publishedAt)} · {news.source}
+                      </p>
                     </div>
-                    <h3 className="font-semibold leading-tight">{news.title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {news.time} · {news.source}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>맞춤 뉴스가 없습니다.</p>
+                <p className="text-sm mt-2">즐겨찾기 종목을 추가해보세요!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
