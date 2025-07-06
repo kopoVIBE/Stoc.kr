@@ -36,4 +36,13 @@ public class News {
     
     @Field("crawled_at")   // MongoDB의 crawled_at 필드와 매핑
     private LocalDateTime crawledAt;   // 크롤링한 시각
+
+    @Field("news_type")
+    private String type;  // "main" 또는 "stock"
+
+    @Field("stock_code")
+    private String stockCode;
+
+    @Field("stock_name")
+    private String stockName;
 }

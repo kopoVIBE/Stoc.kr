@@ -20,7 +20,7 @@ import {
   UserCheck,
   Key
 } from "lucide-react"
-import { updateUserName, updateUserPhone, updateUserPassword } from "@/api/user"
+import { updateUserName, updateUserPhone, updateUserPassword, updateUserNickname, checkNicknameDuplicate } from "@/api/user"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -53,17 +53,29 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
   const [passwordErrors, setPasswordErrors] = useState<{ [key: string]: string }>({})
   const [passwordValid, setPasswordValid] = useState({ new: false, confirm: false })
 
+  // 닉네임 수정 폼
+  const [nicknameForm, setNicknameForm] = useState({ nickname: "" })
+  const [nicknameErrors, setNicknameErrors] = useState<{ [key: string]: string }>({})
+  const [nicknameValid, setNicknameValid] = useState(false)
+  const [nicknameChecking, setNicknameChecking] = useState(false)
+  const [nicknameChecked, setNicknameChecked] = useState(false)
+
   // 모달이 열릴 때 기존 정보로 초기화
   useEffect(() => {
     if (isOpen && userInfo) {
       setNameForm({ name: userInfo.name || "" })
       setPhoneForm({ phone: userInfo.phone || "" })
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      setNicknameForm({ nickname: userInfo.nickname || "" })
       setNameErrors({})
       setPhoneErrors({})
       setPasswordErrors({})
+      setNicknameErrors({})
       setPhoneValid(true) // 기존 번호는 유효하다고 가정
       setPasswordValid({ new: false, confirm: false })
+      setNicknameValid(false)
+      setNicknameChecking(false)
+      setNicknameChecked(false)
     }
   }, [isOpen, userInfo])
 
@@ -186,6 +198,77 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
     }
   }
 
+  // 닉네임 중복 확인
+  const handleNicknameCheck = async () => {
+    const nickname = nicknameForm.nickname.trim()
+    
+    if (!nickname) {
+      setNicknameErrors({ nickname: "닉네임을 입력해주세요." })
+      return
+    }
+
+    if (nickname.length < 2 || nickname.length > 20) {
+      setNicknameErrors({ nickname: "닉네임은 2-20자로 입력해주세요." })
+      return
+    }
+
+    // 현재 닉네임과 같은 경우
+    if (nickname === userInfo?.nickname) {
+      setNicknameErrors({ nickname: "현재 닉네임과 같습니다." })
+      return
+    }
+
+    setNicknameChecking(true)
+    setNicknameErrors({})
+
+    try {
+      const result = await checkNicknameDuplicate(nickname)
+      if (result.isDuplicate) {
+        setNicknameErrors({ nickname: result.message })
+        setNicknameValid(false)
+        setNicknameChecked(false)
+      } else {
+        setNicknameValid(true)
+        setNicknameChecked(true)
+        setNicknameErrors({})
+      }
+    } catch (error: any) {
+      setNicknameErrors({ nickname: error.message || "중복 확인에 실패했습니다." })
+      setNicknameValid(false)
+      setNicknameChecked(false)
+    } finally {
+      setNicknameChecking(false)
+    }
+  }
+
+  // 닉네임 수정 제출
+  const handleNicknameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!nicknameChecked || !nicknameValid) {
+      setNicknameErrors({ nickname: "닉네임 중복 확인을 해주세요." })
+      return
+    }
+
+    try {
+      await updateUserNickname(nicknameForm.nickname.trim())
+      alert("닉네임이 수정되었습니다.")
+      onSuccess()
+      onClose()
+    } catch (error: any) {
+      alert(error.message || "닉네임 수정에 실패했습니다.")
+    }
+  }
+
+  // 닉네임 입력 변경 핸들러
+  const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setNicknameForm({ nickname: value })
+    setNicknameValid(false)
+    setNicknameChecked(false)
+    setNicknameErrors({})
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
@@ -202,13 +285,20 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 rounded-xl">
             <TabsTrigger 
               value="name" 
               className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white flex items-center gap-2 rounded-lg transition-all duration-200"
             >
               <UserCheck className="w-4 h-4" />
               이름
+            </TabsTrigger>
+            <TabsTrigger 
+              value="nickname"
+              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white flex items-center gap-2 rounded-lg transition-all duration-200"
+            >
+              <User className="w-4 h-4" />
+              닉네임
             </TabsTrigger>
             <TabsTrigger 
               value="phone"
@@ -272,6 +362,79 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
               >
                 <UserCheck className="w-5 h-5 mr-2" />
                 이름 수정
+              </Button>
+            </form>
+          </TabsContent>
+
+          {/* 닉네임 수정 탭 */}
+          <TabsContent value="nickname" className="space-y-6 mt-6">
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-xl border border-emerald-200">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-semibold text-gray-800">닉네임 변경</h3>
+              </div>
+              <p className="text-sm text-gray-600">커뮤니티에서 사용할 닉네임을 설정하세요. (2-20자)</p>
+            </div>
+
+            <form onSubmit={handleNicknameSubmit} className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="nickname" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  새로운 닉네임
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="nickname"
+                      value={nicknameForm.nickname}
+                      onChange={handleNicknameChange}
+                      placeholder="닉네임을 입력하세요"
+                      maxLength={20}
+                      className="pl-12 h-12 border-2 border-gray-200 focus:border-emerald-500 rounded-xl transition-all duration-200"
+                    />
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+                      <User className="text-gray-400" size={18} />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleNicknameCheck}
+                    disabled={nicknameChecking || !nicknameForm.nickname.trim()}
+                    className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {nicknameChecking ? "확인 중..." : "중복 확인"}
+                  </Button>
+                </div>
+                
+                {nicknameErrors.nickname ? (
+                  <div className="flex items-center gap-2 text-xs text-red-500">
+                    <AlertCircle className="w-4 h-4" />
+                    {nicknameErrors.nickname}
+                  </div>
+                ) : nicknameChecked && nicknameValid ? (
+                  <div className="flex items-center gap-2 text-xs text-emerald-600">
+                    <CheckCircle className="w-4 h-4" />
+                    사용 가능한 닉네임입니다
+                  </div>
+                ) : nicknameForm.nickname.trim() && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <AlertCircle className="w-4 h-4" />
+                    중복 확인을 해주세요
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500">
+                  {nicknameForm.nickname.length}/20자
+                </p>
+              </div>
+              
+              <Button 
+                type="submit" 
+                disabled={!nicknameChecked || !nicknameValid}
+                className="w-full h-12 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 transform transition-all duration-200 hover:scale-[1.02] shadow-lg rounded-xl text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <UserCheck className="w-5 h-5 mr-2" />
+                닉네임 수정
               </Button>
             </form>
           </TabsContent>

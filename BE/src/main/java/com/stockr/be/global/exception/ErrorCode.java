@@ -34,7 +34,14 @@ public enum ErrorCode {
     DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S004", "Duplicate Favorite"),
     INVALID_INTERVAL(HttpStatus.BAD_REQUEST, "S005", "Invalid interval value. Use 'daily', 'weekly', or 'monthly'"),
     STOCK_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "S006", "Stock price not found"),
-    STOCK_HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "S007", "Stock Holding Not Found");
+    STOCK_HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "S007", "Stock Holding Not Found"),
+
+    // Community
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "게시글을 찾을 수 없습니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "댓글을 찾을 수 없습니다."),
+    UNAUTHORIZED_ACCESS(HttpStatus.FORBIDDEN, "P003", "접근 권한이 없습니다."),
+    NICKNAME_NOT_SET(HttpStatus.BAD_REQUEST, "P004", "커뮤니티 이용을 위해 닉네임을 먼저 설정해주세요."),
+    NO_FAVORITE_STOCKS(HttpStatus.BAD_REQUEST, "P005", "커뮤니티 글 작성을 위해 관심 종목을 먼저 추가해주세요.");
 
     private final HttpStatus status;
     private final String code;
