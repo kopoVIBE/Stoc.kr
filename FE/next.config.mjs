@@ -1,8 +1,8 @@
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -12,22 +12,36 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value:
+              "upgrade-insecure-requests 'unsafe-inline' 'unsafe-eval' data: blob:;",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**',
+        protocol: "https",
+        hostname: "**",
       },
       {
-        protocol: 'http',
-        hostname: '**',
+        protocol: "http",
+        hostname: "**",
       },
     ],
   },
   // Vercel 배포를 위한 추가 설정
   experimental: {
-    esmExternals: 'loose'
+    esmExternals: "loose",
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -35,10 +49,10 @@ const nextConfig = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
-      }
+      };
     }
-    return config
+    return config;
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
