@@ -122,3 +122,24 @@ export const getSimilarStocks = async (
     throw error;
   }
 };
+
+// 실시간 데이터 구독/해제 API
+export const subscribeToStockRealtime = async (stockCode: string) => {
+  const response = await axiosInstance.post(
+    `/api/v1/stocks/${stockCode}/subscribe`
+  );
+  return response.data;
+};
+
+export const unsubscribeFromStockRealtime = async (stockCode: string) => {
+  const response = await axiosInstance.post(
+    `/api/v1/stocks/${stockCode}/unsubscribe`
+  );
+  return response.data;
+};
+
+// 구독 중인 종목 목록 조회
+export const getSubscribedStocks = async () => {
+  const response = await axiosInstance.get("/api/v1/stocks/subscribe/list");
+  return response.data;
+};

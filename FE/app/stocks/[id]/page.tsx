@@ -29,6 +29,8 @@ import {
   removeFavorite,
   getSimilarStocks,
   SimilarStock,
+  subscribeToStockRealtime,
+  unsubscribeFromStockRealtime,
 } from "@/api/stock";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
@@ -160,6 +162,14 @@ export default function StockDetailPage({
         setIsLoading(true);
         const data = await stockApi.getStock(ticker);
         setStock(data);
+
+        // 종목 페이지 접속 시 Redis에 target_stocks 추가
+        try {
+          await subscribeToStockRealtime(ticker);
+          console.log(`✅ Added ${ticker} to target_stocks`);
+        } catch (error) {
+          console.error("❌ Failed to add stock to target_stocks:", error);
+        }
       } catch (error) {
         console.error("Failed to fetch stock:", error);
       } finally {
@@ -170,29 +180,15 @@ export default function StockDetailPage({
     fetchStock();
   }, [ticker]);
 
-  // 웹소켓 구독 관리
+  // 컴포넌트 언마운트 시 target_stocks에서 제거
   useEffect(() => {
-    if (!isConnected || !ticker) return;
-
-    // 이전 구독 해제
-    if (subscribedTickerRef.current && subscribedTickerRef.current !== ticker) {
-      unsubscribeFromStock(subscribedTickerRef.current);
-    }
-
-    // 새로운 종목 구독
-    if (subscribedTickerRef.current !== ticker) {
-      subscribeToStock(ticker);
-      subscribedTickerRef.current = ticker;
-    }
-
-    // 컴포넌트 언마운트 시 구독 해제
     return () => {
-      if (subscribedTickerRef.current) {
-        unsubscribeFromStock(subscribedTickerRef.current);
-        subscribedTickerRef.current = null;
-      }
+      // 페이지를 벗어날 때 target_stocks에서 제거
+      unsubscribeFromStockRealtime(ticker).catch((error) => {
+        console.error("❌ Failed to remove stock from target_stocks:", error);
+      });
     };
-  }, [ticker, isConnected]);
+  }, [ticker]);
 
   // 실시간 데이터 처리
   useEffect(() => {
