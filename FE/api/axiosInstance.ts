@@ -6,6 +6,10 @@ const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // 자체 서명 인증서 허용 (개발/테스트용)
+  httpsAgent: new (require("https").Agent)({
+    rejectUnauthorized: false,
+  }),
 });
 
 // 토큰이 있다면 Authorization 헤더에 자동 추가
