@@ -4,7 +4,7 @@
 
 ## 시스템 아키텍처
 
-![System Architecture](docs/architecture.png)
+![아키텍처](docs/architecture.png)
 
 ## 기술 스택
 
