@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://54.180.117.219:8080",
+  baseURL: "http://54.180.117.219:8080", // 백엔드
   headers: {
     "Content-Type": "application/json",
   },
