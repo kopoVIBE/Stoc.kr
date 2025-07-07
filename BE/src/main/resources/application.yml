@@ -1,11 +1,15 @@
 server:
   port: 8080
 
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+
 spring:
   # DATABASE
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://stockr-mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:13306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
 
@@ -17,37 +21,23 @@ spring:
       hibernate:
         format_sql: true # SQL 쿼리를 예쁘게 포맷팅
         dialect: org.hibernate.dialect.MySQLDialect
-
-  # MONGODB
   data:
     mongodb:
-      uri: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@stockr-mongodb:27017/${MONGO_DATABASE}?authSource=admin
-    # REDIS
+      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/${MONGO_DATABASE}?authSource=admin
     redis:
-      host: stockr-redis
-      port: 6379
+      #      host: ${REDIS_HOST}
+      host: localhost
+      port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
-      timeout: 5000
-      connect-timeout: 5000
-      client-type: lettuce
-      client-name: stockr-redis
-      database: 0
+      ssl:
+        enabled: false
       lettuce:
         pool:
           enabled: true
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
-        shutdown-timeout: 100ms
-        cluster:
-          refresh:
-            period: 1000
-            adaptive: true
 
   # KAFKA
   kafka:
-    bootstrap-servers: stockr-kafka:29092
+    bootstrap-servers: localhost:19092
     consumer:
       group-id: stockr-group
       auto-offset-reset: earliest
@@ -66,14 +56,37 @@ spring:
     topic-prefix: /topic
     application-prefix: /app
 
-  config:
-    activate:
-      on-profile: test
+  # config:
+  #   activate:
+  #     on-profile: test
 
 logging:
   level:
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql: trace # ? 로 표시되는 바인딩 파라미터 값까지 로그로 출력
-    com.stockr.be: debug
-    org.springframework.data.redis: debug
-    io.lettuce.core: debug
+    com.stockr: INFO # 기본적으로 INFO 레벨로 설정
+    com.stockr.be.domain.stock.controller: INFO # 웹소켓 컨트롤러는 INFO로 유지
+    org.springframework.web: INFO
+    org.springframework.web.socket: WARN # DEBUG에서 WARN으로 변경
+    org.springframework.messaging: WARN # DEBUG에서 WARN으로 변경
+    org.springframework.web.socket.messaging: WARN # TRACE에서 WARN으로 변경
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+    org.springframework.data.redis: WARN # debug에서 WARN으로 변경
+    io.lettuce.core: WARN # debug에서 WARN으로 변경
+    org.springframework.data.mongodb: DEBUG
+
+kis:
+  api:
+    base-url: https://openapivts.koreainvestment.com:29443
+    ws-url: ws://ops.koreainvestment.com:31000
+    app-key: ${KIS_APP_KEY}
+    app-secret: ${KIS_APP_SECRET}
+  virtual:
+    key: ${KIS_VIRTUAL_APP_KEY}
+    secret: ${KIS_VIRTUAL_APP_SECRET}
+    account: ${KIS_VIRTUAL_ACCOUNT}
+    product-code: ${KIS_VIRTUAL_PRODUCT_CODE}
+
+trade:
+  python-service:
+    url: http://localhost:8000

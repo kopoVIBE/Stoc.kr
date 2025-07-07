@@ -29,8 +29,23 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.kafka:spring-kafka'
-	
+	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+	// localtime 직렬화
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta:2.15.3'
+
+	// Spring Security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// JWT (JJWT - io.jsonwebtoken)
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// 비밀번호 암호화 (BCrypt)
+	implementation 'org.springframework.security:spring-security-crypto'
+
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	
@@ -43,15 +58,19 @@ dependencies {
 	implementation 'org.webjars:stomp-websocket:2.3.4'
 	
 	// Lombok
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+	compileOnly 'org.projectlombok:lombok:1.18.32'
+	annotationProcessor 'org.projectlombok:lombok:1.18.32'
 	
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 	
 	// Monitoring & Management
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// JSON
+	implementation 'org.json:json:20231013'
 }
 
 tasks.named('test') {

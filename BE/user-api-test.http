@@ -1,0 +1,67 @@
+### ✅ 회원가입 요청 (실패 예시: 비밀번호 형식 불일치)
+POST http://localhost:8080/api/users/signup
+Content-Type: application/json
+
+{
+  "email": "testuser2@example.com",
+  "password": "Test",
+  "name": "테스트유저",
+  "phone": "010-1234-5678",
+  "birthDate": "990101",
+  "genderCode": "1",
+  "gender": "남자",
+  "investmentStyle": "공격형"
+}
+
+### ✅ 회원가입 요청 (성공 예시)
+POST http://localhost:8080/api/users/signup
+Content-Type: application/json
+
+{
+  "email": "testuser3@example.com",
+  "password": "Test1234!",
+  "name": "테스트유저",
+  "phone": "010-1234-5678",
+  "birthDate": "990101",
+  "genderCode": "1",
+  "gender": "남자",
+  "investmentStyle": "공격형"
+}
+
+### 🔐 로그인 요청 (JWT 발급)
+POST http://localhost:8080/api/users/login
+Content-Type: application/json
+
+{
+  "email": "testuser3@example.com",
+  "password": "Test1234!"
+}
+
+
+### 🙋 내 정보(me) 조회
+GET http://localhost:8080/api/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs
+
+
+
+### 계좌 생성
+POST http://localhost:8080/api/accounts
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs
+
+{
+  "bankName": "카카오뱅크",
+  "accountNumber": "1901234"
+}
+
+### 계좌 조회
+GET http://localhost:8080/api/accounts
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTEyNjM2ODUsImV4cCI6MTc1MTM1MDA4NX0.aRfSJdJfZBmg08fPFKjXtljEnO8M-xTFcAy_a9JzNYs
+
+
+### 뉴스 전체 목록 조회
+GET http://localhost:8080/api/news
+Accept: application/json
+
+### 수동 뉴스 크롤러 실행
+POST http://localhost:8080/api/news/crawl
