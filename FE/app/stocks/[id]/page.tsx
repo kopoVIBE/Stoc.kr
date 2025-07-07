@@ -32,6 +32,7 @@ import {
   subscribeToRealtimeStock,
   unsubscribeFromRealtimeStock,
 } from "@/api/stock";
+import { getAccount, createOrder } from "@/api/account";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { useRouter } from "next/navigation";
@@ -399,13 +400,13 @@ export default function StockDetailPage({
                 <div className="p-2 bg-green-50 text-green-800 rounded-lg text-xs">
                   클릭 한번으로 간편하게 주문해보세요
                 </div>
-                <OrderForm type="buy" />
+                <OrderForm type="buy" stockData={stockData} />
               </TabsContent>
               <TabsContent value="sell" className="mt-4 space-y-4">
                 <div className="p-2 bg-blue-50 text-blue-800 rounded-lg text-xs">
                   보유 주식을 매도할 수 있습니다
                 </div>
-                <OrderForm type="sell" />
+                <OrderForm type="sell" stockData={stockData} />
               </TabsContent>
               <TabsContent value="wait" className="mt-4 space-y-4">
                 <h3 className="font-semibold text-base">대기 중인 주문</h3>
@@ -441,10 +442,25 @@ function PriceTabContent({ ticker }: { ticker: string }) {
   // 웹소켓 구독 설정
   useEffect(() => {
     if (isConnected) {
+      console.log("호가창 웹소켓 구독:", ticker);
       subscribeToStock(ticker);
-      return () => unsubscribeFromStock(ticker);
+      return () => {
+        console.log("호가창 웹소켓 구독 해제:", ticker);
+        unsubscribeFromStock(ticker);
+      };
     }
-  }, [ticker, isConnected, subscribeToStock, unsubscribeFromStock]);
+  }, [isConnected, ticker, subscribeToStock, unsubscribeFromStock]);
+
+  // 호가 데이터 로깅
+  useEffect(() => {
+    if (orderBookData) {
+      console.log("=== 호가 데이터 ===");
+      console.log("매도 호가:", orderBookData.askPrices);
+      console.log("매수 호가:", orderBookData.bidPrices);
+      console.log("총 매도잔량:", orderBookData.totalAskVolume);
+      console.log("총 매수잔량:", orderBookData.totalBidVolume);
+    }
+  }, [orderBookData]);
 
   // 체결 내역 업데이트
   useEffect(() => {
@@ -456,16 +472,32 @@ function PriceTabContent({ ticker }: { ticker: string }) {
     }
   }, [stockData, ticker]);
 
-  // orderBookData 상태 변화 확인
-  useEffect(() => {
-    console.log("Current orderBookData:", orderBookData);
-  }, [orderBookData]);
+  if (!isConnected) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-4 flex justify-center items-center h-40">
+            <div>서버에 연결 중입니다...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  if (!isConnected) return <div>연결 중...</div>;
-  if (error) return <div>에러: {error}</div>;
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-4 flex justify-center items-center h-40 text-red-500">
+            <div>에러: {error}</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // 호가 데이터가 없는 경우 로딩 표시
-  if (!orderBookData) {
+  if (!orderBookData || !orderBookData.askPrices || !orderBookData.bidPrices) {
     return (
       <div className="space-y-4">
         <Card>
@@ -479,12 +511,13 @@ function PriceTabContent({ ticker }: { ticker: string }) {
 
   // 등락률 계산 함수
   const calculateDiff = (price: number, basePrice: number) => {
+    if (!basePrice) return "0.00%";
     const diff = ((price - basePrice) / basePrice) * 100;
     return `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
   };
 
-  // 기준가 (임시로 첫 번째 매수 호가 사용)
-  const basePrice = orderBookData.bidPrices[0]?.price || 0;
+  // 기준가 (현재가 또는 첫 번째 매수 호가 사용)
+  const basePrice = stockData?.price || orderBookData.bidPrices[0]?.price || 0;
 
   return (
     <div className="space-y-4">
@@ -494,7 +527,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
           <div className="grid grid-cols-2 gap-1">
             {/* 매도 호가 */}
             <div className="space-y-1">
-              {orderBookData.askPrices.map((item, index) => (
+              {(orderBookData.askPrices || []).map((item, index) => (
                 <div
                   key={`ask-${index}`}
                   className="grid grid-cols-12 text-xs items-center relative h-6"
@@ -504,9 +537,9 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     className="absolute inset-y-0 left-[50%] bg-red-100"
                     style={{
                       width: `${
-                        (item.volume / orderBookData.totalAskVolume) * 50
+                        (item.volume / (orderBookData.totalAskVolume || 1)) * 50
                       }%`,
-                      transform: "translateX(-100%)", // 오른쪽 끝이 중앙에 오도록
+                      transform: "translateX(-100%)",
                     }}
                   />
                   {/* 가격과 등락률 - 왼쪽에 배치 */}
@@ -525,7 +558,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
 
             {/* 매수 호가 */}
             <div className="space-y-1">
-              {orderBookData.bidPrices.map((item, index) => (
+              {(orderBookData.bidPrices || []).map((item, index) => (
                 <div
                   key={`bid-${index}`}
                   className="grid grid-cols-12 text-xs items-center relative h-6"
@@ -535,7 +568,7 @@ function PriceTabContent({ ticker }: { ticker: string }) {
                     className="absolute inset-y-0 left-[50%] bg-blue-100"
                     style={{
                       width: `${
-                        (item.volume / orderBookData.totalBidVolume) * 50
+                        (item.volume / (orderBookData.totalBidVolume || 1)) * 50
                       }%`,
                     }}
                   />
@@ -559,13 +592,13 @@ function PriceTabContent({ ticker }: { ticker: string }) {
             <div className="text-right">
               <span className="text-gray-500">매도잔량 </span>
               <span className="font-semibold">
-                {orderBookData.totalAskVolume.toLocaleString()}
+                {(orderBookData.totalAskVolume || 0).toLocaleString()}
               </span>
             </div>
             <div className="text-right">
               <span className="text-gray-500">매수잔량 </span>
               <span className="font-semibold">
-                {orderBookData.totalBidVolume.toLocaleString()}
+                {(orderBookData.totalBidVolume || 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -790,15 +823,86 @@ function RecommendTabContent({ stockName }: { stockName: string }) {
   );
 }
 
-function OrderForm({ type }: { type: "buy" | "sell" }) {
-  const [price, setPrice] = useState(81200);
+interface OrderFormProps {
+  type: "buy" | "sell";
+  stockData: StockPrice | null;
+}
+
+function OrderForm({ type, stockData }: OrderFormProps) {
+  const [orderType, setOrderType] = useState<"fixed" | "market">("fixed");
+  const [price, setPrice] = useState(0);
+  const [quantity, setQuantity] = useState(0);
+  const [account, setAccount] = useState<any>(null);
+  const { toast } = useToast();
+
+  // 계좌 정보 조회
+  useEffect(() => {
+    const fetchAccount = async () => {
+      try {
+        const data = await getAccount();
+        if (!data) {
+          console.warn("❌ 계좌 정보가 없습니다.");
+          return;
+        }
+        console.log("💰 계좌 정보:", {
+          id: data.id,
+          accountNumber: data.accountNumber,
+          balance: data.balance,
+        });
+        setAccount(data);
+      } catch (error) {
+        console.error("계좌 조회 실패:", error);
+        toast({
+          title: "계좌 조회 실패",
+          description: "계좌 정보를 불러오는데 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchAccount();
+  }, [toast]);
+
+  // 실시간 가격 반영
+  useEffect(() => {
+    if (stockData?.price) {
+      if (orderType === "market" || price === 0) {
+        setPrice(stockData.price);
+      }
+    }
+  }, [stockData?.price, orderType]);
+
+  // 가격 조정 함수
+  const adjustPrice = (amount: number) => {
+    if (orderType === "fixed") {
+      setPrice((prev) => Math.max(0, prev + amount));
+    }
+  };
+
+  // 수량 조정 함수
+  const adjustQuantity = (amount: number) => {
+    setQuantity((prev) => Math.max(0, prev + amount));
+  };
+
+  // 총 주문 금액 계산
+  const totalOrderAmount = price * quantity;
+
+  // 주문 가능 여부 확인
+  const canOrder =
+    type === "buy"
+      ? account?.balance >= totalOrderAmount && totalOrderAmount > 0
+      : quantity > 0;
+
   return (
     <div className="space-y-4">
       <div>
         <label className="font-semibold text-xs">
           {type === "buy" ? "구매" : "매도"} 가격
         </label>
-        <Tabs defaultValue="fixed" className="w-full mt-1">
+        <Tabs
+          value={orderType}
+          onValueChange={(value) => setOrderType(value as "fixed" | "market")}
+          className="w-full mt-1"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="fixed">지정가</TabsTrigger>
             <TabsTrigger value="market">시장가</TabsTrigger>
@@ -809,20 +913,30 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-transparent"
-            onClick={() => setPrice((p) => p - 100)}
+            onClick={() => adjustPrice(-100)}
+            disabled={orderType === "market"}
           >
             <Minus className="w-4 h-4" />
           </Button>
           <Input
             value={`${price.toLocaleString()} 원`}
             className="text-center font-bold text-base h-9"
-            readOnly
+            readOnly={orderType === "market"}
+            onChange={(e) => {
+              if (orderType === "fixed") {
+                const value = parseInt(e.target.value.replace(/[^0-9]/g, ""));
+                if (!isNaN(value)) {
+                  setPrice(value);
+                }
+              }
+            }}
           />
           <Button
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-transparent"
-            onClick={() => setPrice((p) => p + 100)}
+            onClick={() => adjustPrice(100)}
+            disabled={orderType === "market"}
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -837,40 +951,47 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-transparent"
+            onClick={() => adjustQuantity(-1)}
+            disabled={quantity === 0}
           >
             <Minus className="w-4 h-4" />
           </Button>
-          <Input placeholder="수량 입력" className="text-center h-9" />
+          <Input
+            value={quantity}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              if (!isNaN(value) && value >= 0) {
+                setQuantity(value);
+              }
+            }}
+            className="text-center h-9"
+          />
           <Button
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-transparent"
+            onClick={() => adjustQuantity(1)}
           >
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-        {type === "buy" && (
-          <div className="grid grid-cols-4 gap-2 mt-2">
-            {["10%", "25%", "50%", "최대"].map((p) => (
-              <Button
-                key={p}
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 bg-transparent"
-              >
-                {p}
-              </Button>
-            ))}
-          </div>
-        )}
       </div>
       <div className="space-y-1 text-xs border-t pt-3 mt-3">
         <div className="flex justify-between">
-          <span>{type === "buy" ? "구매가능 금액" : "예상 매도 금액"}</span>{" "}
-          <span>0원</span>
+          <span>{type === "buy" ? "구매가능 금액" : "예상 매도 금액"}</span>
+          <span>{account?.balance?.toLocaleString()}원</span>
         </div>
         <div className="flex justify-between">
-          <span>총 주문 금액</span> <span>0원</span>
+          <span>총 주문 금액</span>
+          <span
+            className={
+              totalOrderAmount > (account?.balance || 0)
+                ? "text-red-500"
+                : "text-blue-600"
+            }
+          >
+            {totalOrderAmount.toLocaleString()}원
+          </span>
         </div>
       </div>
       <Button
@@ -879,6 +1000,56 @@ function OrderForm({ type }: { type: "buy" | "sell" }) {
             ? "bg-primary hover:bg-primary/90"
             : "bg-blue-600 hover:bg-blue-700"
         }`}
+        disabled={!canOrder}
+        onClick={async () => {
+          try {
+            if (!account || !stockData) {
+              toast({
+                title: "주문 실패",
+                description: "필요한 정보가 없습니다.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            const rawAccountNumber = account.accountNumber;
+            const formattedAccountNumber = rawAccountNumber.replace(/-/g, "");
+
+            console.log("계좌번호 처리:", {
+              원본: rawAccountNumber,
+              변환후: formattedAccountNumber,
+              길이: formattedAccountNumber.length,
+            });
+
+            const orderData = {
+              accountId: account.id,
+              accountNumber: formattedAccountNumber,
+              stockCode: stockData.ticker,
+              orderType: type === "buy" ? ("BUY" as const) : ("SELL" as const),
+              quantity,
+              price: orderType === "market" ? stockData.price : price,
+            };
+
+            console.log("📤 주문 요청:", orderData);
+
+            await createOrder(orderData);
+            console.log("✅ 주문 성공");
+
+            toast({
+              title: `${type === "buy" ? "매수" : "매도"} 주문 완료`,
+              description: "주문이 정상적으로 접수되었습니다.",
+            });
+
+            setQuantity(0);
+          } catch (error) {
+            console.error("❌ 주문 실패:", error);
+            toast({
+              title: "주문 실패",
+              description: "주문 처리 중 오류가 발생했습니다.",
+              variant: "destructive",
+            });
+          }
+        }}
       >
         {type === "buy" ? "매수 주문하기" : "매도 주문하기"}
       </Button>

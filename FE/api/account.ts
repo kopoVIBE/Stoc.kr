@@ -1,19 +1,28 @@
 // FE/api/account.ts
-import axiosInstance from './axiosInstance';
+import axiosInstance from "./axiosInstance";
 
 interface AccountRequest {
   bankName: string;
   accountNumber: string;
 }
 
+interface TradeRequest {
+  accountId: string;
+  accountNumber: string;
+  stockCode: string;
+  orderType: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+}
+
 export const createAccount = async (data: AccountRequest) => {
-  const res = await axiosInstance.post('/api/accounts', data);
+  const res = await axiosInstance.post("/api/accounts", data);
   return res.data;
 };
 
 export const getAccount = async () => {
   try {
-    const res = await axiosInstance.get('/api/accounts');
+    const res = await axiosInstance.get("/api/accounts");
 
     // null이면 계좌 없음 처리
     if (!res.data) {
@@ -33,3 +42,24 @@ export const getAccount = async () => {
   }
 };
 
+export const createOrder = async (data: TradeRequest) => {
+  const res = await axiosInstance.post("/api/trade/order", data);
+  return res.data;
+};
+
+export const getStockHolding = async (stockCode: string) => {
+  try {
+    const res = await axiosInstance.get(`/api/accounts/holdings/${stockCode}`);
+    return res.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+export const getPendingOrders = async () => {
+  const res = await axiosInstance.get("/api/trade/pending");
+  return res.data;
+};

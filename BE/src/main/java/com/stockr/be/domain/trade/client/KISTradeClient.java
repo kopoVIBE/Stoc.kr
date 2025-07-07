@@ -24,7 +24,7 @@ public class KISTradeClient {
     public Mono<KISOrderResponse> createOrder(String orderId, TradeRequestDto request) {
         var orderRequest = new KISOrderRequest(
             orderId,
-            request.getAccountId(),
+            request.getAccountNumber(),
             request.getStockCode(),
             request.getOrderType().toString(),
             request.getQuantity(),
@@ -44,7 +44,7 @@ public class KISTradeClient {
     
     record KISOrderRequest(
         String orderId,
-        String accountId,
+        String accountNumber,
         String stockCode,
         String orderType,
         int quantity,

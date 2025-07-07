@@ -48,28 +48,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers(
-                    "/api/users/signup",
-                    "/api/users/login",
-                    "/api/news",
-                    "api/news/crawl",
-                    "/api/users/me",
-                    "/api/v1/stocks/**",
-                    "/api/v1/test/**",
-                    "/ws/**",
-                    "/ws-raw/**",
-                    "/ws",
-                    "/ws/info",
-                    "/ws/info/**",
-                    "/topic/**",
-                    "/app/**"
-                ).permitAll()
-                .anyRequest().authenticated())
-            .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
-                    UsernamePasswordAuthenticationFilter.class);
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers(
+                                "/api/users/signup",
+                                "/api/users/login",
+                                "/api/news",
+                                "api/news/crawl",
+                                "/api/users/me",
+                                "/api/v1/stocks/**",
+                                "/api/v1/test/**",  // 테스트 API 경로 추가
+                                "/ws/**",
+                                "/ws-raw/**", // Python client access
+                                "/ws",
+                                "/ws/info",
+                                "/ws/info/**",
+                                "/topic/**",
+                                "/app/**",
+                                "/api/trade/order"
+                        ).permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

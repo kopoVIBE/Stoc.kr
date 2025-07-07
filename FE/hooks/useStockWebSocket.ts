@@ -142,10 +142,6 @@ export const useStockWebSocket = () => {
           `/topic/orderbook/${ticker}`,
           (message) => {
             try {
-              console.log(`[OrderBook] Received message for ${ticker}:`, {
-                raw: message.body,
-                parsed: JSON.parse(message.body),
-              });
               const data = JSON.parse(message.body) as OrderBook;
               setOrderBookData(data);
               setError(null);

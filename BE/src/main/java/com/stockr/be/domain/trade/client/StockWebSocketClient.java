@@ -84,7 +84,7 @@ public class StockWebSocketClient {
                             RealtimeStockPriceDto priceDto = RealtimeStockPriceDto.builder()
                                     .stockCode(stockCode)
                                     .hour(data[1]) // 체결시간
-                                    .price(Long.parseLong(data[2])) // 현재가
+                                    .price(Long.parseLong(data[3])) // 현재가 (인덱스 수정: 2 -> 3)
                                     .compareYesterdaySign(data[4]) // 전일 대비 부호
                                     .compareYesterday(Double.parseDouble(data[5])) // 전일 대비
                                     .compareYesterdayRate(Double.parseDouble(data[6])) // 전일 대비율
