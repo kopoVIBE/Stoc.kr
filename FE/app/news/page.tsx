@@ -169,6 +169,15 @@ export default function NewsPage() {
                   className="w-full h-auto object-cover"
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  {/* 종목명 태그 (종목 뉴스인 경우) */}
+                  {mainNewsItem.stockName && (
+                    <Badge
+                      variant="outline"
+                      className="text-green-600 border-green-200 bg-green-50 font-medium mb-2"
+                    >
+                      {mainNewsItem.stockName}
+                    </Badge>
+                  )}
                   <h2 className="text-xl font-bold text-white">{mainNewsItem.title}</h2>
                   <p className="text-gray-300 mt-1 text-xs">
                     {formatTimeAgo(mainNewsItem.publishedAt)} · {mainNewsItem.source}
@@ -190,6 +199,15 @@ export default function NewsPage() {
                   className="w-full h-32 object-cover"
                 />
                 <CardContent className="p-3">
+                  {/* 종목명 태그 (종목 뉴스인 경우) */}
+                  {news.stockName && (
+                    <Badge
+                      variant="outline"
+                      className="text-green-600 border-green-200 bg-green-50 font-medium text-xs mb-2"
+                    >
+                      {news.stockName}
+                    </Badge>
+                  )}
                   <h3 className="font-semibold leading-tight">{news.title}</h3>
                   <p className="text-xs text-gray-500 mt-1">
                     {formatTimeAgo(news.publishedAt)} · {news.source}
@@ -218,12 +236,14 @@ export default function NewsPage() {
                     <div className="flex-grow">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-xs">{news.source}</span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-blue-100 text-blue-700 border-blue-300"
-                        >
-                          {news.stockName}
-                        </Badge>
+                        {news.stockName && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-green-600 border-green-200 bg-green-50"
+                          >
+                            {news.stockName}
+                          </Badge>
+                        )}
                       </div>
                       <h3 className="font-semibold leading-tight">{news.title}</h3>
                       <p className="text-xs text-gray-500 mt-1">
