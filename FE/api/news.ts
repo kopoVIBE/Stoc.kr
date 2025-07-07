@@ -13,6 +13,7 @@ export interface NewsResponse {
   type: string
   stockCode: string
   stockName: string
+  sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
 // 모든 뉴스 조회
