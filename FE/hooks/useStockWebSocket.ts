@@ -30,8 +30,12 @@ export const useStockWebSocket = () => {
   const [error, setError] = useState<string | null>(null);
   const clientRef = useRef<Client | null>(null);
   const subscriptionsRef = useRef<{ [key: string]: any }>({});
+  const pathnameRef = useRef<string>("");
 
   useEffect(() => {
+    // 클라이언트 사이드에서만 pathname 설정
+    pathnameRef.current = window.location.pathname;
+
     const client = new Client({
       // brokerURL: "ws://localhost:8080/ws", // SockJS를 위해 이 부분을 주석 처리
       webSocketFactory: () => {
@@ -41,89 +45,133 @@ export const useStockWebSocket = () => {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
-        console.log("WebSocket Connected");
         setIsConnected(true);
         setError(null);
       },
       onDisconnect: () => {
-        console.log("WebSocket Disconnected");
         setIsConnected(false);
         subscriptionsRef.current = {};
       },
       onStompError: (frame) => {
-        console.error("STOMP error", frame);
         setError(`WebSocket Error: ${frame.headers["message"]}`);
       },
       onWebSocketError: (event) => {
-        console.error("WebSocket Error:", event);
         setError("WebSocket connection error");
       },
     });
 
+    // pathname 변경 감지 함수
+    const handlePathChange = () => {
+      const currentPath = window.location.pathname;
+      if (currentPath !== pathnameRef.current) {
+        console.log("Path changed, cleaning up subscriptions");
+        Object.keys(subscriptionsRef.current).forEach((key) => {
+          const ticker = key.replace("price_", "").replace("orderbook_", "");
+          if (subscriptionsRef.current[key]) {
+            subscriptionsRef.current[key].unsubscribe();
+            delete subscriptionsRef.current[key];
+
+            // 서버에 구독 해제 알림
+            if (clientRef.current?.connected) {
+              clientRef.current.publish({
+                destination: `/app/stock/unsubscribe/${ticker}`,
+                body: JSON.stringify({ stockCode: ticker }),
+                headers: { "content-type": "application/json" },
+              });
+            }
+          }
+        });
+        pathnameRef.current = currentPath;
+      }
+    };
+
     clientRef.current = client;
     client.activate();
 
+    // popstate 이벤트 리스너 추가
+    window.addEventListener("popstate", handlePathChange);
+
     return () => {
+      window.removeEventListener("popstate", handlePathChange);
       console.log("WebSocket hook cleanup");
       if (client.connected) {
         Object.keys(subscriptionsRef.current).forEach(unsubscribeFromStock);
         client.deactivate();
       }
     };
-  }, []);
+  }, []); // 빈 dependency array 사용
 
   const subscribeToStock = useCallback((ticker: string) => {
     if (!clientRef.current?.connected) {
-      console.log(`Cannot subscribe to ${ticker}: WebSocket not connected`);
+      console.log("Cannot subscribe: WebSocket not connected");
       return;
     }
 
-    if (subscriptionsRef.current[ticker]) {
-      console.log(`Already subscribed to ${ticker}`);
-      return;
-    }
+    // 각각의 구독에 대해 개별적으로 체크
+    const priceKey = `price_${ticker}`;
+    const orderBookKey = `orderbook_${ticker}`;
+
+    console.log("Current subscriptions before:", subscriptionsRef.current);
 
     try {
-      console.log(`Subscribing to ${ticker}`);
-
-      subscriptionsRef.current[`price_${ticker}`] = clientRef.current.subscribe(
-        `/topic/price/${ticker}`,
-        (message) => {
-          try {
-            const data = JSON.parse(message.body) as StockPrice;
-            setStockData(data);
-            setError(null);
-          } catch (e) {
-            console.error(`Parse error for ${ticker} price:`, e);
-            setError("Failed to parse stock data");
+      // 가격 구독이 없을 경우에만 구독
+      if (!subscriptionsRef.current[priceKey]) {
+        console.log(`Subscribing to price feed: /topic/price/${ticker}`);
+        const priceSubscription = clientRef.current.subscribe(
+          `/topic/price/${ticker}`,
+          (message) => {
+            try {
+              const data = JSON.parse(message.body) as StockPrice;
+              setStockData(data);
+              setError(null);
+            } catch (e) {
+              setError("Failed to parse stock data");
+            }
           }
-        }
-      );
+        );
+        console.log("Price subscription created:", priceSubscription);
+        subscriptionsRef.current[priceKey] = priceSubscription;
+      }
 
-      subscriptionsRef.current[`orderbook_${ticker}`] =
-        clientRef.current.subscribe(`/topic/orderbook/${ticker}`, (message) => {
-          try {
-            const data = JSON.parse(message.body) as OrderBook;
-            setOrderBookData(data);
-            setError(null);
-          } catch (e) {
-            console.error(`Parse error for ${ticker} orderbook:`, e);
-            setError("Failed to parse orderbook data");
+      // 호가 구독이 없을 경우에만 구독
+      if (!subscriptionsRef.current[orderBookKey]) {
+        console.log(
+          `Subscribing to orderbook feed: /topic/orderbook/${ticker}`
+        );
+        const orderBookSubscription = clientRef.current.subscribe(
+          `/topic/orderbook/${ticker}`,
+          (message) => {
+            try {
+              console.log(`[OrderBook] Received message for ${ticker}:`, {
+                raw: message.body,
+                parsed: JSON.parse(message.body),
+              });
+              const data = JSON.parse(message.body) as OrderBook;
+              setOrderBookData(data);
+              setError(null);
+            } catch (e) {
+              console.error(`[OrderBook] Parse error:`, e);
+              setError("Failed to parse orderbook data");
+            }
           }
-        });
+        );
+        console.log("OrderBook subscription created:", orderBookSubscription);
+        subscriptionsRef.current[orderBookKey] = orderBookSubscription;
+      }
 
+      console.log("Current subscriptions after:", subscriptionsRef.current);
+
+      console.log(`Publishing subscription request for ${ticker}`);
       clientRef.current.publish({
         destination: `/app/subscribe/${ticker}`,
         body: JSON.stringify({ stockCode: ticker }),
         headers: { "content-type": "application/json" },
       });
-
-      console.log(`Successfully subscribed to ${ticker}`);
     } catch (e) {
-      console.error(`Failed to subscribe to ${ticker}:`, e);
+      console.error("Subscription error:", e);
       setError("Failed to subscribe to stock");
-      delete subscriptionsRef.current[`price_${ticker}`];
-      delete subscriptionsRef.current[`orderbook_${ticker}`];
+      delete subscriptionsRef.current[priceKey];
+      delete subscriptionsRef.current[orderBookKey];
     }
   }, []);
 

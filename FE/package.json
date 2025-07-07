@@ -41,10 +41,6 @@
     "@types/sockjs-client": "^1.5.4",
     "autoprefixer": "^10.4.20",
     "axios": "^1.10.0",
-    "chart.js": "latest",
-    "chartjs-adapter-date-fns": "latest",
-    "chartjs-chart-financial": "latest",
-    "chartjs-plugin-zoom": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -56,10 +52,8 @@
     "next": "15.2.4",
     "next-themes": "^0.4.4",
     "react": "^18",
-    "react-chartjs-2": "latest",
     "react-day-picker": "8.10.1",
     "react-dom": "^18",
-    "react-financial-charts": "^2.0.1",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^3.0.2",
@@ -68,8 +62,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
-    "zod": "^3.24.1",
-    "zustand": "^5.0.6"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/d3-format": "^3.0.4",

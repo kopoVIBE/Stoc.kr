@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { Stock, stockApi } from "@/api/stock";
+import {
+  Stock as BaseStock,
+  stockApi,
+  subscribeToRealtimeStock,
+  unsubscribeFromRealtimeStock,
+} from "@/api/stock";
 import Image from "next/image";
 import {
   Table,
@@ -16,6 +21,11 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
+
+// Stock 인터페이스 확장
+interface Stock extends BaseStock {
+  currentPrice?: number;
+}
 
 // 시가총액을 조 단위로 변환하는 함수 추가
 const formatMarketCap = (value: number) => {
@@ -48,9 +58,7 @@ export default function StocksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [sortedStocks, setSortedStocks] = useState<Stock[]>([]);
-  const [stockPrices, setStockPrices] = useState<{ [key: string]: number }>({});
   const subscribedTickersRef = useRef<string[]>([]);
-  const prevPageRef = useRef<number>(currentPage);
 
   // 웹소켓 연결
   const {
@@ -72,113 +80,45 @@ export default function StocksPage() {
     [sortedStocks, currentPage, itemsPerPage]
   );
 
-  // 웹소켓으로 받은 데이터 처리
+  // 웹소켓 연결 관리
   useEffect(() => {
-    if (stockData) {
-      setStockPrices((prev) => ({
-        ...prev,
-        [stockData.ticker]: stockData.price,
-      }));
-    }
-  }, [stockData]);
+    if (!isConnected || !currentPageStocks.length) return;
 
-  // 현재 페이지의 종목들 구독 관리
-  useEffect(() => {
-    if (!isConnected || currentPageStocks.length === 0) return;
+    const newTickers = currentPageStocks.map((stock) => stock.ticker);
 
-    // 페이지가 실제로 변경되었는지 확인
-    if (prevPageRef.current === currentPage) return;
-    prevPageRef.current = currentPage;
-
-    const currentTickers = currentPageStocks.map((stock) => stock.ticker);
-    const prevTickers = subscribedTickersRef.current;
-
-    console.log("Page Changed. Updating subscriptions:", {
-      currentPage,
-      currentTickers,
-      prevTickers,
-    });
-
-    // 이전에 구독했던 종목 중 현재 페이지에 없는 종목만 구독 해제
-    prevTickers.forEach((ticker) => {
-      if (!currentTickers.includes(ticker)) {
+    // 현재 페이지에 없는 종목만 구독 해제
+    subscribedTickersRef.current.forEach((ticker) => {
+      if (!newTickers.includes(ticker)) {
         unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
       }
     });
 
-    // 현재 페이지의 종목 중 구독되지 않은 종목만 구독
-    currentTickers.forEach((ticker) => {
-      if (!prevTickers.includes(ticker)) {
+    // 새로운 종목만 구독
+    newTickers.forEach((ticker) => {
+      if (!subscribedTickersRef.current.includes(ticker)) {
         subscribeToStock(ticker);
+        subscribeToRealtimeStock(ticker);
       }
     });
 
-    // 구독 중인 종목 목록 업데이트
-    subscribedTickersRef.current = currentTickers;
-
-    // 컴포넌트 언마운트 시에만 구독 해제
-    return () => {
-      if (subscribedTickersRef.current.length > 0) {
-        console.log("Component unmounting, cleaning up subscriptions");
-        subscribedTickersRef.current.forEach((ticker) => {
-          unsubscribeFromStock(ticker);
-        });
-        subscribedTickersRef.current = [];
-      }
-    };
-  }, [currentPage, isConnected]); // 페이지 번호가 변경될 때만 실행
-
-  // 초기 구독 설정
-  useEffect(() => {
-    if (
-      !isConnected ||
-      currentPageStocks.length === 0 ||
-      subscribedTickersRef.current.length > 0
-    )
-      return;
-
-    const currentTickers = currentPageStocks.map((stock) => stock.ticker);
-    console.log("Initial subscription:", currentTickers);
-
-    currentTickers.forEach((ticker) => {
-      subscribeToStock(ticker);
-    });
-
-    subscribedTickersRef.current = currentTickers;
+    // 구독 중인 티커 목록 업데이트
+    subscribedTickersRef.current = newTickers;
   }, [isConnected, currentPageStocks]);
 
-  // 웹소켓 상태 모니터링
-  useEffect(() => {
-    console.log("WebSocket Status:", {
-      isConnected,
-      error,
-      stockData,
-      subscribedTickers: subscribedTickersRef.current,
-      currentPageStocks: currentPageStocks.map((stock) => stock.ticker),
-    });
-  }, [isConnected, error, stockData, currentPageStocks]);
-
-  // 시간 업데이트
-  useEffect(() => {
-    // 초기 시간 설정
-    setCurrentTime(new Date().toLocaleTimeString());
-
-    // 1초마다 시간 업데이트
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // 초기 데이터 로드
+  // 초기 데이터 로딩
   useEffect(() => {
     const fetchStocks = async () => {
       try {
         setIsLoading(true);
         const response = await stockApi.getStocks();
-        console.log("Fetched stocks data:", response); // 데이터 출력
-        setStocks(response);
+        // API 응답을 Stock 타입으로 변환
+        const stocksWithCurrentPrice = response.map((stock) => ({
+          ...stock,
+          currentPrice: undefined,
+        }));
+        setStocks(stocksWithCurrentPrice);
+        setSortedStocks(stocksWithCurrentPrice);
       } catch (error) {
         console.error("Failed to fetch stocks:", error);
       } finally {
@@ -187,22 +127,51 @@ export default function StocksPage() {
     };
 
     fetchStocks();
+
+    // 컴포넌트 언마운트 시 모든 구독 해제
+    return () => {
+      if (subscribedTickersRef.current.length > 0) {
+        subscribedTickersRef.current.forEach((ticker) => {
+          unsubscribeFromStock(ticker);
+          unsubscribeFromRealtimeStock(ticker);
+        });
+        subscribedTickersRef.current = [];
+      }
+    };
   }, []);
 
-  // 정렬 방식에 따른 데이터 정렬
+  // 실시간 데이터 처리 및 정렬
   useEffect(() => {
-    const sortStocks = () => {
-      const filtered = stocks.filter(
+    if (!stockData || !stocks.length) return;
+
+    const updateStockData = (prevStocks: Stock[]) =>
+      prevStocks.map((stock) => {
+        if (stock.ticker === stockData.ticker) {
+          const priceDiff = stockData.price - stock.closePrice;
+          const fluctuationRate = (priceDiff / stock.closePrice) * 100;
+
+          return {
+            ...stock,
+            currentPrice: stockData.price,
+            priceDiff: priceDiff,
+            fluctuationRate: fluctuationRate,
+            volume: stockData.volume,
+          };
+        }
+        return stock;
+      });
+
+    // stocks 업데이트
+    setStocks((prevStocks) => {
+      const updatedStocks = updateStockData(prevStocks);
+      // stocks가 업데이트되면 즉시 정렬된 목록도 업데이트
+      const filtered = updatedStocks.filter(
         (stock) =>
           stock.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           stock.ticker.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      let sorted: Stock[] = filtered.map((stock) => ({
-        ...stock,
-        closePrice: stockPrices[stock.ticker] || stock.closePrice,
-      }));
-
+      let sorted = [...filtered];
       switch (sortType) {
         case "volume":
         case "amount":
@@ -219,13 +188,57 @@ export default function StocksPage() {
           );
           break;
         case "popular":
-          sorted.sort((a, b) => b.marketCap - a.marketCap);
+          sorted.sort((a, b) => (b.volume || 0) - (a.volume || 0)); // 거래량 기준 정렬로 수정
           break;
       }
       setSortedStocks(sorted);
-    };
-    sortStocks();
-  }, [sortType, stocks, searchTerm, stockPrices]);
+      return updatedStocks;
+    });
+  }, [stockData, sortType, searchTerm]);
+
+  // 정렬 방식이나 검색어 변경 시 정렬
+  useEffect(() => {
+    const filtered = stocks.filter(
+      (stock) =>
+        stock.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stock.ticker.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    let sorted = [...filtered];
+    switch (sortType) {
+      case "volume":
+      case "amount":
+        sorted.sort((a, b) => b.marketCap - a.marketCap);
+        break;
+      case "up":
+        sorted.sort(
+          (a, b) => (b.fluctuationRate || 0) - (a.fluctuationRate || 0)
+        );
+        break;
+      case "down":
+        sorted.sort(
+          (a, b) => (a.fluctuationRate || 0) - (b.fluctuationRate || 0)
+        );
+        break;
+      case "popular":
+        sorted.sort((a, b) => (b.volume || 0) - (a.volume || 0)); // 거래량 기준 정렬로 수정
+        break;
+    }
+    setSortedStocks(sorted);
+  }, [sortType, searchTerm, stocks]);
+
+  // 시간 업데이트
+  useEffect(() => {
+    // 초기 시간 설정
+    setCurrentTime(new Date().toLocaleTimeString());
+
+    // 1초마다 시간 업데이트
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // 페이지네이션
   const getPageNumbers = () => {
@@ -303,6 +316,7 @@ export default function StocksPage() {
                 <TableHead className="text-center">현재가</TableHead>
                 <TableHead className="text-center">전일대비</TableHead>
                 <TableHead className="text-center">등락률</TableHead>
+                <TableHead className="text-center">거래량</TableHead>
                 <TableHead className="text-center">시가총액</TableHead>
               </TableRow>
             </TableHeader>
@@ -317,8 +331,8 @@ export default function StocksPage() {
                 currentPageStocks.map((stock, index) => (
                   <TableRow
                     key={stock.ticker || `stock-${index}`}
-                    className="cursor-pointer hover:bg-gray-50"
                     onClick={() => handleStockClick(stock.ticker)}
+                    className="cursor-pointer hover:bg-gray-50"
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * itemsPerPage + index + 1}
@@ -332,45 +346,25 @@ export default function StocksPage() {
                           height={32}
                           className="rounded-full object-cover mr-3"
                           onError={(e) => {
-                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.style.display = "none";
                           }}
                         />
                         <span>{stock.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {stock.closePrice?.toLocaleString() ?? "-"}원
+                      {!isConnected || !stock.currentPrice
+                        ? "-"
+                        : `${stock.currentPrice.toLocaleString()}원`}
                     </TableCell>
-                    <TableCell
-                      className={`text-center ${
-                        stock.priceDiff && stock.priceDiff > 0
-                          ? "text-red-500"
-                          : stock.priceDiff && stock.priceDiff < 0
-                          ? "text-blue-500"
-                          : ""
-                      }`}
-                    >
-                      {stock.priceDiff
-                        ? (stock.priceDiff > 0 ? "+" : "") +
-                          stock.priceDiff.toLocaleString()
-                        : "-"}
+                    <TableCell className="text-center">{"-"}</TableCell>
+                    <TableCell className="text-center">{"-"}</TableCell>
+                    <TableCell className="text-center">
+                      {stock.volume?.toLocaleString() || "-"}
                     </TableCell>
-                    <TableCell
-                      className={`text-center ${
-                        stock.fluctuationRate && stock.fluctuationRate > 0
-                          ? "text-red-500"
-                          : stock.fluctuationRate && stock.fluctuationRate < 0
-                          ? "text-blue-500"
-                          : ""
-                      }`}
-                    >
-                      {stock.fluctuationRate
-                        ? (stock.fluctuationRate > 0 ? "+" : "") +
-                          stock.fluctuationRate.toFixed(2) +
-                          "%"
-                        : "-"}
+                    <TableCell className="text-center">
+                      {formatMarketCap(stock.marketCap)}
                     </TableCell>
-                    <TableCell className="text-center">{formatMarketCap(stock.marketCap)}</TableCell>
                   </TableRow>
                 ))
               )}
