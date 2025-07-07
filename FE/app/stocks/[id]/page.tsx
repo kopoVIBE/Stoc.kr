@@ -840,15 +840,6 @@ function OrderForm({ type, stockData }: OrderFormProps) {
     const fetchAccount = async () => {
       try {
         const data = await getAccount();
-        if (!data) {
-          console.warn("❌ 계좌 정보가 없습니다.");
-          return;
-        }
-        console.log("💰 계좌 정보:", {
-          id: data.id,
-          accountNumber: data.accountNumber,
-          balance: data.balance,
-        });
         setAccount(data);
       } catch (error) {
         console.error("계좌 조회 실패:", error);
@@ -865,6 +856,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   // 실시간 가격 반영
   useEffect(() => {
     if (stockData?.price) {
+      console.log("실시간 가격 업데이트:", stockData.price);
       if (orderType === "market" || price === 0) {
         setPrice(stockData.price);
       }
@@ -1012,28 +1004,14 @@ function OrderForm({ type, stockData }: OrderFormProps) {
               return;
             }
 
-            const rawAccountNumber = account.accountNumber;
-            const formattedAccountNumber = rawAccountNumber.replace(/-/g, "");
-
-            console.log("계좌번호 처리:", {
-              원본: rawAccountNumber,
-              변환후: formattedAccountNumber,
-              길이: formattedAccountNumber.length,
-            });
-
-            const orderData = {
+            await createOrder({
               accountId: account.id,
-              accountNumber: formattedAccountNumber,
+              accountNumber: account.accountNumber,
               stockCode: stockData.ticker,
-              orderType: type === "buy" ? ("BUY" as const) : ("SELL" as const),
+              orderType: type === "buy" ? "BUY" : "SELL",
               quantity,
               price: orderType === "market" ? stockData.price : price,
-            };
-
-            console.log("📤 주문 요청:", orderData);
-
-            await createOrder(orderData);
-            console.log("✅ 주문 성공");
+            });
 
             toast({
               title: `${type === "buy" ? "매수" : "매도"} 주문 완료`,
@@ -1042,7 +1020,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
 
             setQuantity(0);
           } catch (error) {
-            console.error("❌ 주문 실패:", error);
+            console.error("주문 실패:", error);
             toast({
               title: "주문 실패",
               description: "주문 처리 중 오류가 발생했습니다.",
