@@ -11,6 +11,7 @@ export interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
+  currentPrice?: number;
   priceDiff?: number;
   fluctuationRate?: number;
   marketCap: number;

@@ -70,7 +70,8 @@ public class SecurityConfig {
                                 "/ws/info",
                                 "/ws/info/**",
                                 "/topic/**",
-                                "/app/**"
+                                "/app/**",
+                                "/api/trade/order"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),
