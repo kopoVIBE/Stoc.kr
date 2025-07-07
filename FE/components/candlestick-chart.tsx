@@ -52,7 +52,11 @@ export function CandlestickChart({
           period === "day" ? "daily" : period === "week" ? "weekly" : "monthly"
         );
 
-        if (response.success && response.data.prices) {
+        if (
+          response.success &&
+          response.data.prices &&
+          response.data.prices.length > 0
+        ) {
           const prices = response.data.prices.map((price: any) => ({
             time: price.date.split("T")[0],
             open: price.open,
