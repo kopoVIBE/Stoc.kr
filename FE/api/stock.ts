@@ -12,8 +12,8 @@ export interface Stock {
   name: string;
   closePrice: number;
   currentPrice?: number;
-  priceDiff?: number;
-  fluctuationRate?: number;
+  priceDiff: number;
+  fluctuationRate: number;
   marketCap: number;
   volume?: number;
   per?: number;
@@ -25,6 +25,7 @@ export interface Stock {
   sharesOutstanding?: number;
   high52Week?: number;
   low52Week?: number;
+  prevPrice?: number;
 }
 
 export interface StockPrice {
@@ -56,6 +57,16 @@ export interface SimilarStock {
   ticker: string;
   similarity: number;
   industry: string;
+}
+
+export interface LimitOrder {
+  id: number;
+  stockId: string;
+  orderType: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  status: "PENDING" | "EXECUTED" | "CANCELLED";
+  createdAt: string;
 }
 
 export const stockApi = {
@@ -148,4 +159,14 @@ export const unsubscribeFromRealtimeStock = async (
   stockCode: string
 ): Promise<ApiResponse<null>> => {
   return axiosInstance.post(`/api/v1/stocks/${stockCode}/unsubscribe`);
+};
+
+export const getPendingOrders = async (): Promise<LimitOrder[]> => {
+  try {
+    const response = await axiosInstance.get("/api/trading/orders/pending");
+    return response.data.data;
+  } catch (error) {
+    console.error("Failed to fetch pending orders:", error);
+    throw error;
+  }
 };

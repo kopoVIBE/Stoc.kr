@@ -80,6 +80,32 @@ export default function StocksPage() {
     [sortedStocks, currentPage, itemsPerPage]
   );
 
+  // 웹소켓 연결 관리
+  useEffect(() => {
+    if (!isConnected || !currentPageStocks.length) return;
+
+    const newTickers = currentPageStocks.map((stock) => stock.ticker);
+
+    // 현재 페이지에 없는 종목만 구독 해제
+    subscribedTickersRef.current.forEach((ticker) => {
+      if (!newTickers.includes(ticker)) {
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      }
+    });
+
+    // 새로운 종목만 구독
+    newTickers.forEach((ticker) => {
+      if (!subscribedTickersRef.current.includes(ticker)) {
+        subscribeToStock(ticker);
+        subscribeToRealtimeStock(ticker);
+      }
+    });
+
+    // 구독 중인 티커 목록 업데이트
+    subscribedTickersRef.current = newTickers;
+  }, [isConnected, currentPageStocks]);
+
   // 초기 데이터 로딩
   useEffect(() => {
     const fetchStocks = async () => {
@@ -113,55 +139,6 @@ export default function StocksPage() {
       }
     };
   }, []);
-
-  // 웹소켓 연결 관리
-  useEffect(() => {
-    if (!isConnected || !currentPageStocks.length) return;
-
-    const currentTickers = new Set(subscribedTickersRef.current);
-    const newTickers = new Set(currentPageStocks.map((stock) => stock.ticker));
-
-    // 실제 변경사항이 있는지 확인
-    let hasChanges = false;
-
-    // 구독 해제가 필요한 티커 확인
-    currentTickers.forEach((ticker) => {
-      if (!newTickers.has(ticker)) hasChanges = true;
-    });
-
-    // 새로 구독이 필요한 티커 확인
-    newTickers.forEach((ticker) => {
-      if (!currentTickers.has(ticker)) hasChanges = true;
-    });
-
-    // 변경사항이 있을 때만 구독 갱신 수행
-    if (hasChanges) {
-      console.log("구독 목록 변경 감지");
-      console.log("현재 구독 중인 종목들:", Array.from(currentTickers));
-      console.log("새로 구독할 종목들:", Array.from(newTickers));
-
-      // 더 이상 필요없는 구독만 해제
-      Array.from(currentTickers).forEach((ticker) => {
-        if (!newTickers.has(ticker)) {
-          console.log("구독 해제:", ticker);
-          unsubscribeFromStock(ticker);
-          unsubscribeFromRealtimeStock(ticker);
-        }
-      });
-
-      // 새로 필요한 구독만 추가
-      Array.from(newTickers).forEach((ticker) => {
-        if (!currentTickers.has(ticker)) {
-          console.log("새로운 구독:", ticker);
-          subscribeToStock(ticker);
-          subscribeToRealtimeStock(ticker);
-        }
-      });
-
-      // 구독 중인 티커 목록 업데이트
-      subscribedTickersRef.current = Array.from(newTickers);
-    }
-  }, [isConnected, currentPageStocks]);
 
   // 실시간 데이터 처리 및 정렬
   useEffect(() => {

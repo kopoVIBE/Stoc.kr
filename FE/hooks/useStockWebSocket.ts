@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { useToast } from "@/components/ui/use-toast";
 
 export interface StockPrice {
   ticker: string;
@@ -24,137 +23,188 @@ export interface OrderBook {
   totalBidVolume: number;
 }
 
-interface OrderEvent {
-  type:
-    | "ORDER_CREATED"
-    | "ORDER_EXECUTED"
-    | "ORDER_CANCELLED"
-    | "ORDER_WAITING";
-  stockCode: string;
-  stockName: string;
-  orderType: "BUY" | "SELL";
-  quantity: number;
-  price: number;
-  status: string;
-}
-
-export function useStockWebSocket() {
-  const [stockData, setStockData] = useState<any>(null);
-  const [orderBookData, setOrderBookData] = useState<any>(null);
+export const useStockWebSocket = () => {
+  const [stockData, setStockData] = useState<StockPrice | null>(null);
+  const [orderBookData, setOrderBookData] = useState<OrderBook | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const stompClientRef = useRef<Client | null>(null);
-  const { toast } = useToast();
-
-  const handleOrderEvent = useCallback(
-    (orderData: any) => {
-      console.log("주문 이벤트 수신:", orderData);
-
-      // 주문 데이터 파싱
-      const { stockId, orderType, quantity, price } = orderData;
-
-      // 토스트 알림 표시
-      toast({
-        title: "주문 접수 완료",
-        description: `${stockId} ${quantity}주 ${
-          orderType === "BUY" ? "매수" : "매도"
-        } 주문이 ${price.toLocaleString()}원에 접수되었습니다.`,
-        variant: "default",
-      });
-    },
-    [toast]
-  );
+  const clientRef = useRef<Client | null>(null);
+  const subscriptionsRef = useRef<{ [key: string]: any }>({});
+  const pathnameRef = useRef<string>("");
 
   useEffect(() => {
-    const connectWebSocket = () => {
-      const socket = new SockJS("http://localhost:8080/ws");
-      const client = new Client({
-        webSocketFactory: () => socket,
-        debug: (str) => {
-          console.log("STOMP:", str);
-        },
-        reconnectDelay: 5000,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
-      });
+    // 클라이언트 사이드에서만 pathname 설정
+    pathnameRef.current = window.location.pathname;
 
-      client.onConnect = () => {
-        console.log("WebSocket 연결됨");
+    const client = new Client({
+      // brokerURL: "ws://localhost:8080/ws", // SockJS를 위해 이 부분을 주석 처리
+      webSocketFactory: () => {
+        return new SockJS("http://localhost:8080/ws");
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      onConnect: () => {
         setIsConnected(true);
         setError(null);
+      },
+      onDisconnect: () => {
+        setIsConnected(false);
+        subscriptionsRef.current = {};
+      },
+      onStompError: (frame) => {
+        setError(`WebSocket Error: ${frame.headers["message"]}`);
+      },
+      onWebSocketError: (event) => {
+        setError("WebSocket connection error");
+      },
+    });
 
-        // 주문 이벤트 구독
-        client.subscribe("/topic/order", (message) => {
-          try {
-            const orderData = JSON.parse(message.body);
-            console.log("주문 메시지 수신:", orderData);
-            handleOrderEvent(orderData);
-          } catch (error) {
-            console.error("주문 메시지 처리 실패:", error);
+    // pathname 변경 감지 함수
+    const handlePathChange = () => {
+      const currentPath = window.location.pathname;
+      if (currentPath !== pathnameRef.current) {
+        console.log("Path changed, cleaning up subscriptions");
+        Object.keys(subscriptionsRef.current).forEach((key) => {
+          const ticker = key.replace("price_", "").replace("orderbook_", "");
+          if (subscriptionsRef.current[key]) {
+            subscriptionsRef.current[key].unsubscribe();
+            delete subscriptionsRef.current[key];
+
+            // 서버에 구독 해제 알림
+            if (clientRef.current?.connected) {
+              clientRef.current.publish({
+                destination: `/app/stock/unsubscribe/${ticker}`,
+                body: JSON.stringify({ stockCode: ticker }),
+                headers: { "content-type": "application/json" },
+              });
+            }
           }
         });
-      };
-
-      client.onDisconnect = () => {
-        console.log("WebSocket 연결 해제됨");
-        setIsConnected(false);
-      };
-
-      client.onStompError = (frame) => {
-        console.error("STOMP 에러:", frame);
-        setError("WebSocket 연결 오류가 발생했습니다.");
-      };
-
-      client.activate();
-      stompClientRef.current = client;
-
-      return () => {
-        if (client.active) {
-          client.deactivate();
-        }
-      };
+        pathnameRef.current = currentPath;
+      }
     };
 
-    const cleanup = connectWebSocket();
-    return () => cleanup();
-  }, [handleOrderEvent]);
+    clientRef.current = client;
+    client.activate();
+
+    // popstate 이벤트 리스너 추가
+    window.addEventListener("popstate", handlePathChange);
+
+    return () => {
+      window.removeEventListener("popstate", handlePathChange);
+      console.log("WebSocket hook cleanup");
+      if (client.connected) {
+        Object.keys(subscriptionsRef.current).forEach(unsubscribeFromStock);
+        client.deactivate();
+      }
+    };
+  }, []); // 빈 dependency array 사용
 
   const subscribeToStock = useCallback((ticker: string) => {
-    if (!stompClientRef.current?.active) {
-      console.warn("WebSocket이 연결되지 않았습니다.");
+    if (!clientRef.current?.connected) {
+      console.log("Cannot subscribe: WebSocket not connected");
       return;
     }
 
-    console.log(`${ticker} 구독 시작`);
+    // 각각의 구독에 대해 개별적으로 체크
+    const priceKey = `price_${ticker}`;
+    const orderBookKey = `orderbook_${ticker}`;
 
-    // 실시간 가격 구독
-    stompClientRef.current.subscribe(`/topic/stock/${ticker}`, (message) => {
-      try {
-        const data = JSON.parse(message.body);
-        setStockData(data);
-      } catch (error) {
-        console.error("실시간 가격 메시지 처리 실패:", error);
-      }
-    });
+    console.log("Current subscriptions before:", subscriptionsRef.current);
 
-    // 호가 데이터 구독
-    stompClientRef.current.subscribe(
-      `/topic/orderbook/${ticker}`,
-      (message) => {
-        try {
-          const data = JSON.parse(message.body);
-          setOrderBookData(data);
-        } catch (error) {
-          console.error("호가 데이터 메시지 처리 실패:", error);
-        }
+    try {
+      // 가격 구독이 없을 경우에만 구독
+      if (!subscriptionsRef.current[priceKey]) {
+        console.log(`Subscribing to price feed: /topic/price/${ticker}`);
+        const priceSubscription = clientRef.current.subscribe(
+          `/topic/price/${ticker}`,
+          (message) => {
+            try {
+              const data = JSON.parse(message.body) as StockPrice;
+              setStockData(data);
+              setError(null);
+            } catch (e) {
+              setError("Failed to parse stock data");
+            }
+          }
+        );
+        console.log("Price subscription created:", priceSubscription);
+        subscriptionsRef.current[priceKey] = priceSubscription;
       }
-    );
+
+      // 호가 구독이 없을 경우에만 구독
+      if (!subscriptionsRef.current[orderBookKey]) {
+        console.log(
+          `Subscribing to orderbook feed: /topic/orderbook/${ticker}`
+        );
+        const orderBookSubscription = clientRef.current.subscribe(
+          `/topic/orderbook/${ticker}`,
+          (message) => {
+            try {
+              console.log(`[OrderBook] Received message for ${ticker}:`, {
+                raw: message.body,
+                parsed: JSON.parse(message.body),
+              });
+              const data = JSON.parse(message.body) as OrderBook;
+              setOrderBookData(data);
+              setError(null);
+            } catch (e) {
+              console.error(`[OrderBook] Parse error:`, e);
+              setError("Failed to parse orderbook data");
+            }
+          }
+        );
+        console.log("OrderBook subscription created:", orderBookSubscription);
+        subscriptionsRef.current[orderBookKey] = orderBookSubscription;
+      }
+
+      console.log("Current subscriptions after:", subscriptionsRef.current);
+
+      console.log(`Publishing subscription request for ${ticker}`);
+      clientRef.current.publish({
+        destination: `/app/subscribe/${ticker}`,
+        body: JSON.stringify({ stockCode: ticker }),
+        headers: { "content-type": "application/json" },
+      });
+    } catch (e) {
+      console.error("Subscription error:", e);
+      setError("Failed to subscribe to stock");
+      delete subscriptionsRef.current[priceKey];
+      delete subscriptionsRef.current[orderBookKey];
+    }
   }, []);
 
   const unsubscribeFromStock = useCallback((ticker: string) => {
-    if (!stompClientRef.current?.active) return;
-    console.log(`${ticker} 구독 해제`);
-    // 구독 해제 로직은 STOMP 클라이언트가 자동으로 처리
+    if (!clientRef.current?.connected) {
+      console.log(`Cannot unsubscribe from ${ticker}: WebSocket not connected`);
+      return;
+    }
+
+    try {
+      console.log(`Unsubscribing from ${ticker}`);
+
+      if (subscriptionsRef.current[`price_${ticker}`]) {
+        subscriptionsRef.current[`price_${ticker}`].unsubscribe();
+        delete subscriptionsRef.current[`price_${ticker}`];
+      }
+
+      if (subscriptionsRef.current[`orderbook_${ticker}`]) {
+        subscriptionsRef.current[`orderbook_${ticker}`].unsubscribe();
+        delete subscriptionsRef.current[`orderbook_${ticker}`];
+      }
+
+      clientRef.current.publish({
+        destination: `/app/unsubscribe/${ticker}`,
+        body: JSON.stringify({ stockCode: ticker }),
+        headers: { "content-type": "application/json" },
+      });
+
+      console.log(`Successfully unsubscribed from ${ticker}`);
+    } catch (e) {
+      console.error(`Failed to unsubscribe from ${ticker}:`, e);
+      setError("Failed to unsubscribe from stock");
+    }
   }, []);
 
   return {
@@ -165,4 +215,4 @@ export function useStockWebSocket() {
     subscribeToStock,
     unsubscribeFromStock,
   };
-}
+};

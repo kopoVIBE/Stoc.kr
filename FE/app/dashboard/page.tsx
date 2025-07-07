@@ -92,11 +92,12 @@ interface Stock {
   name: string;
   closePrice: number;
   currentPrice?: number;
+  priceDiff?: number;
   fluctuationRate: number;
+  volume: number | string; // volume을 number 또는 string으로 허용
   logo?: string;
   category?: string;
   marketCap?: string;
-  volume?: string;
 }
 
 interface StockTableProps {
@@ -150,103 +151,71 @@ export default function DashboardPage() {
 
   // 웹소켓 구독 관리
   useEffect(() => {
-    if (!isConnected) {
-      console.log("🔌 웹소켓 연결 안됨 - 구독 스킵");
-      return;
-    }
+    if (!isConnected) return;
 
-    // 현재 페이지의 종목들만 구독
     const currentFavorites = getFavoritePageStocks();
     const currentRecommended = getRecommendedPageStocks();
-    const allCurrentTickers = [...currentFavorites, ...currentRecommended].map(
-      (stock) => stock.ticker
-    );
-    const uniqueTickers = Array.from(new Set(allCurrentTickers));
+    const newTickers = [...currentFavorites, ...currentRecommended]
+      .map((stock) => stock.ticker)
+      .filter((value, index, self) => self.indexOf(value) === index); // 중복 제거
 
-    // 이전 구독 목록과 현재 구독할 목록이 동일한지 확인
-    const currentTickersStr = uniqueTickers.sort().join(",");
-    const previousTickersStr = previousTickersRef.current.sort().join(",");
-
-    if (currentTickersStr === previousTickersStr) {
-      console.log("🔄 구독 목록 동일 - 갱신 스킵");
-      return;
-    }
-
-    console.log("📊 구독 상태 변경 감지");
-    console.log("이전 구독:", previousTickersRef.current);
-    console.log("현재 구독 예정:", uniqueTickers);
-
-    // 이전 구독과 비교하여 변경된 것만 처리
-    const tickersToUnsubscribe = previousTickersRef.current.filter(
-      (ticker) => !uniqueTickers.includes(ticker)
-    );
-    const tickersToSubscribe = uniqueTickers.filter(
-      (ticker) => !previousTickersRef.current.includes(ticker)
-    );
-
-    // 필요한 구독 해제만 수행
-    if (tickersToUnsubscribe.length > 0) {
-      console.log("❌ 구독 해제:", tickersToUnsubscribe);
-      tickersToUnsubscribe.forEach((ticker) => {
+    // 현재 페이지에 없는 종목만 구독 해제
+    subscribedTickersRef.current.forEach((ticker) => {
+      if (!newTickers.includes(ticker)) {
         unsubscribeFromStock(ticker);
         unsubscribeFromRealtimeStock(ticker);
-      });
-    }
+      }
+    });
 
-    // 필요한 구독 추가만 수행
-    if (tickersToSubscribe.length > 0) {
-      console.log("✅ 새로운 구독:", tickersToSubscribe);
-      tickersToSubscribe.forEach((ticker) => {
+    // 새로운 종목만 구독
+    newTickers.forEach((ticker) => {
+      if (!subscribedTickersRef.current.includes(ticker)) {
         subscribeToStock(ticker);
         subscribeToRealtimeStock(ticker);
-      });
-    }
-
-    // 현재 구독 목록 저장
-    previousTickersRef.current = uniqueTickers;
-    subscribedTickersRef.current = uniqueTickers;
-
-    // 컴포넌트 언마운트 시 구독 해제
-    return () => {
-      if (subscribedTickersRef.current.length > 0) {
-        console.log("🔚 구독 정리:", subscribedTickersRef.current);
-        subscribedTickersRef.current.forEach((ticker) => {
-          unsubscribeFromStock(ticker);
-          unsubscribeFromRealtimeStock(ticker);
-        });
-        subscribedTickersRef.current = [];
-        previousTickersRef.current = [];
       }
-    };
-  }, [
-    isConnected,
-    favoritePage,
-    recommendedPage,
-    favoriteStocks.length,
-    recommendedStocks.length,
-  ]);
+    });
+
+    // 구독 중인 티커 목록 업데이트
+    subscribedTickersRef.current = newTickers;
+  }, [isConnected, favoritePage, recommendedPage]);
 
   // 실시간 데이터 처리
   useEffect(() => {
-    if (!stockData) return;
+    if (!stockData || !favoriteStocks.length) return;
 
     const updateStockData = (prevStocks: Stock[]) =>
       prevStocks.map((stock) => {
         if (stock.ticker === stockData.ticker) {
-          const priceChange =
-            ((stockData.price - stock.closePrice) / stock.closePrice) * 100;
+          const priceDiff = stockData.price - stock.closePrice;
+          const fluctuationRate = (priceDiff / stock.closePrice) * 100;
+
           return {
             ...stock,
             currentPrice: stockData.price,
-            fluctuationRate: priceChange,
+            priceDiff: priceDiff,
+            fluctuationRate: fluctuationRate,
+            volume: stockData.volume,
           };
         }
         return stock;
       });
 
-    setFavoriteStocks((prev) => updateStockData(prev));
-    setRecommendedStocks((prev) => updateStockData(prev));
+    // 관심 종목 업데이트
+    setFavoriteStocks((prevStocks) => updateStockData(prevStocks));
+    // 추천 종목 업데이트
+    setRecommendedStocks((prevStocks) => updateStockData(prevStocks));
   }, [stockData]);
+
+  // 컴포넌트 언마운트 시 모든 구독 해제
+  useEffect(() => {
+    return () => {
+      subscribedTickersRef.current.forEach((ticker) => {
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      });
+      subscribedTickersRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const now = new Date();
