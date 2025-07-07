@@ -1,5 +1,8 @@
 # 웹 브라우저 자동화 및 동적 크롤링 라이브러리
 playwright>=1.53.0
+httpx>=0.28.1
 # HTML 및 XML 파싱 라이브러리
 beautifulsoup4>=4.13.4
 lxml>=6.0.0
+# 하드웨어 스펙 감지 라이브러리
+psutil>=7.0.0
