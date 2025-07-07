@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import requests
 import pymongo
 from pymongo import MongoClient
+import pymysql
+import pymysql.cursors
 import pandas as pd
 from typing import Union
 from pandas import DataFrame, Series
@@ -30,6 +32,9 @@ class StockDataCollector:
         if not self.app_key or not self.app_secret:
             raise ValueError("KIS_APP_KEY와 KIS_APP_SECRET이 필요합니다.")
         
+        # MySQL 연결
+        self._connect_mysql()
+        
         # MongoDB 연결
         self._connect_mongodb()
         
@@ -40,6 +45,34 @@ class StockDataCollector:
         
         # 토큰 초기화
         self._ensure_valid_token()
+
+    def _connect_mysql(self):
+        """MySQL 연결"""
+        try:
+            self.mysql_conn = pymysql.connect(
+                host=os.getenv('MYSQL_HOST', 'localhost'),
+                user=os.getenv('MYSQL_USER', 'stockr'),
+                password=os.getenv('MYSQL_PASSWORD', 'stockr123!'),
+                database=os.getenv('MYSQL_DATABASE', 'stockr'),
+                port=int(os.getenv('MYSQL_PORT', '13306')),  # Docker MySQL 포트로 변경
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            self.mysql_cursor = self.mysql_conn.cursor()
+            logger.info("MySQL 연결 성공")
+        except Exception as e:
+            logger.error(f"MySQL 연결 실패: {e}")
+            raise
+
+    def get_all_stocks(self):
+        """MySQL에서 모든 종목 코드 조회"""
+        try:
+            self.mysql_cursor.execute("SELECT stock_id, stock_name FROM stocks WHERE stock_id IS NOT NULL")
+            stocks = self.mysql_cursor.fetchall()
+            logger.info(f"MySQL에서 {len(stocks)}개 종목을 조회했습니다.")
+            return stocks
+        except Exception as e:
+            logger.error(f"종목 조회 실패: {e}")
+            return []
 
     def _connect_mongodb(self):
         """MongoDB 연결 및 초기 설정"""
@@ -54,7 +87,7 @@ class StockDataCollector:
             # 연결 테스트
             self.mongo_client.admin.command('ping')
             
-            self.db = self.mongo_client['stock_db']
+            self.db = self.mongo_client['stockr']
             self.collection = self.db['stock_prices']
             
             # 기본 인덱스 생성 시도
@@ -399,7 +432,8 @@ class StockDataCollector:
                         sort=[('date', -1)]
                     )
                     logger.info(f"{interval} 데이터: {count}건")
-                    logger.info(f"기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
+                    if first and last:
+                        logger.info(f"기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
             
         except Exception as e:
             logger.error(f"데이터 저장 중 오류 발생: {e}")
@@ -447,129 +481,153 @@ class StockDataCollector:
             logger.error(f"차트 데이터 조회 중 오류 발생: {e}")
             return None
 
-def collect_samsung_data():
-    """삼성전자 데이터 수집"""
+def collect_all_stocks_data():
+    """MySQL stocks 테이블의 모든 종목 데이터 수집"""
+    collector = None
     try:
         collector = StockDataCollector()
-        ticker = "005930"  # 삼성전자
         
+        # MySQL에서 모든 종목 조회
+        stocks = collector.get_all_stocks()
+        
+        if not stocks:
+            logger.error("조회된 종목이 없습니다.")
+            return
+            
         logger.info("\n" + "="*50)
-        logger.info("삼성전자 데이터 수집 시작")
+        logger.info(f"총 {len(stocks)}개 종목 데이터 수집 시작")
         logger.info("="*50)
         
-        # 일봉/주봉/월봉 데이터 수집
-        periods = [
-            ('D', 'daily'),    # (API 코드, DB 저장용 interval 명)
-            ('W', 'weekly'),
-            ('M', 'monthly')
-        ]
-        
-        for period_code, interval_name in periods:
-            logger.info("\n" + "-"*30)
-            logger.info(f"[{interval_name}] 데이터 수집 시작")
-            logger.info("-"*30)
+        # 각 종목별로 데이터 수집
+        for idx, stock in enumerate(stocks, 1):
+            ticker = stock['stock_id']
+            stock_name = stock['stock_name']
             
-            # 기존 데이터 확인
-            existing_count = collector.collection.count_documents({
-                'ticker': ticker,
-                'interval': interval_name
-            })
-            if existing_count > 0:
-                logger.info(f"기존 {interval_name} 데이터: {existing_count}건")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"[{idx}/{len(stocks)}] {stock_name}({ticker}) 데이터 수집 시작")
+            logger.info(f"{'='*60}")
             
-            # 데이터 수집
-            data = collector.get_stock_data(ticker, period_code)
-            
-            if data:
-                logger.info(f"\n수집된 {interval_name} 데이터: {len(data)}건")
+            try:
+                # 일봉/주봉/월봉 데이터 수집
+                periods = [
+                    ('D', 'daily'),    # (API 코드, DB 저장용 interval 명)
+                    ('W', 'weekly'),
+                    ('M', 'monthly')
+                ]
                 
-                # 수집된 데이터 샘플 출력 (처음 2개, 마지막 2개)
-                if len(data) > 0:
-                    logger.info("\n[수집 데이터 샘플]")
-                    for idx, row in enumerate(data[:2]):  # 처음 2개
-                        logger.info(f"처음 {idx+1}번째 데이터:")
-                        logger.info(f"  날짜: {row['stck_bsop_date']}")
-                        logger.info(f"  시가: {row['stck_oprc']}")
-                        logger.info(f"  고가: {row['stck_hgpr']}")
-                        logger.info(f"  저가: {row['stck_lwpr']}")
-                        logger.info(f"  종가: {row['stck_clpr']}")
-                        logger.info(f"  거래량: {row['acml_vol']}")
+                for period_code, interval_name in periods:
+                    logger.info("\n" + "-"*30)
+                    logger.info(f"[{interval_name}] 데이터 수집 시작")
+                    logger.info("-"*30)
                     
-                    if len(data) > 4:  # 마지막 2개
-                        for idx, row in enumerate(data[-2:]):
-                            logger.info(f"\n마지막 {idx+1}번째 데이터:")
-                            logger.info(f"  날짜: {row['stck_bsop_date']}")
-                            logger.info(f"  시가: {row['stck_oprc']}")
-                            logger.info(f"  고가: {row['stck_hgpr']}")
-                            logger.info(f"  저가: {row['stck_lwpr']}")
-                            logger.info(f"  종가: {row['stck_clpr']}")
-                            logger.info(f"  거래량: {row['acml_vol']}")
-                
-                # 데이터 저장 준비
-                documents = [{
-                    'ticker': ticker,
-                    'date': datetime.strptime(row['stck_bsop_date'], '%Y%m%d'),
-                    'interval': interval_name,
-                    'open': float(row['stck_oprc']),
-                    'high': float(row['stck_hgpr']),
-                    'low': float(row['stck_lwpr']),
-                    'close': float(row['stck_clpr']),
-                    'volume': float(row['acml_vol'])
-                } for row in data]
-                
-                # 해당 기간의 기존 데이터 삭제
-                if documents:
-                    min_date = min(doc['date'] for doc in documents)
-                    max_date = max(doc['date'] for doc in documents)
-                    
-                    delete_result = collector.collection.delete_many({
+                    # 기존 데이터 확인
+                    existing_count = collector.collection.count_documents({
                         'ticker': ticker,
-                        'interval': interval_name,
-                        'date': {
-                            '$gte': min_date,
-                            '$lte': max_date
-                        }
+                        'interval': interval_name
                     })
-                    logger.info(f"\n기존 데이터 삭제: {delete_result.deleted_count}건")
+                    if existing_count > 0:
+                        logger.info(f"기존 {interval_name} 데이터: {existing_count}건")
                     
-                    # 새 데이터 저장
-                    collector.collection.insert_many(documents)
-                    logger.info(f"새 데이터 저장: {len(documents)}건")
-                    logger.info(f"저장 기간: {min_date.strftime('%Y-%m-%d')} ~ {max_date.strftime('%Y-%m-%d')}")
-            else:
-                logger.error(f"삼성전자 {interval_name} 데이터 수집 실패")
-        
-        # 최종 저장 결과 확인
+                    # 데이터 수집
+                    data = collector.get_stock_data(ticker, period_code)
+                    
+                    if data:
+                        logger.info(f"\n수집된 {interval_name} 데이터: {len(data)}건")
+                        
+                        # 수집된 데이터 샘플 출력 (처음 1개, 마지막 1개만)
+                        if len(data) > 0:
+                            logger.info(f"\n[샘플 데이터]")
+                            first_row = data[0]
+                            logger.info(f"최신: {first_row['stck_bsop_date']} - 시가:{first_row['stck_oprc']}, 종가:{first_row['stck_clpr']}")
+                            
+                            if len(data) > 1:
+                                last_row = data[-1]
+                                logger.info(f"과거: {last_row['stck_bsop_date']} - 시가:{last_row['stck_oprc']}, 종가:{last_row['stck_clpr']}")
+                        
+                        # 데이터 저장 준비
+                        documents = [{
+                            'ticker': ticker,
+                            'date': datetime.strptime(row['stck_bsop_date'], '%Y%m%d'),
+                            'interval': interval_name,
+                            'open': float(row['stck_oprc']),
+                            'high': float(row['stck_hgpr']),
+                            'low': float(row['stck_lwpr']),
+                            'close': float(row['stck_clpr']),
+                            'volume': float(row['acml_vol'])
+                        } for row in data]
+                        
+                        # 해당 기간의 기존 데이터 삭제
+                        if documents:
+                            min_date = min(doc['date'] for doc in documents)
+                            max_date = max(doc['date'] for doc in documents)
+                            
+                            delete_result = collector.collection.delete_many({
+                                'ticker': ticker,
+                                'interval': interval_name,
+                                'date': {
+                                    '$gte': min_date,
+                                    '$lte': max_date
+                                }
+                            })
+                            logger.info(f"기존 데이터 삭제: {delete_result.deleted_count}건")
+                            
+                            # 새 데이터 저장
+                            collector.collection.insert_many(documents)
+                            logger.info(f"새 데이터 저장: {len(documents)}건")
+                            logger.info(f"저장 기간: {min_date.strftime('%Y-%m-%d')} ~ {max_date.strftime('%Y-%m-%d')}")
+                    else:
+                        logger.error(f"{ticker} {interval_name} 데이터 수집 실패")
+                        
+                    # API 요청 제한을 위한 짧은 대기
+                    time.sleep(0.2)
+                
+                # 해당 종목의 최종 저장 결과 확인
+                logger.info(f"\n[{stock_name}({ticker}) 최종 결과]")
+                for interval in ['daily', 'weekly', 'monthly']:
+                    count = collector.collection.count_documents({
+                        'ticker': ticker,
+                        'interval': interval
+                    })
+                    if count > 0:
+                        first = collector.collection.find_one(
+                            {'ticker': ticker, 'interval': interval},
+                            sort=[('date', 1)]
+                        )
+                        last = collector.collection.find_one(
+                            {'ticker': ticker, 'interval': interval},
+                            sort=[('date', -1)]
+                        )
+                        logger.info(f"{interval}: {count}건")
+                        if first and last:
+                            logger.info(f"  기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
+                    
+            except Exception as stock_error:
+                logger.error(f"{stock_name}({ticker}) 데이터 수집 중 오류: {stock_error}")
+                continue
+                
+        # 전체 작업 완료
         logger.info("\n" + "="*50)
-        logger.info("최종 저장 결과")
+        logger.info("전체 종목 데이터 수집 완료")
         logger.info("="*50)
+        
+        # 전체 통계
+        total_stocks_in_db = collector.collection.distinct('ticker')
+        logger.info(f"MongoDB에 저장된 종목 수: {len(total_stocks_in_db)}개")
         
         for interval in ['daily', 'weekly', 'monthly']:
-            count = collector.collection.count_documents({
-                'ticker': ticker,
-                'interval': interval
-            })
-            if count > 0:
-                first = collector.collection.find_one(
-                    {'ticker': ticker, 'interval': interval},
-                    sort=[('date', 1)]
-                )
-                last = collector.collection.find_one(
-                    {'ticker': ticker, 'interval': interval},
-                    sort=[('date', -1)]
-                )
-                logger.info(f"\n[{interval}]")
-                logger.info(f"- 총 데이터 수: {count}건")
-                logger.info(f"- 전체 기간: {first['date'].strftime('%Y-%m-%d')} ~ {last['date'].strftime('%Y-%m-%d')}")
-                logger.info(f"- 첫 데이터: 시가={first['open']}, 종가={first['close']}, 거래량={first['volume']}")
-                logger.info(f"- 마지막 데이터: 시가={last['open']}, 종가={last['close']}, 거래량={last['volume']}")
+            total_count = collector.collection.count_documents({'interval': interval})
+            logger.info(f"총 {interval} 데이터: {total_count}건")
                 
     except Exception as e:
-        logger.error(f"오류 발생: {e}")
+        logger.error(f"전체 작업 중 오류 발생: {e}")
         logger.exception("상세 에러:")
     finally:
-        if 'collector' in locals():
+        if collector and hasattr(collector, 'mysql_conn'):
+            collector.mysql_conn.close()
+            logger.info("MySQL 연결 종료")
+        if collector and hasattr(collector, 'mongo_client'):
             collector.mongo_client.close()
+            logger.info("MongoDB 연결 종료")
 
 if __name__ == "__main__":
-    collect_samsung_data() 
+    collect_all_stocks_data() 
