@@ -26,6 +26,7 @@ public class NewsResponseDto {
     private String type;
     private String stockCode;
     private String stockName;
+    private String sentiment;
 
     public static NewsResponseDto from(News news) {
         return NewsResponseDto.builder()
@@ -41,6 +42,7 @@ public class NewsResponseDto {
                 .type(news.getType())
                 .stockCode(news.getStockCode())
                 .stockName(news.getStockName())
+                .sentiment(news.getSentiment())
                 .build();
     }
 }

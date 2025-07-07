@@ -9,11 +9,17 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from datetime import datetime
 from pymongo import MongoClient
+from inference import predict_sentiment  # 감정분석모델
 import os
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 # --- 1. 설정 및 외부 데이터 처리 ---
 
-def read_stocks_from_csv(filename='stocks.csv'):
+# def read_stocks_from_csv(filename='stocks.csv'):
+def read_stocks_from_csv():
+    base_dir = os.path.dirname(os.path.abspath(__file__))  # 현재 crawler 디렉토리 기준
+    filename = os.path.join(base_dir, 'stocks.csv')
     """CSV 파일에서 종목 코드와 종목명을 읽어오는 함수"""
     stocks = []
     try:
@@ -65,6 +71,25 @@ async def fetch_article_details(page, url, news_type, stock_info=None):
 
         published_at_dt = datetime.strptime(published_at_str, '%Y-%m-%d %H:%M:%S')
 
+        # ✅ 저장용 원본 HTML
+        content_html = str(content_element)
+
+        # 3. 감정 분석용 HTML 복사본 만들기
+        content_for_sentiment = BeautifulSoup(content_html, 'lxml')
+
+        # 4. 감정 분석에서 제거할 태그들 제거
+        for tag in content_for_sentiment(['img', 'script', 'style']):
+            tag.decompose()
+
+        # 5. 텍스트만 추출 (이미지 URL 등 제거됨)
+        text_content = content_for_sentiment.get_text(separator=' ', strip=True)
+
+        # 6. 감정 분석 입력: 제목 + 본문 텍스트
+        sentiment_input = f"{title.strip()} {text_content}"
+
+        # 7. 감정 분석 실행 (종목 뉴스에만)
+        sentiment = predict_sentiment(sentiment_input) if news_type == 'stock' else None
+
         # DB 저장을 위한 최종 데이터 구조
         return {
             'news_type': news_type,
@@ -77,7 +102,9 @@ async def fetch_article_details(page, url, news_type, stock_info=None):
             'category': category,
             'thumbnail_url': thumbnail_url,
             'published_at': published_at_dt.strftime('%Y-%m-%d %H:%M:%S'),
-            'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'crawled_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'sentiment': sentiment
+
         }
     except Exception as e:
         print(f"    - ❌ 기사 상세 정보 수집 실패 ({url}): {e}")
