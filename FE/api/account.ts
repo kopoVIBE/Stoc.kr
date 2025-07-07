@@ -7,12 +7,28 @@ interface AccountRequest {
 }
 
 interface TradeRequest {
-  accountId: string;
-  accountNumber: string;
-  stockCode: string;
+  stockId: string;
   orderType: "BUY" | "SELL";
   quantity: number;
   price: number;
+}
+
+export interface StockHolding {
+  stockCode: string;
+  stockName: string;
+  quantity: number;
+  averagePurchasePrice: number;
+  currentPrice: number;
+  totalPurchaseAmount: number;
+  evaluationAmount: number;
+  evaluationProfitLoss: number;
+  profitLossRate: number;
+}
+
+interface HoldingsResponse {
+  success: boolean;
+  data: StockHolding[];
+  message?: string;
 }
 
 export const createAccount = async (data: AccountRequest) => {
@@ -43,7 +59,7 @@ export const getAccount = async () => {
 };
 
 export const createOrder = async (data: TradeRequest) => {
-  const res = await axiosInstance.post("/api/trade/order", data);
+  const res = await axiosInstance.post("/api/trading/orders", data);
   return res.data;
 };
 
@@ -62,4 +78,15 @@ export const getStockHolding = async (stockCode: string) => {
 export const getPendingOrders = async () => {
   const res = await axiosInstance.get("/api/trade/pending");
   return res.data;
+};
+
+export const getHoldings = async (): Promise<StockHolding[]> => {
+  try {
+    const res = await axiosInstance.get<HoldingsResponse>("/api/v1/holdings");
+    console.log("API 응답:", res.data);
+    return res.data.data || [];
+  } catch (error) {
+    console.error("보유 종목 조회 실패:", error);
+    throw error;
+  }
 };
