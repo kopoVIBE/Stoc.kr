@@ -16,3 +16,4 @@ venv/
 
 # KIS API Token
 **/kis_token.json 
+BE/crawler/bert-sentiment-model/tf_model.h5
