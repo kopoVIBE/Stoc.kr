@@ -1,11 +1,19 @@
 import axiosInstance from "./axiosInstance";
 
+// TODO: 백엔드와 동일한 ApiResponse 타입 정의 필요
+type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+};
+
 export interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
-  priceDiff?: number;
-  fluctuationRate?: number;
+  currentPrice?: number;
+  priceDiff: number;
+  fluctuationRate: number;
   marketCap: number;
   volume?: number;
   per?: number;
@@ -17,6 +25,7 @@ export interface Stock {
   sharesOutstanding?: number;
   high52Week?: number;
   low52Week?: number;
+  prevPrice?: number;
 }
 
 export interface StockPrice {
@@ -48,6 +57,16 @@ export interface SimilarStock {
   ticker: string;
   similarity: number;
   industry: string;
+}
+
+export interface LimitOrder {
+  id: number;
+  stockId: string;
+  orderType: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  status: "PENDING" | "EXECUTED" | "CANCELLED";
+  createdAt: string;
 }
 
 export const stockApi = {
@@ -109,16 +128,45 @@ export const getSimilarStocks = async (
 ): Promise<SimilarStock[]> => {
   try {
     const response = await fetch(
-      `http://127.0.0.1:5001/recommend?stock_name=${encodeURIComponent(
-        stockName
-      )}`
+      `${process.env.NEXT_PUBLIC_SIMILARITY_API_URL}/recommend?stock_name=${stockName}`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch similar stocks");
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Error fetching similar stocks:", error);
+    return [];
+  }
+};
+
+/**
+ * 백엔드에 특정 종목의 실시간 데이터 수집을 요청(구독)합니다.
+ * @param stockCode 구독할 종목 코드
+ */
+export const subscribeToRealtimeStock = async (
+  stockCode: string
+): Promise<ApiResponse<null>> => {
+  return axiosInstance.post(`/api/v1/stocks/${stockCode}/subscribe`);
+};
+
+/**
+ * 백엔드에 특정 종목의 실시간 데이터 수집 중단을 요청(구독 취소)합니다.
+ * @param stockCode 구독 취소할 종목 코드
+ */
+export const unsubscribeFromRealtimeStock = async (
+  stockCode: string
+): Promise<ApiResponse<null>> => {
+  return axiosInstance.post(`/api/v1/stocks/${stockCode}/unsubscribe`);
+};
+
+export const getPendingOrders = async (): Promise<LimitOrder[]> => {
+  try {
+    const response = await axiosInstance.get("/api/trading/orders/pending");
+    return response.data.data;
+  } catch (error) {
+    console.error("Failed to fetch pending orders:", error);
     throw error;
   }
 };
