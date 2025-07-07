@@ -389,7 +389,7 @@ export default function PostDetailModal({ post, isOpen, onClose, onPostUpdate, o
                   <button 
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                       post.isLikedByUser 
-                        ? 'bg-red-500 text-white hover:bg-red-600' 
+                        ? 'bg-red-500 text-white hover:bg-gray-100 hover:text-gray-600' 
                         : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
                     }`}
                     onClick={handlePostLike}
