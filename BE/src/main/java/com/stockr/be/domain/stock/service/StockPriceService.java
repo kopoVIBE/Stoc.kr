@@ -42,7 +42,7 @@ public class StockPriceService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private MongoCollection<Document> getCollection() {
-        return mongoClient.getDatabase("stock_db").getCollection("stock_prices");
+        return mongoClient.getDatabase("stockr").getCollection("stock_prices");
     }
 
     public StockPriceResponse getPrices(String ticker, String interval, LocalDate startDate, LocalDate endDate,

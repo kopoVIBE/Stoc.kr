@@ -39,7 +39,9 @@ public class SecurityConfig {
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://localhost:5500",
-            "http://127.0.0.1:5500"
+            "http://127.0.0.1:5500",
+	    "https://stockr-gamma.vercel.app",
+	    "https://stockr-git-infra-front-set-hurdongs-projects.vercel.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

@@ -42,17 +42,22 @@ public class StockRealtimeService {
     }
 
     /**
-     * 실시간 호가 구독
+     * 실시간 호가 구독 (일시적으로 비활성화)
      * @param stockCode 종목코드
      */
     public void subscribeStockPrice(String stockCode) {
+        // KIS WebSocket 연결 충돌 방지를 위해 일시적으로 비활성화
+        log.info("KIS WebSocket subscription temporarily disabled for: {}", stockCode);
+        
+        // 기존 코드는 주석 처리
+        /*
         try {
             Map<String, String> header = new HashMap<>();
             header.put("appkey", kisConfig.getApi().getAppKey());
             header.put("appsecret", kisConfig.getApi().getAppSecret());
             header.put("custtype", "P");
             header.put("tr_type", "1"); 
-            header.put("tr_id", "H0STASP0"); // 주식 호가 TR ID
+            header.put("tr_id", "H0STASP0");
 
             Map<String, String> input = new HashMap<>();
             input.put("tr_id", "H0STASP0");
@@ -74,19 +79,25 @@ public class StockRealtimeService {
             log.error("Failed to subscribe KIS order book for: " + stockCode, e);
             throw new RuntimeException("Failed to subscribe KIS order book", e);
         }
+        */
     }
 
     /**
-     * 실시간 호가 구독 취소
+     * 실시간 호가 구독 취소 (일시적으로 비활성화)
      * @param stockCode 종목코드
      */
     public void unsubscribeStockPrice(String stockCode) {
+        // KIS WebSocket 연결 충돌 방지를 위해 일시적으로 비활성화
+        log.info("KIS WebSocket unsubscription temporarily disabled for: {}", stockCode);
+        
+        // 기존 코드는 주석 처리
+        /*
         try {
             Map<String, String> header = new HashMap<>();
             header.put("appkey", kisConfig.getApi().getAppKey());
             header.put("appsecret", kisConfig.getApi().getAppSecret());
             header.put("custtype", "P");
-            header.put("tr_type", "2"); // 구독 취소
+            header.put("tr_type", "2");
             header.put("tr_id", "H0STASP0");
 
             Map<String, String> input = new HashMap<>();
@@ -109,5 +120,6 @@ public class StockRealtimeService {
             log.error("Failed to unsubscribe KIS order book for: " + stockCode, e);
             throw new RuntimeException("Failed to unsubscribe KIS order book", e);
         }
+        */
     }
-} 
+}

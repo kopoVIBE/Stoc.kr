@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:3000", "http://stockr.site", "https://stockr.site")
+                .setAllowedOrigins("http://localhost:3000", "http://stockr.site", "https://stockr.site", "https://stockr-gamma.vercel.app","https://stockr-git-infra-front-set-hurdongs-projects.vercel.app")
                 .withSockJS();
 
         // For python client

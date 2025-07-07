@@ -12,6 +12,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -29,10 +32,21 @@ public class StockWebSocketController {
     @MessageMapping("/price/{stockCode}")
     public void handleStockPrice(@DestinationVariable String stockCode, @Payload PythonStockDataDto priceData) {
         log.info("실시간 데이터 수신 from Python: {}, 데이터: {}", stockCode, priceData.getPrice());
-        // Python에서 받은 데이터를 프론트엔드로 전송
-        messagingTemplate.convertAndSend("/topic/price/" + stockCode, priceData);
-
-        // 기존 서비스 로직 호출 (필요 시) - DTO 변환 필요
+        
+        // Python 데이터를 프론트엔드 형식으로 변환
+        Map<String, Object> frontendData = new HashMap<>();
+        frontendData.put("ticker", priceData.getTicker());
+        frontendData.put("stockCode", priceData.getStockCode());
+        frontendData.put("price", priceData.getPrice());
+        frontendData.put("volume", priceData.getVolume());
+        frontendData.put("timestamp", priceData.getTimestamp());
+        
+        log.info("프론트엔드로 전송할 데이터: {}", frontendData);
+        
+        // 프론트엔드로 전송
+        messagingTemplate.convertAndSend("/topic/price/" + stockCode, frontendData);
+        
+        // 기존 서비스 로직 호출 (필요 시)
         // RealtimeStockPriceDto dto = convertToRealtimeStockPriceDto(priceData);
         // stockPriceService.handleRealtimePrice(dto);
     }
