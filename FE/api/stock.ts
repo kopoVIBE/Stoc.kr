@@ -105,6 +105,12 @@ export const stockApi = {
     console.log("API Raw Response:", response);
     return response.data;
   },
+  getStocksByIndustry: async (industryType: string): Promise<Stock[]> => {
+    const response = await axiosInstance.get("/api/stocks/industry", {
+      params: { industryType },
+    });
+    return response.data;
+  },
 };
 
 // 즐겨찾기 관련 API

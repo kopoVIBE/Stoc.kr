@@ -1,9 +1,5 @@
 "use client";
 
-import { TabsContent } from "@/components/ui/tabs";
-import { TabsTrigger } from "@/components/ui/tabs";
-import { TabsList } from "@/components/ui/tabs";
-import { Tabs } from "@/components/ui/tabs";
 import { useState, useRef, useEffect, useCallback, useMemo, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +15,34 @@ import {
 import { Heart, Minus, Plus, Info } from "lucide-react";
 import { CandlestickChart } from "@/components/candlestick-chart";
 import { cn } from "@/lib/utils";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import dynamic from "next/dynamic";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  BarChart,
+  Bar,
+  Cell,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  TooltipProps,
+} from "recharts";
+import { useStock } from "@/contexts/StockContext";
+import {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
 import {
   Stock,
   stockApi,
@@ -32,13 +54,14 @@ import {
   subscribeToRealtimeStock,
   unsubscribeFromRealtimeStock,
 } from "@/api/stock";
-import { getAccount, createOrder } from "@/api/account";
+import { getAccount, createOrder, getHoldings } from "@/api/account";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { useRouter } from "next/navigation";
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 import type { OrderBook, OrderBookItem } from "@/hooks/useStockWebSocket";
 import { PendingOrdersTab } from "@/components/pending-orders-tab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PriceHistoryItem {
   time: string;
@@ -109,6 +132,7 @@ export default function StockDetailPage({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { setStock: setContextStock } = useStock();
 
   // 웹소켓 연결
   const {
@@ -125,8 +149,11 @@ export default function StockDetailPage({
     const fetchStockAndInitialize = async () => {
       try {
         setIsLoading(true);
+        console.log("Fetching stock data for ticker:", ticker);
         const data = await stockApi.getStock(ticker);
+        console.log("Received stock data:", data);
         setStock(data);
+        setContextStock(data); // StockContext 업데이트
 
         if (isConnected) {
           subscribeToStock(ticker);
@@ -134,6 +161,11 @@ export default function StockDetailPage({
         }
       } catch (error) {
         console.error("Failed to fetch stock:", error);
+        toast({
+          title: "데이터 로드 실패",
+          description: "종목 정보를 불러오는데 실패했습니다.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -144,8 +176,9 @@ export default function StockDetailPage({
     return () => {
       unsubscribeFromStock(ticker);
       unsubscribeFromRealtimeStock(ticker);
+      setContextStock(null); // 컴포넌트 언마운트 시 StockContext 초기화
     };
-  }, [ticker, isConnected]);
+  }, [ticker, isConnected, setContextStock, toast]);
 
   // 실시간 데이터 업데이트
   useEffect(() => {
@@ -155,18 +188,18 @@ export default function StockDetailPage({
       const priceDiff = stockData.price - stock.closePrice;
       const fluctuationRate = (priceDiff / stock.closePrice) * 100;
 
-      setStock((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          currentPrice: stockData.price,
-          priceDiff: priceDiff,
-          fluctuationRate: fluctuationRate,
-          volume: stockData.volume,
-        };
-      });
+      const updatedStock = {
+        ...stock,
+        currentPrice: stockData.price,
+        priceDiff: priceDiff,
+        fluctuationRate: fluctuationRate,
+        volume: stockData.volume,
+      };
+
+      setStock(updatedStock);
+      setContextStock(updatedStock); // 실시간 데이터로 StockContext 업데이트
     }
-  }, [stockData, ticker]);
+  }, [stockData, ticker, stock, setContextStock]);
 
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState({
@@ -608,86 +641,193 @@ function PriceTabContent({
   );
 }
 
-const salesData = [
-  {
-    name: "TV, 모니터, 냉장고, 세탁기, 에어컨, 스마트폰, 네트워크시스템, PC 등",
-    value: 58.1,
-  },
-  { name: "DRAM, NAND Flash, 모바일AP 등", value: 36.9 },
-  { name: "스마트폰용 OLED패널 등", value: 9.7 },
-  { name: "디지털 콕핏, 카오디오, 포터블 스피커 등", value: 4.7 },
-  { name: "부문간 내부거래 제거 등", value: -9.5 },
-];
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
-
 function InfoTabContent() {
+  const [selectedMetric, setSelectedMetric] = useState("marketCap");
+  const [industryStocks, setIndustryStocks] = useState<Stock[]>([]);
+  const { stock } = useStock();
+
+  useEffect(() => {
+    const fetchIndustryStocks = async () => {
+      if (!stock?.industryType) return;
+      try {
+        const response = await stockApi.getStocksByIndustry(stock.industryType);
+        console.log("Industry Stocks:", response);
+        setIndustryStocks(response);
+      } catch (error) {
+        console.error("Failed to fetch industry stocks:", error);
+      }
+    };
+
+    fetchIndustryStocks();
+  }, [stock?.industryType]);
+
+  const metrics = [
+    {
+      id: "marketCap",
+      label: "시가총액",
+      description:
+        "발행주식 수와 주가를 곱한 기업의 시장 가치입니다. 기업의 전체 규모를 나타내는 중요한 지표입니다.",
+      format: (value: number | undefined) =>
+        value ? formatMarketCap(value) : "-",
+    },
+    {
+      id: "per",
+      label: "PER",
+      description:
+        "주가를 주당순이익(EPS)으로 나눈 값입니다. 수익 대비 주가의 수준을 나타내며, 일반적으로 낮을수록 저평가되었다고 볼 수 있습니다. 단, 업종별로 적정 PER 수준이 다를 수 있습니다.",
+      format: (value: number | undefined) =>
+        value ? `${value.toFixed(2)}배` : "-",
+    },
+    {
+      id: "forwardPer",
+      label: "선행 PER",
+      description:
+        "주가를 예상 주당순이익으로 나눈 값입니다. 미래 수익 대비 현재 주가의 수준을 나타내며, 기업의 성장성을 반영한 투자 지표입니다.",
+      format: (value: number | undefined) =>
+        value ? `${value.toFixed(2)}배` : "-",
+    },
+    {
+      id: "pbr",
+      label: "PBR",
+      description:
+        "주가를 주당순자산(BPS)으로 나눈 값입니다. 자산 가치 대비 주가의 수준을 나타내며, 일반적으로 1배 미만이면 청산가치보다 저평가되었다고 볼 수 있습니다.",
+      format: (value: number | undefined) =>
+        value ? `${value.toFixed(2)}배` : "-",
+    },
+    {
+      id: "eps",
+      label: "EPS",
+      description:
+        "당기순이익을 발행주식 수로 나눈 값입니다. 주당 수익을 나타내며, 기업의 수익성을 판단하는 핵심 지표입니다. EPS가 높을수록 기업의 수익성이 좋다고 볼 수 있습니다.",
+      format: (value: number | undefined) =>
+        value ? `${value.toLocaleString()}원` : "-",
+    },
+    {
+      id: "forwardEps",
+      label: "선행 EPS",
+      description:
+        "예상 당기순이익을 발행주식 수로 나눈 값입니다. 향후 1년간의 예상 주당순이익을 의미하며, 기업의 미래 수익성을 전망하는데 도움이 됩니다.",
+      format: (value: number | undefined) =>
+        value ? `${value.toLocaleString()}원` : "-",
+    },
+  ];
+
   return (
     <Card>
       <CardContent className="p-6 space-y-8">
         <div>
-          <h3 className="text-lg font-semibold">매출·산업 구성</h3>
-          <p className="text-sm text-gray-500">
-            25년 7월 기준 (출처: FnGuide 및 기업 IR자료)
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 items-center">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={salesData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                >
-                  {salesData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <ul className="space-y-2 text-sm">
-              {salesData.map((entry, index) => (
-                <li key={entry.name} className="flex items-start">
-                  <span
-                    className="w-3 h-3 rounded-full mr-2 mt-1 flex-shrink-0"
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  ></span>
-                  <span>
-                    {entry.name}{" "}
-                    <span className="ml-auto font-semibold">
-                      {entry.value}%
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div>
           <h3 className="text-lg font-semibold">투자 지표</h3>
-          <p className="text-sm text-gray-500">18-10 기준</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            {[
-              { label: "PER", value: "11.8배" },
-              { label: "PSR", value: "1.3배" },
-              { label: "PBR", value: "1.0배" },
-              { label: "EPS", value: "5,161원" },
-              { label: "BPS", value: "59,058원" },
-              { label: "ROE", value: "9.2%" },
-            ].map((item) => (
-              <div key={item.label} className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-500 flex items-center justify-start gap-1">
-                  {item.label} <Info size={12} />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+            {metrics.map((metric) => (
+              <div key={metric.id} className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500 flex items-center justify-start gap-1">
+                  {metric.label}
+                  <UITooltip>
+                    <TooltipTrigger>
+                      <Info size={12} />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-xs max-w-[200px]">
+                        {metric.description}
+                      </div>
+                    </TooltipContent>
+                  </UITooltip>
+                </div>
+                <p className="font-bold text-base">
+                  {metric.format(
+                    stock?.[metric.id as keyof Stock] as number | undefined
+                  )}
                 </p>
-                <p className="font-bold text-base">{item.value}</p>
               </div>
             ))}
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="text-sm text-gray-500 flex items-center justify-start gap-1">
+                시장구분
+                <UITooltip>
+                  <TooltipTrigger>
+                    <Info size={12} />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs max-w-[200px]">
+                      주식이 거래되는 시장 구분
+                    </div>
+                  </TooltipContent>
+                </UITooltip>
+              </div>
+              <p className="font-bold text-base">{stock?.marketType || "-"}</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-lg font-semibold">업종 별 지표 비교</h3>
+            <span className="text-sm text-primary font-semibold">
+              {stock?.industryType}
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            <Select value={selectedMetric} onValueChange={setSelectedMetric}>
+              <SelectTrigger>
+                <SelectValue placeholder="비교 지표 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {metrics.map((metric) => (
+                  <SelectItem key={metric.id} value={metric.id}>
+                    {metric.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={industryStocks}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis />
+                  <RechartsTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const metric = metrics.find(
+                          (m) => m.id === selectedMetric
+                        );
+                        const value = payload[0].value;
+                        return (
+                          <div className="bg-white p-2 border rounded shadow">
+                            <p className="text-sm">{payload[0].payload.name}</p>
+                            <p className="text-sm font-semibold">
+                              {metric ? metric.format(value as number) : value}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey={selectedMetric} fill="#8884d8">
+                    {industryStocks.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.ticker === stock?.ticker ? "#ff7300" : "#8884d8"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -805,6 +945,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   const [price, setPrice] = useState(0);
   const [quantity, setQuantity] = useState(0);
   const [account, setAccount] = useState<any>(null);
+  const [holdings, setHoldings] = useState<any[]>([]);
   const { toast } = useToast();
 
   // 계좌 정보 조회
@@ -825,6 +966,25 @@ function OrderForm({ type, stockData }: OrderFormProps) {
     fetchAccount();
   }, [toast]);
 
+  // 보유 주식 정보 조회
+  useEffect(() => {
+    const fetchHoldings = async () => {
+      try {
+        const data = await getHoldings();
+        setHoldings(data);
+      } catch (error) {
+        console.error("보유 주식 조회 실패:", error);
+      }
+    };
+    fetchHoldings();
+  }, []);
+
+  // 현재 종목의 보유 수량 계산
+  const currentHolding = holdings.find(
+    (h) => h.stockCode === stockData?.ticker
+  );
+  const holdingQuantity = currentHolding?.quantity || 0;
+
   // 실시간 가격 반영
   useEffect(() => {
     if (stockData?.price) {
@@ -844,7 +1004,14 @@ function OrderForm({ type, stockData }: OrderFormProps) {
 
   // 수량 조정 함수
   const adjustQuantity = (amount: number) => {
-    setQuantity((prev) => Math.max(0, prev + amount));
+    setQuantity((prev) => {
+      const newQuantity = Math.max(0, prev + amount);
+      // 매도의 경우 보유 수량을 초과하지 않도록 체크
+      if (type === "sell") {
+        return Math.min(newQuantity, holdingQuantity);
+      }
+      return newQuantity;
+    });
   };
 
   // 총 주문 금액 계산
@@ -854,7 +1021,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   const canOrder =
     type === "buy"
       ? account?.balance >= totalOrderAmount && totalOrderAmount > 0
-      : quantity > 0;
+      : quantity > 0 && quantity <= holdingQuantity;
 
   const handleOrder = async () => {
     try {
@@ -862,6 +1029,16 @@ function OrderForm({ type, stockData }: OrderFormProps) {
         toast({
           title: "주문 실패",
           description: "필요한 정보가 없습니다.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 매도 시 보유 수량 체크
+      if (type === "sell" && quantity > holdingQuantity) {
+        toast({
+          title: "주문 실패",
+          description: "보유 수량을 초과하여 매도할 수 없습니다.",
           variant: "destructive",
         });
         return;
@@ -942,7 +1119,8 @@ function OrderForm({ type, stockData }: OrderFormProps) {
       </div>
       <div>
         <label className="font-semibold text-xs">
-          수량 {type === "sell" && "(보유: 0주)"}
+          수량{" "}
+          {type === "sell" && `(보유: ${holdingQuantity.toLocaleString()}주)`}
         </label>
         <div className="flex items-center gap-2 mt-1">
           <Button
@@ -959,7 +1137,11 @@ function OrderForm({ type, stockData }: OrderFormProps) {
             onChange={(e) => {
               const value = parseInt(e.target.value);
               if (!isNaN(value) && value >= 0) {
-                setQuantity(value);
+                if (type === "sell") {
+                  setQuantity(Math.min(value, holdingQuantity));
+                } else {
+                  setQuantity(value);
+                }
               }
             }}
             className="text-center h-9"
@@ -969,6 +1151,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
             size="icon"
             className="h-8 w-8 bg-transparent"
             onClick={() => adjustQuantity(1)}
+            disabled={type === "sell" && quantity >= holdingQuantity}
           >
             <Plus className="w-4 h-4" />
           </Button>
