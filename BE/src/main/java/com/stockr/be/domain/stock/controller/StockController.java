@@ -1,7 +1,9 @@
 package com.stockr.be.domain.stock.controller;
 
 import com.stockr.be.domain.stock.dto.StockResponseDto;
+import com.stockr.be.domain.stock.entity.Stock;
 import com.stockr.be.domain.stock.service.StockService;
+import com.stockr.be.global.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,11 +15,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StockController {
     private final StockService stockService;
-    
-    @GetMapping("/{ticker}")
-    public ResponseEntity<StockResponseDto> getStock(@PathVariable String ticker) {
-        return ResponseEntity.ok(stockService.getStock(ticker));
-    }
     
     @GetMapping
     public ResponseEntity<List<StockResponseDto>> getStocks(
@@ -31,5 +28,16 @@ public class StockController {
     @GetMapping("/top-market-cap")
     public ResponseEntity<List<StockResponseDto>> getTopMarketCapStocks() {
         return ResponseEntity.ok(stockService.getTopMarketCapStocks());
+    }
+
+    @GetMapping("/industry")
+    public ResponseEntity<List<Stock>> getStocksByIndustry(@RequestParam String industryType) {
+        List<Stock> stocks = stockService.getStocksByIndustry(industryType);
+        return ResponseEntity.ok(stocks);
+    }
+    
+    @GetMapping("/{ticker}")
+    public ResponseEntity<StockResponseDto> getStock(@PathVariable String ticker) {
+        return ResponseEntity.ok(stockService.getStock(ticker));
     }
 } 

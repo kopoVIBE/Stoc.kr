@@ -15,4 +15,5 @@ public interface StockRepository extends JpaRepository<Stock, String> {
     List<Stock> findByTickerIn(List<String> tickers); // 특정 종목들 조회
     Optional<Stock> findByTicker(String ticker); // 단일 종목 조회
     List<Stock> findTop10ByOrderByMarketCapDesc(); // 시가총액 상위 10개
+    List<Stock> findByIndustryType(String industryType);
 } 

@@ -40,4 +40,8 @@ public class StockService {
                 .map(StockResponseDto::from)
                 .collect(Collectors.toList());
     }
+
+    public List<Stock> getStocksByIndustry(String industryType) {
+        return stockRepository.findByIndustryType(industryType);
+    }
 } 
