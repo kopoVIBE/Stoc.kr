@@ -70,7 +70,7 @@ public class StockWebSocketClient {
                 @Override
                 protected void handleTextMessage(WebSocketSession session, TextMessage message) {
                     String payload = message.getPayload();
-                    log.info("Received from KIS: {}", payload);
+//                    log.info("Received from KIS: {}", payload);
 
                     if (payload.startsWith("0|H0STASP0")) { // 주식호가
                         try {
@@ -112,7 +112,7 @@ public class StockWebSocketClient {
                     } else if (payload.startsWith("1|")) { // 주식체결
                         // 필요 시 체결 데이터 처리 로직 추가
                     } else if (payload.startsWith("{")) {
-                        log.info("Received JSON message (likely auth response): {}", payload);
+//                        log.info("Received JSON message (likely auth response): {}", payload);
                     }
                 }
 
