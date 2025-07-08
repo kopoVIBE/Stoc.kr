@@ -1,41 +1,55 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react";
 
-interface FavoriteAddDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  stockName: string;
-}
+export function FavoriteAddDialog() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [stockCode, setStockCode] = useState("");
 
-export function FavoriteAddDialog({
-  isOpen,
-  onClose,
-  onConfirm,
-  stockName,
-}: FavoriteAddDialogProps) {
+  const handleConfirm = () => {
+    // 여기에 종목 추가 로직 구현
+    setIsOpen(false);
+  };
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>관심 종목 추가</AlertDialogTitle>
-          <AlertDialogDescription>
-            {stockName}을(를) 관심 종목에 추가하시겠습니까?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>취소</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>추가</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>관심 종목 추가</DialogTitle>
+          <DialogDescription>
+            추가하고 싶은 종목의 코드를 입력하세요
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Input
+              id="stockCode"
+              value={stockCode}
+              onChange={(e) => setStockCode(e.target.value)}
+              className="col-span-4"
+              placeholder="종목 코드 (예: 005930)"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleConfirm}>추가</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

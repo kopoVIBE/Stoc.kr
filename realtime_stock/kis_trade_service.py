@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 import requests
 from kafka import KafkaProducer
-from stock_realtime import StockRealtime
+from stock_realtime import StockRealtime, KIS_BASE_URL
 
 # 로깅 설정
 logging.basicConfig(
@@ -28,12 +28,23 @@ class KISTradeService:
             self.realtime._ensure_valid_token()
             
             # 주문 API 엔드포인트
-            url = f"{self.realtime.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/order-cash"
+            url = f"{KIS_BASE_URL}/uapi/domestic-stock/v1/trading/order-cash"
+            
+            # 계좌번호 검증 및 분리
+            if not order_request['accountId'] or len(order_request['accountId']) != 10:
+                return {
+                    'status': 'error',
+                    'message': '유효하지 않은 계좌번호입니다. 계좌번호는 10자리여야 합니다.'
+                }
+            
+            # 계좌번호 분리 (앞 8자리: CANO, 뒤 2자리: ACNT_PRDT_CD)
+            cano = order_request['accountId'][:8]
+            acnt_prdt_cd = order_request['accountId'][8:]
             
             # 주문 데이터 준비
             body = {
-                "CANO": "50068991",  # 계좌번호 앞 8자리
-                "ACNT_PRDT_CD": "01",  # 계좌번호 뒤 2자리
+                "CANO": cano,  # 계좌번호 앞 8자리
+                "ACNT_PRDT_CD": acnt_prdt_cd,  # 계좌번호 뒤 2자리
                 "PDNO": order_request['stockCode'],  # 종목코드
                 "ORD_DVSN": "00",  # 주문구분 (00: 지정가)
                 "ORD_QTY": str(order_request['quantity']),  # 주문수량
