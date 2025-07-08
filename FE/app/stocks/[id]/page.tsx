@@ -184,7 +184,7 @@ export default function StockDetailPage({
   useEffect(() => {
     if (!stockData || !stock) return;
 
-    if (stockData.ticker === ticker) {
+    if (stockData.ticker === ticker && stockData.price !== stock.currentPrice) {
       const priceDiff = stockData.price - stock.closePrice;
       const fluctuationRate = (priceDiff / stock.closePrice) * 100;
 
@@ -197,7 +197,7 @@ export default function StockDetailPage({
       };
 
       setStock(updatedStock);
-      setContextStock(updatedStock); // 실시간 데이터로 StockContext 업데이트
+      setContextStock(updatedStock);
     }
   }, [stockData, ticker, stock, setContextStock]);
 
@@ -338,29 +338,37 @@ export default function StockDetailPage({
                 {stock?.name} ({ticker})
               </h1>
             </div>
-            <p className="text-2xl font-bold">
-              현재가: {stock?.currentPrice?.toLocaleString() || "-"}원
-              {stock?.currentPrice && stock?.prevPrice && (
-                <span
-                  className={`ml-2 ${
-                    stock.currentPrice > stock.prevPrice
-                      ? "text-red-500"
-                      : "text-blue-500"
-                  }`}
-                >
-                  {stock.currentPrice > stock.prevPrice ? "+" : "-"}
-                  {Math.abs(
-                    stock.currentPrice - stock.prevPrice
-                  ).toLocaleString()}
-                  원 (
-                  {Math.abs(
-                    ((stock.currentPrice - stock.prevPrice) / stock.prevPrice) *
-                      100
-                  ).toFixed(2)}
-                  %)
-                </span>
-              )}
-            </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-2xl font-bold">
+                  현재가: {stock?.currentPrice?.toLocaleString() || "-"}원
+                  {stock?.currentPrice && stock?.prevPrice && (
+                    <span
+                      className={`ml-2 ${
+                        stock.currentPrice > stock.prevPrice
+                          ? "text-red-500"
+                          : "text-blue-500"
+                      }`}
+                    >
+                      {stock.currentPrice > stock.prevPrice ? "+" : "-"}
+                      {Math.abs(
+                        stock.currentPrice - stock.prevPrice
+                      ).toLocaleString()}
+                      원 (
+                      {Math.abs(
+                        ((stock.currentPrice - stock.prevPrice) /
+                          stock.prevPrice) *
+                          100
+                      ).toFixed(2)}
+                      %)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <span className="text-sm px-2 py-1 bg-red-100 text-red-600 rounded-full font-medium whitespace-nowrap">
+                하락 예측
+              </span>
+            </div>
           </div>
           <Heart
             className={`w-6 h-6 cursor-pointer ${
@@ -642,9 +650,9 @@ function PriceTabContent({
 }
 
 function InfoTabContent() {
-  const [selectedMetric, setSelectedMetric] = useState("marketCap");
-  const [industryStocks, setIndustryStocks] = useState<Stock[]>([]);
   const { stock } = useStock();
+  const [industryStocks, setIndustryStocks] = useState<Stock[]>([]);
+  const [selectedMetric, setSelectedMetric] = useState<string>("marketCap");
 
   useEffect(() => {
     const fetchIndustryStocks = async () => {
@@ -720,19 +728,7 @@ function InfoTabContent() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
             {metrics.map((metric) => (
               <div key={metric.id} className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-500 flex items-center justify-start gap-1">
-                  {metric.label}
-                  <UITooltip>
-                    <TooltipTrigger>
-                      <Info size={12} />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-xs max-w-[200px]">
-                        {metric.description}
-                      </div>
-                    </TooltipContent>
-                  </UITooltip>
-                </div>
+                <div className="text-sm text-gray-500">{metric.label}</div>
                 <p className="font-bold text-base">
                   {metric.format(
                     stock?.[metric.id as keyof Stock] as number | undefined
@@ -741,19 +737,7 @@ function InfoTabContent() {
               </div>
             ))}
             <div className="bg-gray-50 p-3 rounded-lg">
-              <div className="text-sm text-gray-500 flex items-center justify-start gap-1">
-                시장구분
-                <UITooltip>
-                  <TooltipTrigger>
-                    <Info size={12} />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-xs max-w-[200px]">
-                      주식이 거래되는 시장 구분
-                    </div>
-                  </TooltipContent>
-                </UITooltip>
-              </div>
+              <div className="text-sm text-gray-500">시장구분</div>
               <p className="font-bold text-base">{stock?.marketType || "-"}</p>
             </div>
           </div>
@@ -768,18 +752,17 @@ function InfoTabContent() {
           </div>
 
           <div className="space-y-4">
-            <Select value={selectedMetric} onValueChange={setSelectedMetric}>
-              <SelectTrigger>
-                <SelectValue placeholder="비교 지표 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {metrics.map((metric) => (
-                  <SelectItem key={metric.id} value={metric.id}>
-                    {metric.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={selectedMetric}
+              onChange={(e) => setSelectedMetric(e.target.value)}
+              className="w-full p-2 border rounded-lg bg-white"
+            >
+              {metrics.map((metric) => (
+                <option key={metric.id} value={metric.id}>
+                  {metric.label}
+                </option>
+              ))}
+            </select>
 
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
