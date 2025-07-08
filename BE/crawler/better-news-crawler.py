@@ -432,7 +432,7 @@ def save_to_mongodb(data):
         # 환경변수에서 MongoDB 접속 정보 읽기 (없으면 기본값 사용)
         mongo_user = os.environ.get("MONGO_INITDB_ROOT_USERNAME", "stockr")
         mongo_pass = os.environ.get("MONGO_INITDB_ROOT_PASSWORD", "stockr123!")
-        mongo_host = os.environ.get("MONGO_HOST", "localhost")
+        mongo_host = os.environ.get("MONGO_HOST", "52.78.88.159")
         mongo_port = os.environ.get("MONGO_PORT", "27017")
         mongo_db   = os.environ.get("MONGO_DATABASE", "stockr")
 

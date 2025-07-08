@@ -22,10 +22,10 @@ env_path = os.path.join(os.path.dirname(__file__), '..', 'BE', '.env')
 load_dotenv(env_path)
 
 # Redis 설정 (로컬 테스트용)
-REDIS_HOST = 'localhost'  # 로컬 환경에서는 무조건 localhost 사용
+REDIS_HOST = '13.209.40.88'  # 로컬 환경에서는 무조건 localhost 사용
 REDIS_PORT = 6379
 REDIS_PASSWORD = 'stockr123!'
-WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://localhost:8080/ws-raw')
+WEBSOCKET_URL = os.getenv('WEBSOCKET_URL', 'ws://52.79.250.104:8080/ws-raw')
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'kis_token.json')
 
 # KIS API 설정

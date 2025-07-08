@@ -50,7 +50,7 @@ class StockDataCollector:
         """MySQL 연결"""
         try:
             self.mysql_conn = pymysql.connect(
-                host=os.getenv('MYSQL_HOST', 'localhost'),
+                host=os.getenv('MYSQL_HOST', '54.180.115.81'),
                 user=os.getenv('MYSQL_USER', 'stockr'),
                 password=os.getenv('MYSQL_PASSWORD', 'stockr123!'),
                 database=os.getenv('MYSQL_DATABASE', 'stockr'),
@@ -79,7 +79,7 @@ class StockDataCollector:
         try:
             # 인증 정보와 함께 연결
             self.mongo_client = MongoClient(
-                'mongodb://stockr:stockr123!@localhost:27017/',
+                'mongodb://stockr:stockr123!@52.78.88.159:27017/',
                 serverSelectionTimeoutMS=5000,
                 directConnection=True
             )

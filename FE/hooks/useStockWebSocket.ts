@@ -39,7 +39,7 @@ export const useStockWebSocket = () => {
     const client = new Client({
       // brokerURL: "ws://localhost:8080/ws", // SockJS를 위해 이 부분을 주석 처리
       webSocketFactory: () => {
-        return new SockJS("http://localhost:8080/ws");
+        return new SockJS("http://52.79.250.104:8080/ws");
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,

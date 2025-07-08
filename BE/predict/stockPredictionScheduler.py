@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_mongo_client():
     """MongoDB 클라이언트 연결"""
     try:
-        mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
+        mongo_uri = os.getenv('MONGODB_URI', 'mongodb://52.78.88.159:27017/')
         client = MongoClient(mongo_uri)
         # 연결 테스트
         client.admin.command('ping')
