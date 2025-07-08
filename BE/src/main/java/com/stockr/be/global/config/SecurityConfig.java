@@ -63,14 +63,16 @@ public class SecurityConfig {
                                 "api/news/crawl",
                                 "/api/users/me",
                                 "/api/v1/stocks/**",
-                                "/api/v1/test/**",  // 테스트 API 경로 추가
+                                "/api/trading/orders/**",
+                                "/api/v1/test/**", // 테스트 API 경로 추가
                                 "/ws/**",
                                 "/ws-raw/**", // Python client access
                                 "/ws",
                                 "/ws/info",
                                 "/ws/info/**",
                                 "/topic/**",
-                                "/app/**"
+                                "/app/**",
+                                "/api/trade/order"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository),

@@ -1,6 +1,12 @@
 "use client";
 
-import { Heart } from "lucide-react";
+import {
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -12,19 +18,26 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { getFavorites, removeFavorite, addFavorite } from "@/api/stock";
+import { useState, useEffect, useRef } from "react";
+import {
+  getFavorites,
+  removeFavorite,
+  addFavorite,
+  subscribeToRealtimeStock,
+  unsubscribeFromRealtimeStock,
+} from "@/api/stock";
+import { getHoldings, type StockHolding } from "@/api/account";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { FavoriteAddDialog } from "@/components/favorite-add-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { getMyInfo } from "@/api/user";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
-const recommendedStocks: Stock[] = [
+const initialRecommendedStocks: Stock[] = [
   {
     ticker: "039130",
     name: "하나투어",
@@ -50,15 +63,27 @@ const recommendedStocks: Stock[] = [
 const communityPosts = [
   {
     id: 1,
-    title: "지금은 올라가지만 언제까지 갈지...",
-    author: "투자하는개미",
-    time: "21시간 전",
+    title: "삼성전자 실적 분석 및 전망",
+    author: "주식왕",
+    time: "10분 전",
   },
   {
     id: 2,
-    title: "카카오페이가 결국에는...",
-    author: "지켜보는개미",
-    time: "9시간 전",
+    title: "2024년 반도체 산업 전망",
+    author: "반도체전문가",
+    time: "15분 전",
+  },
+  {
+    id: 3,
+    title: "신규 상장 기업 분석",
+    author: "IPO연구소",
+    time: "30분 전",
+  },
+  {
+    id: 4,
+    title: "코스피 3000 돌파 전망",
+    author: "시장분석가",
+    time: "1시간 전",
   },
 ];
 
@@ -66,11 +91,13 @@ interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
+  currentPrice?: number;
+  priceDiff?: number;
   fluctuationRate: number;
+  volume: number | string; // volume을 number 또는 string으로 허용
   logo?: string;
   category?: string;
   marketCap?: string;
-  volume?: string;
 }
 
 interface StockTableProps {
@@ -78,15 +105,117 @@ interface StockTableProps {
   isRecommended: boolean;
   onToggleFavorite?: (stock: Stock) => void;
   isFavorite?: (stock: Stock) => boolean;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+  isConnected: boolean;
 }
 
 export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
+  const [recommendedStocks, setRecommendedStocks] = useState<Stock[]>(
+    initialRecommendedStocks
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [favoritePage, setFavoritePage] = useState(1);
+  const [recommendedPage, setRecommendedPage] = useState(1);
+  const subscribedTickersRef = useRef<string[]>([]);
+  const previousTickersRef = useRef<string[]>([]);
+  const itemsPerPage = 4; // 한 페이지당 표시할 종목 수
   const { toast } = useToast();
   const router = useRouter();
+  const [holdings, setHoldings] = useState<StockHolding[]>([]);
+
+  // 웹소켓 연결
+  const {
+    stockData,
+    isConnected,
+    error,
+    subscribeToStock,
+    unsubscribeFromStock,
+  } = useStockWebSocket();
+
+  // 현재 페이지의 종목들 계산
+  const getFavoritePageStocks = () => {
+    const startIndex = (favoritePage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return favoriteStocks.slice(startIndex, endIndex);
+  };
+
+  const getRecommendedPageStocks = () => {
+    const startIndex = (recommendedPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return recommendedStocks.slice(startIndex, endIndex);
+  };
+
+  // 웹소켓 구독 관리
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const currentFavorites = getFavoritePageStocks();
+    const currentRecommended = getRecommendedPageStocks();
+    const newTickers = [...currentFavorites, ...currentRecommended]
+      .map((stock) => stock.ticker)
+      .filter((value, index, self) => self.indexOf(value) === index); // 중복 제거
+
+    // 현재 페이지에 없는 종목만 구독 해제
+    subscribedTickersRef.current.forEach((ticker) => {
+      if (!newTickers.includes(ticker)) {
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      }
+    });
+
+    // 새로운 종목만 구독
+    newTickers.forEach((ticker) => {
+      if (!subscribedTickersRef.current.includes(ticker)) {
+        subscribeToStock(ticker);
+        subscribeToRealtimeStock(ticker);
+      }
+    });
+
+    // 구독 중인 티커 목록 업데이트
+    subscribedTickersRef.current = newTickers;
+  }, [isConnected, favoritePage, recommendedPage]);
+
+  // 실시간 데이터 처리
+  useEffect(() => {
+    if (!stockData || !favoriteStocks.length) return;
+
+    const updateStockData = (prevStocks: Stock[]) =>
+      prevStocks.map((stock) => {
+        if (stock.ticker === stockData.ticker) {
+          const priceDiff = stockData.price - stock.closePrice;
+          const fluctuationRate = (priceDiff / stock.closePrice) * 100;
+
+          return {
+            ...stock,
+            currentPrice: stockData.price,
+            priceDiff: priceDiff,
+            fluctuationRate: fluctuationRate,
+            volume: stockData.volume,
+          };
+        }
+        return stock;
+      });
+
+    // 관심 종목 업데이트
+    setFavoriteStocks((prevStocks) => updateStockData(prevStocks));
+    // 추천 종목 업데이트
+    setRecommendedStocks((prevStocks) => updateStockData(prevStocks));
+  }, [stockData]);
+
+  // 컴포넌트 언마운트 시 모든 구독 해제
+  useEffect(() => {
+    return () => {
+      subscribedTickersRef.current.forEach((ticker) => {
+        unsubscribeFromStock(ticker);
+        unsubscribeFromRealtimeStock(ticker);
+      });
+      subscribedTickersRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const now = new Date();
@@ -123,6 +252,51 @@ export default function DashboardPage() {
 
     fetchInitialData();
   }, []);
+
+  // 보유 종목 조회
+  useEffect(() => {
+    const fetchHoldings = async () => {
+      try {
+        const data = await getHoldings();
+        console.log("보유 종목 데이터:", data);
+        setHoldings(data);
+      } catch (error) {
+        console.error("보유 종목 조회 실패:", error);
+        setHoldings([]);
+        toast({
+          title: "보유 종목 조회 실패",
+          description: "보유 종목 정보를 불러오는데 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchHoldings();
+  }, []);
+
+  // 주문 이벤트 처리
+  useEffect(() => {
+    if (!stockData) return;
+
+    // 보유 종목 중 해당 종목이 있는지 확인
+    const holdingStock = holdings.find((h) => h.stockCode === stockData.ticker);
+    if (!holdingStock) return;
+
+    // 가격 변동이 1% 이상인 경우 알림
+    const priceChange =
+      ((stockData.price - holdingStock.currentPrice) /
+        holdingStock.currentPrice) *
+      100;
+    if (Math.abs(priceChange) >= 1) {
+      toast({
+        title: `${holdingStock.stockName} 가격 변동 알림`,
+        description: `현재가: ${stockData.price.toLocaleString()}원 (${
+          priceChange >= 0 ? "+" : ""
+        }${priceChange.toFixed(2)}%)`,
+        variant: priceChange >= 0 ? "default" : "destructive",
+      });
+    }
+  }, [stockData, holdings]);
 
   const handleToggleFavorite = async (stock: Stock) => {
     const token = localStorage.getItem("token");
@@ -163,128 +337,228 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-12">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 관심 종목 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-baseline gap-4">
-              <span>내 관심 종목</span>
-              <span className="text-sm font-normal text-gray-500">
-                {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-4">로딩 중...</div>
-            ) : favoriteStocks.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">
-                관심 종목이 없습니다.
-              </div>
-            ) : (
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="space-y-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 관심 종목 */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>관심 종목</CardTitle>
+              <FavoriteAddDialog />
+            </CardHeader>
+            <CardContent>
               <StockTable
-                stocks={favoriteStocks}
+                stocks={getFavoritePageStocks()}
                 isRecommended={false}
                 onToggleFavorite={handleToggleFavorite}
                 isFavorite={() => true}
+                currentPage={favoritePage}
+                setCurrentPage={setFavoritePage}
+                isConnected={isConnected}
               />
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* 추천 종목 */}
+          {/* 추천 종목 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>추천 종목</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StockTable
+                stocks={getRecommendedPageStocks()}
+                isRecommended={true}
+                onToggleFavorite={handleToggleFavorite}
+                isFavorite={(stock) =>
+                  favoriteStocks.some((s) => s.ticker === stock.ticker)
+                }
+                currentPage={recommendedPage}
+                setCurrentPage={setRecommendedPage}
+                isConnected={isConnected}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 보유 종목 섹션 */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-baseline gap-4">
-              <span>{user?.name || "회원"}님을 위한 추천 종목</span>
-              <span className="text-sm font-normal text-gray-500">
-                {currentTime ? `오늘 ${currentTime} 기준` : "로딩 중..."}
-              </span>
-            </CardTitle>
+            <CardTitle>보유 종목</CardTitle>
           </CardHeader>
           <CardContent>
-            <StockTable stocks={recommendedStocks} isRecommended={true} />
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>종목명</TableHead>
+                    <TableHead>보유수량</TableHead>
+                    <TableHead>평균매수가</TableHead>
+                    <TableHead>현재가</TableHead>
+                    <TableHead>평가손익</TableHead>
+                    <TableHead>수익률</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {holdings.map((holding) => (
+                    <TableRow key={holding.stockCode}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
+                            <img
+                              src={`/stock-images/${holding.stockCode}.png`}
+                              alt={holding.stockName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "/placeholder-logo.svg";
+                              }}
+                            />
+                          </div>
+                          <Link href={`/stocks/${holding.stockCode}`}>
+                            <span className="font-medium hover:text-primary">
+                              {holding.stockName}
+                            </span>
+                          </Link>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {holding.quantity.toLocaleString()}주
+                      </TableCell>
+                      <TableCell>
+                        {holding.averagePurchasePrice.toLocaleString()}원
+                      </TableCell>
+                      <TableCell>
+                        {holding.currentPrice.toLocaleString()}원
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            holding.evaluationProfitLoss >= 0
+                              ? "text-red-500"
+                              : "text-blue-500"
+                          }
+                        >
+                          {holding.evaluationProfitLoss.toLocaleString()}원
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {holding.profitLossRate >= 0 ? (
+                            <TrendingUp className="w-4 h-4 text-red-500" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-blue-500" />
+                          )}
+                          <span
+                            className={
+                              holding.profitLossRate >= 0
+                                ? "text-red-500"
+                                : "text-blue-500"
+                            }
+                          >
+                            {holding.profitLossRate >= 0 ? "+" : ""}
+                            {holding.profitLossRate.toFixed(2)}%
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {holdings.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-gray-500"
+                      >
+                        보유 중인 종목이 없습니다
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* 내게 맞는 주식 */}
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>내 계좌</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-primary/10 rounded-lg text-primary-dark font-semibold">
-              원하는 조건의 주식을 골라보세요
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {["시가총액", "거래량", "PER", "인기순위", "연관순위"].map(
-                (tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                )
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 지금 뜨는 카테고리 & 커뮤니티 */}
-        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card>
+        {/* 추가 정보 그리드 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* 내 계좌 */}
+          <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-baseline gap-4">
-                <span>지금 뜨는 카테고리</span>
-                <span className="text-sm font-normal text-gray-500">
-                  오늘 08:50 기준
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-around items-end">
-              <div className="text-center">
-                <div className="text-lg font-bold">2위</div>
-                <img
-                  src="/placeholder.svg?height=80&width=80"
-                  alt="Mask"
-                  className="w-20 h-20 mx-auto"
-                />
-                <div className="font-semibold">마스크</div>
-                <div className="text-sm text-red-500">-2.5%</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold">1위</div>
-                <img
-                  src="/placeholder.svg?height=100&width=100"
-                  alt="Plant"
-                  className="w-24 h-24 mx-auto"
-                />
-                <div className="font-semibold">캐릭터</div>
-                <div className="text-sm text-green-500">+3.7%</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-baseline gap-4">
-                <span>인기 급상승 커뮤니티</span>
-                <span className="text-sm font-normal text-gray-500">
-                  오늘 17:28 기준
-                </span>
-              </CardTitle>
+              <CardTitle>내 계좌</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {communityPosts.map((post) => (
-                <div key={post.id}>
-                  <p className="font-semibold truncate">{post.title}</p>
-                  <p className="text-sm text-gray-500">
-                    {post.author} · {post.time}
-                  </p>
-                </div>
-              ))}
+              <div className="p-4 bg-primary/10 rounded-lg text-primary-dark font-semibold">
+                원하는 조건의 주식을 골라보세요
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {["시가총액", "거래량", "PER", "인기순위", "연관순위"].map(
+                  (tag) => (
+                    <Badge key={tag} variant="secondary">
+                      {tag}
+                    </Badge>
+                  )
+                )}
+              </div>
             </CardContent>
           </Card>
+
+          {/* 지금 뜨는 카테고리 & 커뮤니티 */}
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* 지금 뜨는 카테고리 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-baseline gap-4">
+                  <span>지금 뜨는 카테고리</span>
+                  <span className="text-sm font-normal text-gray-500">
+                    오늘 08:50 기준
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-around items-end">
+                <div className="text-center">
+                  <div className="text-lg font-bold">2위</div>
+                  <img
+                    src="/placeholder.svg?height=80&width=80"
+                    alt="Mask"
+                    className="w-20 h-20 mx-auto"
+                  />
+                  <div className="font-semibold">마스크</div>
+                  <div className="text-sm text-red-500">-2.5%</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold">1위</div>
+                  <img
+                    src="/placeholder.svg?height=100&width=100"
+                    alt="Plant"
+                    className="w-24 h-24 mx-auto"
+                  />
+                  <div className="font-semibold">캐릭터</div>
+                  <div className="text-sm text-green-500">+3.7%</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 인기 급상승 커뮤니티 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-baseline gap-4">
+                  <span>인기 급상승 커뮤니티</span>
+                  <span className="text-sm font-normal text-gray-500">
+                    오늘 17:28 기준
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {communityPosts.map((post) => (
+                  <div key={post.id}>
+                    <p className="font-semibold truncate">{post.title}</p>
+                    <p className="text-sm text-gray-500">
+                      {post.author} · {post.time}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
@@ -296,11 +570,13 @@ function StockTable({
   isRecommended,
   onToggleFavorite,
   isFavorite,
+  currentPage,
+  setCurrentPage,
+  isConnected,
 }: StockTableProps) {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   const itemsPerPage = 4;
   const totalPages = Math.ceil(stocks.length / itemsPerPage);
@@ -343,11 +619,6 @@ function StockTable({
               <TableHead>종목명</TableHead>
               <TableHead className="text-right">현재가</TableHead>
               <TableHead className="text-right">등락률</TableHead>
-              {isRecommended && (
-                <TableHead className="hidden sm:table-cell text-right">
-                  유사도
-                </TableHead>
-              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -362,7 +633,7 @@ function StockTable({
                     <Heart
                       className={cn(
                         "h-5 w-5",
-                        isFavorite ? "fill-red-500 text-red-500" : ""
+                        isFavorite?.(stock) ? "fill-red-500 text-red-500" : ""
                       )}
                     />
                   </Button>
@@ -386,51 +657,40 @@ function StockTable({
                   className="text-right h-[55px] cursor-pointer"
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
-                  {stock.closePrice.toLocaleString()}
+                  {!isConnected || !stock.currentPrice
+                    ? "-"
+                    : stock.currentPrice.toLocaleString()}
                 </TableCell>
                 <TableCell
-                  className={cn(
-                    "text-right h-[55px] cursor-pointer",
-                    stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
-                  )}
+                  className="text-right h-[55px] cursor-pointer"
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
-                  <div>
-                    {stock.fluctuationRate > 0 ? "+" : ""}
-                    {stock.fluctuationRate}%
-                  </div>
+                  {"-"}
                 </TableCell>
-                {isRecommended && (
-                  <TableCell className="hidden sm:table-cell text-right h-[55px]">
-                    {stock.marketCap}
-                  </TableCell>
-                )}
               </TableRow>
             ))}
             {/* 빈 행 유지 */}
             {Array.from({ length: itemsPerPage - currentStocks.length }).map(
               (_, index) => (
                 <TableRow key={`empty-${index}`} className="h-[55px]">
-                  {Array.from({ length: isRecommended ? 5 : 4 }).map(
-                    (_, cellIndex) => (
-                      <TableCell
-                        key={`empty-cell-${cellIndex}`}
-                        className="h-[55px]"
-                      />
-                    )
-                  )}
+                  {Array.from({ length: 4 }).map((_, cellIndex) => (
+                    <TableCell
+                      key={`empty-cell-${cellIndex}`}
+                      className="h-[55px]"
+                    />
+                  ))}
                 </TableRow>
               )
             )}
           </TableBody>
         </Table>
       </div>
-      {/* 페이지네이션 유지 */}
+      {/* 페이지네이션 */}
       <div className="flex justify-center items-center mt-4">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -441,9 +701,7 @@ function StockTable({
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-          }
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
         >
           <ChevronRight className="h-4 w-4" />

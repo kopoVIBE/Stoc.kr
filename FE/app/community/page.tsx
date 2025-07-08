@@ -104,21 +104,14 @@ export default function CommunityPage() {
     const currentPost = posts.find(post => post.id === postId)
     if (!currentPost) return
 
-    console.log("좋아요 처리 시작 - postId:", postId, "현재 상태:", currentPost.isLikedByUser)
-    
     setLikeLoading(postId)
     try {
       const serverResponse = await togglePostLike(postId)
-      console.log("서버 응답:", serverResponse)
       
       // 서버 응답으로 상태 업데이트
-      setPosts(prev => {
-        const updatedPosts = prev.map(post => 
-          post.id === postId ? serverResponse : post
-        )
-        console.log("업데이트된 게시글:", updatedPosts.find(p => p.id === postId))
-        return updatedPosts
-      })
+      setPosts(prev => prev.map(post => 
+        post.id === postId ? serverResponse : post
+      ))
       
       if (selectedPost && selectedPost.id === postId) {
         setSelectedPost(serverResponse)
@@ -284,19 +277,19 @@ export default function CommunityPage() {
           ) : (
             posts.map((post) => (
               <Card key={post.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  {post.stockName && (
-                    <Badge variant="outline" className="w-fit border-[#248f5b] text-[#248f5b]">
-                      {post.stockName}
-                    </Badge>
-                  )}
-                  <CardTitle 
-                    className="pt-2 text-lg hover:text-[#248f5b] cursor-pointer"
-                    onClick={() => handlePostClick(post)}
-                  >
-                    {post.title}
-                  </CardTitle>
-                </CardHeader>
+                  <CardHeader>
+                    {post.stockName && (
+                      <Badge variant="outline" className="w-fit border-[#248f5b] text-[#248f5b]">
+                        {post.stockName}
+                      </Badge>
+                    )}
+                    <CardTitle 
+                      className="pt-2 text-lg hover:text-[#248f5b] cursor-pointer"
+                      onClick={() => handlePostClick(post)}
+                    >
+                      {post.title}
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-500">
                     {post.authorNickname} · {formatTimeAgo(post.createdAt)}
@@ -313,16 +306,39 @@ export default function CommunityPage() {
                 </CardContent>
                 <CardFooter className="flex gap-4 text-sm text-gray-500">
                   <button 
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                    style={{
+                      backgroundColor: post.isLikedByUser ? '#ef4444' : '#f3f4f6',
+                      color: post.isLikedByUser ? '#ffffff' : '#4b5563',
+                      border: post.isLikedByUser ? '1px solid #ef4444' : '1px solid #e5e7eb'
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                       post.isLikedByUser 
-                        ? 'bg-red-500 text-white hover:bg-gray-100 hover:text-gray-600' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
-                    }`}
+                        ? 'shadow-md hover:shadow-lg' 
+                        : 'hover:shadow-sm'
+                    } ${likeLoading === post.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    onMouseEnter={(e) => {
+                      if (!post.isLikedByUser) {
+                        e.currentTarget.style.backgroundColor = '#fef2f2';
+                        e.currentTarget.style.color = '#ef4444';
+                      } else {
+                        e.currentTarget.style.backgroundColor = '#dc2626';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!post.isLikedByUser) {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                        e.currentTarget.style.color = '#4b5563';
+                      } else {
+                        e.currentTarget.style.backgroundColor = '#ef4444';
+                      }
+                    }}
                     onClick={() => handlePostLike(post.id)}
                     disabled={likeLoading === post.id}
                   >
-                    <ThumbsUp className={`w-4 h-4 ${post.isLikedByUser ? 'fill-current' : ''}`} />
-                    <span>{post.likes}</span>
+                    <ThumbsUp className={`w-4 h-4 transition-all duration-200 ${
+                      post.isLikedByUser ? 'fill-current scale-110' : ''
+                    }`} />
+                    <span className="font-medium">{post.likes}</span>
                   </button>
                   <button 
                     className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-500 transition-all"

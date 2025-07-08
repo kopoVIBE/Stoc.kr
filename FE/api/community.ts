@@ -56,28 +56,73 @@ export const getAllPosts = async (page = 0, size = 10): Promise<PageResponse<Pos
   const response = await axiosInstance.get('/api/community/posts', {
     params: { page, size }
   })
-  return response.data.data
+  
+  const responseData = response.data.data
+  if (responseData.content) {
+    responseData.content = responseData.content.map((post: any) => {
+      if (post.likedByUser !== undefined && post.isLikedByUser === undefined) {
+        post.isLikedByUser = post.likedByUser
+      }
+      return post
+    })
+  }
+  
+  return responseData
 }
 
 export const getPostsByUserInterests = async (page = 0, size = 10): Promise<PageResponse<PostResponse>> => {
   const response = await axiosInstance.get('/api/community/posts/my-interests', {
     params: { page, size }
   })
-  return response.data.data
+  
+  // Java boolean 필드 매핑 수정
+  const responseData = response.data.data
+  if (responseData.content) {
+    responseData.content = responseData.content.map((post: any) => {
+      if (post.likedByUser !== undefined && post.isLikedByUser === undefined) {
+        post.isLikedByUser = post.likedByUser
+      }
+      return post
+    })
+  }
+  
+  return responseData
 }
 
 export const getPostsByStock = async (stockCode: string, page = 0, size = 10): Promise<PageResponse<PostResponse>> => {
   const response = await axiosInstance.get(`/api/community/posts/stock/${stockCode}`, {
     params: { page, size }
   })
-  return response.data.data
+  
+  const responseData = response.data.data
+  if (responseData.content) {
+    responseData.content = responseData.content.map((post: any) => {
+      if (post.likedByUser !== undefined && post.isLikedByUser === undefined) {
+        post.isLikedByUser = post.likedByUser
+      }
+      return post
+    })
+  }
+  
+  return responseData
 }
 
 export const searchPosts = async (keyword: string, page = 0, size = 10): Promise<PageResponse<PostResponse>> => {
   const response = await axiosInstance.get('/api/community/posts/search', {
     params: { keyword, page, size }
   })
-  return response.data.data
+  
+  const responseData = response.data.data
+  if (responseData.content) {
+    responseData.content = responseData.content.map((post: any) => {
+      if (post.likedByUser !== undefined && post.isLikedByUser === undefined) {
+        post.isLikedByUser = post.likedByUser
+      }
+      return post
+    })
+  }
+  
+  return responseData
 }
 
 export const updatePost = async (postId: number, data: PostCreateRequest): Promise<PostResponse> => {
@@ -90,11 +135,15 @@ export const deletePost = async (postId: number): Promise<void> => {
 }
 
 export const togglePostLike = async (postId: number): Promise<PostResponse> => {
-  console.log("좋아요 API 호출 - postId:", postId)
   const response = await axiosInstance.post(`/api/community/posts/${postId}/like`)
-  console.log("좋아요 API 응답:", response.data)
-  console.log("좋아요 API 응답 데이터:", response.data.data)
-  return response.data.data
+  
+  // Java boolean 필드가 JSON으로 변환될 때 isLikedByUser -> likedByUser로 변환될 수 있음
+  const responseData = response.data.data
+  if (responseData.likedByUser !== undefined && responseData.isLikedByUser === undefined) {
+    responseData.isLikedByUser = responseData.likedByUser
+  }
+  
+  return responseData
 }
 
 export const getUserFavoriteStocks = async (): Promise<FavoriteStock[]> => {

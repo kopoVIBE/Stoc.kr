@@ -1,10 +1,14 @@
 package com.stockr.be.domain.trade.service;
 
+import com.stockr.be.account.domain.Account;
+import com.stockr.be.account.repository.AccountRepository;
 import com.stockr.be.domain.trade.client.KISTradeClient;
 import com.stockr.be.domain.trade.dto.OrderResponseDto;
 import com.stockr.be.domain.trade.dto.TradeRequestDto;
 import com.stockr.be.domain.trade.entity.Order;
 import com.stockr.be.domain.trade.repository.OrderRepository;
+import com.stockr.be.global.exception.BusinessException;
+import com.stockr.be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,10 +21,18 @@ import reactor.core.publisher.Mono;
 public class TradeService {
     private final KISTradeClient kisTradeClient;
     private final OrderRepository orderRepository;
+    private final AccountRepository accountRepository;
 
     @Transactional
     public Mono<OrderResponseDto> createOrder(TradeRequestDto request) {
-        // 1. 주문 엔티티 생성
+        // 1. 계좌 조회 및 계좌번호 설정
+        Account account = accountRepository.findById(Long.parseLong(request.getAccountId()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+        
+        // TradeRequestDto에 계좌번호 설정
+        request.setAccountNumber(account.getAccountNumber());
+        
+        // 2. 주문 엔티티 생성
         final Order order = Order.builder()
                 .accountId(request.getAccountId())
                 .stockCode(request.getStockCode())
@@ -29,20 +41,20 @@ public class TradeService {
                 .price(request.getPrice())
                 .build();
 
-        // 2. 주문 저장
+        // 3. 주문 저장
         final Order savedOrder = orderRepository.save(order);
         final String orderId = savedOrder.getId();
 
-        // 3. Python 서비스로 주문 요청
+        // 4. Python 서비스로 주문 요청
         return kisTradeClient.createOrder(orderId, request)
                 .map(response -> {
-                    // 4. 주문 완료 처리
+                    // 5. 주문 완료 처리
                     savedOrder.complete(response.getData().getKisOrderId());
                     Order updatedOrder = orderRepository.save(savedOrder);
                     return OrderResponseDto.from(updatedOrder);
                 })
                 .onErrorResume(e -> {
-                    // 5. 주문 실패 처리
+                    // 6. 주문 실패 처리
                     savedOrder.fail();
                     Order failedOrder = orderRepository.save(savedOrder);
                     return Mono.error(e);
