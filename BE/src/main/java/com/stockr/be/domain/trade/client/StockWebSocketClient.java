@@ -54,11 +54,11 @@ public class StockWebSocketClient {
     private WebSocketHandler webSocketHandler;
 
     public StockWebSocketClient(SimpMessagingTemplate messagingTemplate,
-                                KISConfig kisConfig,
-                                ObjectMapper objectMapper,
-                                ScheduledExecutorService scheduler,
-                                InternalTradeService internalTradeService, StockRepository stockRepository,
-                                LimitOrderRepository limitOrderRepository) {
+            KISConfig kisConfig,
+            ObjectMapper objectMapper,
+            ScheduledExecutorService scheduler,
+            InternalTradeService internalTradeService, StockRepository stockRepository,
+            LimitOrderRepository limitOrderRepository) {
         this.messagingTemplate = messagingTemplate;
         this.kisConfig = kisConfig;
         this.objectMapper = objectMapper;
@@ -86,7 +86,7 @@ public class StockWebSocketClient {
 
             @Override
             public void afterConnectionClosed(WebSocketSession session,
-                                              org.springframework.web.socket.CloseStatus status) {
+                    org.springframework.web.socket.CloseStatus status) {
                 log.warn("WebSocket Connection Closed. Session ID: {}, Status: {}", session.getId(), status);
                 stopPingTask();
                 if (!isReconnecting.get()) {
