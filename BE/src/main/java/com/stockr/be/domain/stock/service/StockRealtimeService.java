@@ -50,7 +50,7 @@ public class StockRealtimeService {
         log.info("KIS WebSocket subscription temporarily disabled for: {}", stockCode);
         
         // 기존 코드는 주석 처리
-        /*
+        
         try {
             Map<String, String> header = new HashMap<>();
             header.put("appkey", kisConfig.getApi().getAppKey());
@@ -79,7 +79,7 @@ public class StockRealtimeService {
             log.error("Failed to subscribe KIS order book for: " + stockCode, e);
             throw new RuntimeException("Failed to subscribe KIS order book", e);
         }
-        */
+        
     }
 
     /**
@@ -91,7 +91,7 @@ public class StockRealtimeService {
         log.info("KIS WebSocket unsubscription temporarily disabled for: {}", stockCode);
         
         // 기존 코드는 주석 처리
-        /*
+        
         try {
             Map<String, String> header = new HashMap<>();
             header.put("appkey", kisConfig.getApi().getAppKey());
@@ -120,6 +120,6 @@ public class StockRealtimeService {
             log.error("Failed to unsubscribe KIS order book for: " + stockCode, e);
             throw new RuntimeException("Failed to unsubscribe KIS order book", e);
         }
-        */
+        
     }
 }

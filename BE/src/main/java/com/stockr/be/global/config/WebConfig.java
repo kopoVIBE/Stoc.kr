@@ -12,7 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")  // 모든 경로에 대해
-                .allowedOrigins("http://localhost:3000")  // FE 주소
+                .allowedOrigins("http://localhost:3000","https://stockr-git-infra-front-set-hurdongs-projects.vercel.app")  // FE 주소
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
