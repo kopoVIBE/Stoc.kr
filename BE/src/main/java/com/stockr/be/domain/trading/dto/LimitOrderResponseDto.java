@@ -22,7 +22,7 @@ public class LimitOrderResponseDto {
     public static LimitOrderResponseDto from(LimitOrder order) {
         return LimitOrderResponseDto.builder()
                 .id(order.getId())
-                .stockId(order.getStock().getStockId())
+                .stockId(order.getStock().getTicker())
                 .orderType(order.getOrderType())
                 .quantity(order.getQuantity())
                 .price(order.getPrice())

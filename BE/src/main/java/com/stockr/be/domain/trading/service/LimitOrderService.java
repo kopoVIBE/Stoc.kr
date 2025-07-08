@@ -41,7 +41,7 @@ public class LimitOrderService {
         Account account = accountRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new NoSuchElementException("User account not found."));
 
-        Stock stock = stockRepository.findById(request.getStockId())
+        Stock stock = stockRepository.findByTicker(request.getStockId())
                 .orElseThrow(() -> new NoSuchElementException("Stock not found."));
 
         if (request.getOrderType() == TradingOrderType.SELL) {

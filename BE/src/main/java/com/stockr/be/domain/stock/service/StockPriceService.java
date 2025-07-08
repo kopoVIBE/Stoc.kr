@@ -71,15 +71,26 @@ public class StockPriceService {
         cursor.forEach(doc -> prices.add(documentToDto(doc)));
 
         if (prices.isEmpty()) {
-            return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(List.of())
-                    .meta(StockPriceResponse.MetaData.builder().totalCount(0).build()).build();
+            return StockPriceResponse.builder()
+                    .ticker(ticker)
+                    .interval(interval)
+                    .prices(List.of())
+                    .meta(StockPriceResponse.MetaData.builder().totalCount(0).build())
+                    .build();
         }
 
-        var meta = StockPriceResponse.MetaData.builder().totalCount(prices.size())
+        var meta = StockPriceResponse.MetaData.builder()
+                .totalCount(prices.size())
                 .startDate(prices.get(0).getDate().toString())
-                .endDate(prices.get(prices.size() - 1).getDate().toString()).build();
+                .endDate(prices.get(prices.size() - 1).getDate().toString())
+                .build();
 
-        return StockPriceResponse.builder().ticker(ticker).interval(interval).prices(prices).meta(meta).build();
+        return StockPriceResponse.builder()
+                .ticker(ticker)
+                .interval(interval)
+                .prices(prices)
+                .meta(meta)
+                .build();
     }
 
     public StockPriceResponse getPriceByDate(String ticker, String interval, LocalDate date) {

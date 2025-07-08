@@ -61,7 +61,15 @@ export interface SimilarStock {
 
 export interface LimitOrder {
   id: number;
-  stockId: string;
+  stock: {
+    ticker: string;
+    name: string;
+    closePrice: number;
+    priceDiff: number;
+    fluctuationRate: number;
+    marketType: string;
+    industryType: string;
+  };
   orderType: "BUY" | "SELL";
   quantity: number;
   price: number;
@@ -95,6 +103,12 @@ export const stockApi = {
       `/api/v1/stocks/${ticker}/prices?${params}`
     );
     console.log("API Raw Response:", response);
+    return response.data;
+  },
+  getStocksByIndustry: async (industryType: string): Promise<Stock[]> => {
+    const response = await axiosInstance.get("/api/stocks/industry", {
+      params: { industryType },
+    });
     return response.data;
   },
 };
@@ -164,6 +178,7 @@ export const unsubscribeFromRealtimeStock = async (
 export const getPendingOrders = async (): Promise<LimitOrder[]> => {
   try {
     const response = await axiosInstance.get("/api/trading/orders/pending");
+    console.log("API 응답 데이터:", response.data);
     return response.data.data;
   } catch (error) {
     console.error("Failed to fetch pending orders:", error);
