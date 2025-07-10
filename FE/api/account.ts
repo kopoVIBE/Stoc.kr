@@ -130,3 +130,13 @@ export const getHoldings = async (): Promise<StockHolding[]> => {
     throw error;
   }
 };
+
+export interface TopPerformer {
+  nickname: string;
+  profitRate: number;
+}
+
+export const getTopPerformers = async (): Promise<TopPerformer[]> => {
+  const response = await axiosInstance.get('/api/accounts/top-performers');
+  return response.data.data;
+};

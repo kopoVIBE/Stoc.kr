@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 import { getRecentActivePosts } from "@/api/community";
+import { getTopPerformers, type TopPerformer } from "@/api/account";
 
 const initialRecommendedStocks: Stock[] = [
   {
@@ -108,6 +109,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+  const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
 
   // 웹소켓 연결
   const {
@@ -365,6 +367,19 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const fetchTopPerformers = async () => {
+      try {
+        const data = await getTopPerformers();
+        setTopPerformers(data);
+      } catch (error) {
+        console.error("상위 수익률 조회 실패:", error);
+      }
+    };
+
+    fetchTopPerformers();
+  }, []);
+
   const handleToggleFavorite = async (stock: Stock) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -574,33 +589,45 @@ export default function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-baseline gap-4">
-                  <span>지금 뜨는 카테고리</span>
+                  <span>수익률 TOP 2</span>
                   <span className="text-sm font-normal text-gray-500">
-                    오늘 08:50 기준
+                    {currentTime} 기준
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex justify-around items-end">
-                <div className="text-center">
-                  <div className="text-lg font-bold">2위</div>
-                  <img
-                    src="/placeholder.svg?height=80&width=80"
-                    alt="Mask"
-                    className="w-20 h-20 mx-auto"
-                  />
-                  <div className="font-semibold">마스크</div>
-                  <div className="text-sm text-red-500">-2.5%</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold">1위</div>
-                  <img
-                    src="/placeholder.svg?height=100&width=100"
-                    alt="Plant"
-                    className="w-24 h-24 mx-auto"
-                  />
-                  <div className="font-semibold">캐릭터</div>
-                  <div className="text-sm text-green-500">+3.7%</div>
-                </div>
+                {topPerformers.length >= 2 ? (
+                  <>
+                    <div className="text-center">
+                      <div className="text-lg font-bold">2위</div>
+                      <img
+                        src="/second.svg"
+                        alt="Second Place"
+                        className="w-20 h-20 mx-auto"
+                      />
+                      <div className="font-semibold">{topPerformers[1].nickname}</div>
+                      <div className={topPerformers[1].profitRate >= 0 ? "text-sm text-red-500" : "text-sm text-blue-500"}>
+                        {topPerformers[1].profitRate >= 0 ? "+" : ""}{topPerformers[1].profitRate.toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold">1위</div>
+                      <img
+                        src="/first.svg"
+                        alt="First Place"
+                        className="w-24 h-24 mx-auto"
+                      />
+                      <div className="font-semibold">{topPerformers[0].nickname}</div>
+                      <div className={topPerformers[0].profitRate >= 0 ? "text-sm text-red-500" : "text-sm text-blue-500"}>
+                        {topPerformers[0].profitRate >= 0 ? "+" : ""}{topPerformers[0].profitRate.toFixed(2)}%
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    수익률 데이터가 없습니다
+                  </div>
+                )}
               </CardContent>
             </Card>
 
