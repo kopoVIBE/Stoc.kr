@@ -30,10 +30,10 @@ public class CommunityController {
     
     @PostMapping("/posts")
     public ResponseEntity<ApiResponse<PostResponseDto>> createPost(
-            @Valid @RequestBody PostCreateRequestDto requestDto,
+            @RequestBody @Valid PostCreateRequestDto requestDto,
             @AuthenticationPrincipal User user) {
         log.info("Creating post by user: {}", user.getUserId());
-        PostResponseDto response = postService.createPost(requestDto, user.getUserId());
+        PostResponseDto response = postService.createPost(requestDto, user.getEmail());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
@@ -90,6 +90,11 @@ public class CommunityController {
             @AuthenticationPrincipal User user) {
         List<FavoriteStockDto> favoriteStocks = postService.getUserFavoriteStocks(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(favoriteStocks));
+    }
+
+    @GetMapping("/recent-active")
+    public ApiResponse<List<PostResponseDto>> getRecentActivePosts() {
+        return ApiResponse.success(postService.getRecentActivePosts());
     }
     
     @PutMapping("/posts/{postId}")

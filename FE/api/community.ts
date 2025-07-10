@@ -151,6 +151,11 @@ export const getUserFavoriteStocks = async (): Promise<FavoriteStock[]> => {
   return response.data.data
 }
 
+export const getRecentActivePosts = async () => {
+  const response = await axiosInstance.get('/api/community/recent-active');
+  return response.data;
+};
+
 // 댓글 API
 export const createComment = async (postId: number, data: CommentCreateRequest): Promise<CommentResponse> => {
   const response = await axiosInstance.post(`/api/community/posts/${postId}/comments`, data)
