@@ -4,6 +4,7 @@ import com.stockr.be.account.dto.AccountCreateRequestDto;
 import com.stockr.be.account.dto.AccountResponseDto;
 import com.stockr.be.account.dto.TradeRequestDto;
 import com.stockr.be.account.dto.TradeResponseDto;
+import com.stockr.be.account.dto.TopPerformerDto;
 import com.stockr.be.account.service.AccountService;
 import com.stockr.be.global.common.ApiResponse;
 import com.stockr.be.user.domain.User;
@@ -13,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 계좌 관련 요청을 처리하는 REST 컨트롤러 (JWT 기반)
@@ -27,7 +30,7 @@ public class AccountController {
     // JWT에서 인증된 사용자 정보 꺼내는 헬퍼 메서드
     private Long getCurrentUserId() {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return user.getUserId(); // ← 필드 이름 맞게 수정
+        return user.getUserId();
     }
 
     /**
@@ -60,5 +63,11 @@ public class AccountController {
             @RequestBody TradeRequestDto request) {
         TradeResponseDto response = accountService.processTrade(userId, request);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/top-performers")
+    public ResponseEntity<ApiResponse<List<TopPerformerDto>>> getTopPerformers() {
+        List<TopPerformerDto> topPerformers = accountService.getTopPerformers();
+        return ResponseEntity.ok(ApiResponse.success(topPerformers));
     }
 }

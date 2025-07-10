@@ -2,6 +2,7 @@ package com.stockr.be.domain.stock.repository;
 
 import com.stockr.be.domain.stock.entity.Stock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,4 +17,7 @@ public interface StockRepository extends JpaRepository<Stock, String> {
     Optional<Stock> findByTicker(String ticker); // 단일 종목 조회
     List<Stock> findTop10ByOrderByMarketCapDesc(); // 시가총액 상위 10개
     List<Stock> findByIndustryType(String industryType);
+
+    @Query("SELECT DISTINCT s.industryType FROM Stock s WHERE s.industryType IS NOT NULL ORDER BY s.industryType")
+    List<String> findDistinctIndustryTypes();
 } 

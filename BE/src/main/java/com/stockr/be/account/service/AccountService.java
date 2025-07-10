@@ -1,13 +1,14 @@
 package com.stockr.be.account.service;
 
 import com.stockr.be.account.domain.Account;
-import com.stockr.be.account.dto.AccountCreateRequestDto;
-import com.stockr.be.account.dto.AccountResponseDto;
-import com.stockr.be.account.dto.TradeRequestDto;
-import com.stockr.be.account.dto.TradeResponseDto;
+import com.stockr.be.account.dto.*;
 import com.stockr.be.account.repository.AccountRepository;
+import com.stockr.be.domain.stock.dto.RealtimeStockPriceDto;
 import com.stockr.be.domain.stock.entity.Stock;
+import com.stockr.be.domain.stock.entity.StockHolding;
+import com.stockr.be.domain.stock.repository.StockHoldingRepository;
 import com.stockr.be.domain.stock.repository.StockRepository;
+import com.stockr.be.domain.stock.service.StockPriceService;
 import com.stockr.be.global.exception.BusinessException;
 import com.stockr.be.global.exception.ErrorCode;
 import com.stockr.be.user.domain.User;
@@ -20,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 계좌 관련 비즈니스 로직을 처리하는 서비스 클래스
@@ -33,6 +37,8 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final StockRepository stockRepository;
+    private final StockHoldingRepository stockHoldingRepository;
+    private final StockPriceService stockPriceService;
 
     /**
      * 계좌 생성
@@ -137,5 +143,40 @@ public class AccountService {
                 .type(request.getType())
                 .status("COMPLETED")
                 .build();
+    }
+
+    public List<TopPerformerDto> getTopPerformers() {
+        return accountRepository.findAll().stream()
+            .filter(account -> account.getUser().getNickname() != null)  // 닉네임이 있는 사용자만 필터링
+            .map(account -> {
+                // 계좌의 총 수익률 계산
+                List<StockHolding> holdings = stockHoldingRepository.findByAccount(account);
+                BigDecimal totalProfitRate = holdings.stream()
+                    .map(holding -> {
+                        RealtimeStockPriceDto realtimePrice = stockPriceService.getLatestPrice(holding.getStock().getTicker());
+                        BigDecimal currentPrice = realtimePrice != null ? 
+                            BigDecimal.valueOf(realtimePrice.getPrice()) : 
+                            BigDecimal.valueOf(holding.getStock().getClosePrice());
+                        
+                        BigDecimal totalPurchaseAmount = holding.getAveragePurchasePrice()
+                            .multiply(BigDecimal.valueOf(holding.getQuantity()));
+                        BigDecimal evaluationAmount = currentPrice
+                            .multiply(BigDecimal.valueOf(holding.getQuantity()));
+                        BigDecimal evaluationProfitLoss = evaluationAmount.subtract(totalPurchaseAmount);
+                        
+                        return evaluationProfitLoss
+                            .divide(totalPurchaseAmount, 4, RoundingMode.HALF_UP)
+                            .multiply(BigDecimal.valueOf(100));
+                    })
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+                return TopPerformerDto.builder()
+                    .nickname(account.getUser().getNickname())
+                    .profitRate(totalProfitRate.doubleValue())
+                    .build();
+            })
+            .sorted((a, b) -> b.getProfitRate().compareTo(a.getProfitRate()))  // 수익률 내림차순 정렬
+            .limit(2)  // 상위 2명만 선택
+            .collect(Collectors.toList());
     }
 }

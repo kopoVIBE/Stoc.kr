@@ -25,6 +25,7 @@ import {
   addFavorite,
   subscribeToRealtimeStock,
   unsubscribeFromRealtimeStock,
+  stockApi,
 } from "@/api/stock";
 import { getHoldings, type StockHolding } from "@/api/account";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
@@ -44,21 +45,19 @@ const initialRecommendedStocks: Stock[] = [
     ticker: "039130",
     name: "하나투어",
     closePrice: 54300,
+    priceDiff: -543,
     fluctuationRate: -1.0,
-    category: "여행용품",
     marketCap: "8,426.5억원",
-    volume: "63,506주",
-    logo: "/placeholder.svg?height=32&width=32",
+    volume: "63,506",
   },
   {
     ticker: "402340",
     name: "SK스퀘어",
     closePrice: 176400,
+    priceDiff: -10231,
     fluctuationRate: -5.8,
-    category: "지주사",
     marketCap: "23.4조원",
-    volume: "1,043,174주",
-    logo: "/placeholder.svg?height=32&width=32",
+    volume: "1,043,174",
   },
 ];
 
@@ -69,17 +68,46 @@ interface CommunityPost {
   lastCommentTime: string;
 }
 
+interface APIStock {
+  ticker: string;
+  name: string;
+  closePrice: number;
+  currentPrice?: number;
+  priceDiff: number;
+  fluctuationRate: number;
+  marketCap: string;
+  volume?: string;
+  per?: number;
+  pbr?: number;
+  eps?: number;
+  bps?: number;
+  industryType?: string;
+  marketType?: string;
+  sharesOutstanding?: number;
+  high52Week?: number;
+  low52Week?: number;
+  prevPrice?: number;
+}
+
 interface Stock {
   ticker: string;
   name: string;
   closePrice: number;
   currentPrice?: number;
-  priceDiff?: number;
+  priceDiff: number;
   fluctuationRate: number;
-  volume: number | string; // volume을 number 또는 string으로 허용
-  logo?: string;
-  category?: string;
-  marketCap?: string;
+  marketCap: string | number;
+  volume?: string | number;
+  per?: number;
+  pbr?: number;
+  eps?: number;
+  bps?: number;
+  industryType?: string;
+  marketType?: string;
+  sharesOutstanding?: number;
+  high52Week?: number;
+  low52Week?: number;
+  prevPrice?: number;
 }
 
 interface StockTableProps {
@@ -102,6 +130,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [favoritePage, setFavoritePage] = useState(1);
   const [recommendedPage, setRecommendedPage] = useState(1);
+  const [selectedIndustry, setSelectedIndustry] = useState<string>("");
+  const [industryStocks, setIndustryStocks] = useState<Stock[]>([]);
+  const [industryTypes, setIndustryTypes] = useState<string[]>([]);
   const subscribedTickersRef = useRef<string[]>([]);
   const previousTickersRef = useRef<string[]>([]);
   const itemsPerPage = 4; // 한 페이지당 표시할 종목 수
@@ -380,6 +411,43 @@ export default function DashboardPage() {
     fetchTopPerformers();
   }, []);
 
+  useEffect(() => {
+    const fetchIndustryTypes = async () => {
+      try {
+        const types = await stockApi.getIndustryTypes();
+        console.log('Received industry types:', types);
+        // 업종 목록을 랜덤으로 섞고 6개만 선택
+        const shuffled = types.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 6);
+        setIndustryTypes(selected);
+        if (selected.length > 0) {
+          setSelectedIndustry(selected[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch industry types:", error);
+      }
+    };
+
+    fetchIndustryTypes();
+  }, []);
+
+  useEffect(() => {
+    const fetchIndustryStocks = async () => {
+      if (selectedIndustry) {
+        try {
+          console.log('Fetching stocks for industry:', selectedIndustry);
+          const stocks = await stockApi.getStocksByIndustry(selectedIndustry);
+          console.log('Received stocks:', stocks);
+          setIndustryStocks(stocks);
+        } catch (error) {
+          console.error("Failed to fetch industry stocks:", error);
+        }
+      }
+    };
+
+    fetchIndustryStocks();
+  }, [selectedIndustry]);
+
   const handleToggleFavorite = async (stock: Stock) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -564,22 +632,65 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* 내 계좌 */}
           <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>내 계좌</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 pt-6">
               <div className="p-4 bg-primary/10 rounded-lg text-primary-dark font-semibold">
-                원하는 조건의 주식을 골라보세요
+                원하는 업종의 주식을 구경하세요
               </div>
-              <div className="flex flex-wrap gap-2">
-                {["시가총액", "거래량", "PER", "인기순위", "연관순위"].map(
-                  (tag) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
-                    </Badge>
-                  )
-                )}
+              <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar">
+                {industryTypes.map((industry) => (
+                  <Badge
+                    key={industry}
+                    variant={selectedIndustry === industry ? "default" : "secondary"}
+                    className="cursor-pointer flex-shrink-0"
+                    onClick={() => setSelectedIndustry(industry)}
+                  >
+                    {industry}
+                  </Badge>
+                ))}
               </div>
+
+              <style jsx global>{`
+                .no-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+                .no-scrollbar {
+                  -ms-overflow-style: none;
+                  scrollbar-width: none;
+                }
+              `}</style>
+              {selectedIndustry && (
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {industryStocks.map((stock) => (
+                    <Card key={stock.ticker} className="min-w-[200px] flex-shrink-0">
+                      <CardHeader>
+                        <CardTitle className="text-lg">{stock.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>현재가</span>
+                            <span className={cn(
+                              stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
+                            )}>
+                              {typeof stock.currentPrice === 'number' 
+                                ? stock.currentPrice.toLocaleString() 
+                                : stock.closePrice.toLocaleString()}원
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>등락률</span>
+                            <span className={cn(
+                              stock.fluctuationRate > 0 ? "text-red-500" : "text-blue-500"
+                            )}>
+                              {stock.fluctuationRate > 0 ? "+" : ""}{stock.fluctuationRate.toFixed(2)}%
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -111,6 +111,10 @@ export const stockApi = {
     });
     return response.data;
   },
+  getIndustryTypes: async (): Promise<string[]> => {
+    const response = await axiosInstance.get("/api/stocks/industry-types");
+    return response.data;
+  },
 };
 
 // 즐겨찾기 관련 API

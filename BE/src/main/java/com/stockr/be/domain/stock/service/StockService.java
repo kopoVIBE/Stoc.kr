@@ -41,6 +41,10 @@ public class StockService {
                 .collect(Collectors.toList());
     }
 
+    public List<String> getIndustryTypes() {
+        return stockRepository.findDistinctIndustryTypes();
+    }
+
     public List<Stock> getStocksByIndustry(String industryType) {
         return stockRepository.findByIndustryType(industryType);
     }

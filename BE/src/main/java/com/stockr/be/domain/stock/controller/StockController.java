@@ -30,6 +30,11 @@ public class StockController {
         return ResponseEntity.ok(stockService.getTopMarketCapStocks());
     }
 
+    @GetMapping("/industry-types")
+    public ResponseEntity<List<String>> getIndustryTypes() {
+        return ResponseEntity.ok(stockService.getIndustryTypes());
+    }
+
     @GetMapping("/industry")
     public ResponseEntity<List<Stock>> getStocksByIndustry(@RequestParam String industryType) {
         List<Stock> stocks = stockService.getStocksByIndustry(industryType);
