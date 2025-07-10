@@ -6,7 +6,7 @@ interface AccountRequest {
   accountNumber: string;
 }
 
-interface TradeRequest {
+export interface TradeRequest {
   stockId: string;
   orderType: "BUY" | "SELL";
   quantity: number;
@@ -59,8 +59,48 @@ export const getAccount = async () => {
 };
 
 export const createOrder = async (data: TradeRequest) => {
-  const res = await axiosInstance.post("/api/trading/orders", data);
-  return res.data;
+  try {
+    console.log("[API] 주문 생성 요청 데이터:", data);
+
+    const res = await axiosInstance.post("/api/trading/orders", data);
+    
+    console.log("[API] 주문 생성 성공 응답:", res.data);
+
+    return res.data;
+  } catch (error: any) {
+    console.error("[API] 주문 생성 실패");
+    
+    // 서버에서 반환한 에러 메시지 처리
+    if (error.response?.data?.message) {
+      console.error("서버 에러 메시지:", error.response.data.message);
+      throw new Error(error.response.data.message);
+    }
+    
+    // 네트워크 에러 처리
+    if (!error.response) {
+      console.error("네트워크 에러:", error.message);
+      throw new Error("서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.");
+    }
+    
+    // HTTP 상태 코드별 에러 메시지
+    const status = error.response.status;
+    switch (status) {
+      case 400:
+        throw new Error("잘못된 주문 요청입니다. 주문 내용을 확인해주세요.");
+      case 401:
+        throw new Error("로그인이 필요합니다.");
+      case 403:
+        throw new Error("주문 권한이 없습니다.");
+      case 404:
+        throw new Error("주문할 수 없는 종목이거나 실시간 시세를 조회할 수 없습니다.");
+      case 409:
+        throw new Error("주문이 충돌했습니다. 잠시 후 다시 시도해주세요.");
+      case 500:
+        throw new Error("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      default:
+        throw new Error("주문 처리 중 오류가 발생했습니다.");
+    }
+  }
 };
 
 export const getStockHolding = async (stockCode: string) => {
@@ -82,7 +122,7 @@ export const getPendingOrders = async () => {
 
 export const getHoldings = async (): Promise<StockHolding[]> => {
   try {
-    const res = await axiosInstance.get<HoldingsResponse>("/api/v1/holdings");
+    const res = await axiosInstance.get<HoldingsResponse>("/api/accounts/holdings");
     console.log("API 응답:", res.data);
     return res.data.data || [];
   } catch (error) {

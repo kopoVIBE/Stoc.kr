@@ -42,7 +42,7 @@ public class StockPriceService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private MongoCollection<Document> getCollection() {
-        return mongoClient.getDatabase("stock_db").getCollection("stock_prices");
+        return mongoClient.getDatabase("stockr").getCollection("stock_prices");
     }
 
     public StockPriceResponse getPrices(String ticker, String interval, LocalDate startDate, LocalDate endDate,
@@ -276,18 +276,44 @@ public class StockPriceService {
     // 최신 가격 조회
     public RealtimeStockPriceDto getLatestPrice(String stockCode) {
         try {
+            // 1. Redis에서 실시간 데이터 조회
             String key = "stock:realtime:" + stockCode;
             String jsonData = redisTemplate.opsForValue().get(key);
             log.debug("Redis key: {}, value: {}", key, jsonData);
+            
             if (jsonData != null) {
                 // 앞뒤 큰따옴표 제거
                 if (jsonData.startsWith("\"") && jsonData.endsWith("\"")) {
                     jsonData = jsonData.substring(1, jsonData.length() - 1);
                 }
                 RealtimeStockPriceDto dto = objectMapper.readValue(jsonData, RealtimeStockPriceDto.class);
-                log.debug("Parsed DTO: {}", dto);
+                log.debug("Parsed Redis DTO: {}", dto);
                 return dto;
             }
+
+            // 2. Redis에 데이터가 없으면 MongoDB에서 최신 데이터 조회
+            log.debug("Redis에 실시간 데이터가 없어 MongoDB에서 최신 데이터를 조회합니다. stockCode: {}", stockCode);
+            var collection = getCollection();
+            var query = new Document("ticker", stockCode).append("interval", "daily");
+            var doc = collection.find(query).sort(Sorts.descending("date")).first();
+
+            if (doc != null) {
+                StockPriceDto latestPrice = documentToDto(doc);
+                log.debug("MongoDB에서 조회한 최신 데이터: {}", latestPrice);
+                
+                // MongoDB 데이터를 RealtimeStockPriceDto 형식으로 변환
+                return RealtimeStockPriceDto.builder()
+                    .stockCode(stockCode)
+                    .price(Math.round(latestPrice.getClose()))
+                    .accumulatedTradeVolume(Math.round(latestPrice.getVolume()))
+                    .hour(latestPrice.getDate().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")))
+                    .compareYesterdaySign("0")  // 기본값 설정
+                    .compareYesterday(0.0)      // 기본값 설정
+                    .compareYesterdayRate(0.0)  // 기본값 설정
+                    .build();
+            }
+
+            log.warn("주가 데이터를 찾을 수 없습니다. stockCode: {}", stockCode);
             return null;
         } catch (Exception e) {
             log.error("실시간 주가 데이터 조회 중 오류 발생: ", e);

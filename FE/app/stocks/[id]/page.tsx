@@ -54,7 +54,7 @@ import {
   subscribeToRealtimeStock,
   unsubscribeFromRealtimeStock,
 } from "@/api/stock";
-import { getAccount, createOrder, getHoldings } from "@/api/account";
+import { getAccount, createOrder, getHoldings, type TradeRequest } from "@/api/account";
 import { useToast } from "@/components/ui/use-toast";
 import { FavoriteConfirmDialog } from "@/components/favorite-confirm-dialog";
 import { useRouter } from "next/navigation";
@@ -1027,10 +1027,25 @@ function OrderForm({ type, stockData }: OrderFormProps) {
 
   const handleOrder = async () => {
     try {
-      if (!account || !stockData) {
+      console.log("[Order] 주문 시작:", {
+        계좌정보: account,
+        주식정보: stockData,
+        수량: quantity,
+        가격: price,
+        주문타입: type,
+        시간: new Date().toISOString()
+      });
+
+      // 기본 유효성 검사
+      if (!stockData || !account || quantity <= 0) {
+        console.warn("[Order] 주문 유효성 검사 실패:", {
+          stockData: !!stockData,
+          account: !!account,
+          quantity: quantity
+        });
         toast({
           title: "주문 실패",
-          description: "필요한 정보가 없습니다.",
+          description: "주문 정보가 올바르지 않습니다. 수량과 가격을 확인해주세요.",
           variant: "destructive",
         });
         return;
@@ -1038,32 +1053,107 @@ function OrderForm({ type, stockData }: OrderFormProps) {
 
       // 매도 시 보유 수량 체크
       if (type === "sell" && quantity > holdingQuantity) {
+        console.warn("[Order] 매도 수량 초과:", {
+          요청수량: quantity,
+          보유수량: holdingQuantity
+        });
         toast({
           title: "주문 실패",
-          description: "보유 수량을 초과하여 매도할 수 없습니다.",
+          description: `보유 수량(${holdingQuantity}주)을 초과하여 매도할 수 없습니다.`,
           variant: "destructive",
         });
         return;
       }
 
-      await createOrder({
+      // 매수 시 잔액 체크
+      if (type === "buy") {
+        const totalAmount = price * quantity;
+        if (totalAmount > account.balance) {
+          console.warn("[Order] 잔액 부족:", {
+            주문금액: totalAmount,
+            계좌잔액: account.balance
+          });
+          toast({
+            title: "주문 실패",
+            description: `주문 금액(${totalAmount.toLocaleString()}원)이 계좌 잔액(${account.balance.toLocaleString()}원)을 초과합니다.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      const currentPrice = stockData.price;
+      const orderPrice = orderType === "market" ? currentPrice : price;
+      let willExecuteImmediately = false;
+
+      if (type === "buy") {
+        // 매수: 지정가가 현재가보다 크거나 같으면 즉시 체결
+        willExecuteImmediately = orderPrice >= currentPrice;
+      } else {
+        // 매도: 지정가가 현재가보다 작거나 같으면 즉시 체결
+        willExecuteImmediately = orderPrice <= currentPrice;
+      }
+
+      console.log("[Order] 주문 실행 조건:", {
+        현재가: currentPrice,
+        주문가격: orderPrice,
+        즉시체결여부: willExecuteImmediately,
+        주문유형: type
+      });
+
+      // 숫자 형식을 정확하게 처리
+      const orderData: TradeRequest = {
         stockId: stockData.ticker,
         orderType: type === "buy" ? "BUY" : "SELL",
-        quantity,
-        price: orderType === "market" ? stockData.price : price,
-      });
+        quantity: Math.floor(Number(quantity)),
+        price: Number(orderPrice),
+      };
 
+      console.log("[Order] API 요청 데이터:", orderData);
+      
+      const response = await createOrder(orderData);
+      console.log("[Order] API 응답 데이터:", response);
+
+      // 주문 성공 처리
       toast({
-        title: `${type === "buy" ? "매수" : "매도"} 주문 완료`,
-        description: "주문이 정상적으로 접수되었습니다.",
+        title: `${type === "buy" ? "매수" : "매도"} 주문 ${willExecuteImmediately ? "완료" : "접수"}`,
+        description: willExecuteImmediately 
+          ? `${stockData.ticker} ${quantity}주가 ${orderPrice.toLocaleString()}원에 체결되었습니다.`
+          : `${stockData.ticker} ${quantity}주 ${orderPrice.toLocaleString()}원 주문이 접수되었습니다.`,
       });
 
+      // 입력값 초기화
       setQuantity(0);
-    } catch (error) {
-      console.error("주문 실패:", error);
+      setPrice(0);
+
+      // 계좌 정보 갱신
+      await Promise.all([
+        getAccount().then(setAccount),
+        getHoldings().then(setHoldings)
+      ]);
+    } catch (error: any) {
+      console.error("[Order] 주문 처리 실패");
+      
+      let title = "주문 실패";
+      let description = "주문 처리 중 오류가 발생했습니다.";
+
+      if (error.message) {
+        description = error.message;
+      }
+
+      // 특정 에러 상황에 대한 사용자 친화적인 메시지
+      if (description.includes("실시간 주가 정보")) {
+        title = "시세 조회 실패";
+        description = "현재 시세 정보를 조회할 수 없습니다. 잠시 후 다시 시도해주세요.";
+      } else if (description.includes("잔액")) {
+        title = "잔액 부족";
+      } else if (description.includes("보유")) {
+        title = "보유 수량 부족";
+      }
+
       toast({
-        title: "주문 실패",
-        description: "주문 처리 중 오류가 발생했습니다.",
+        title: title,
+        description: description,
         variant: "destructive",
       });
     }
