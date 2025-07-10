@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
+import { getRecentActivePosts } from "@/api/community";
 
 const initialRecommendedStocks: Stock[] = [
   {
@@ -60,32 +61,12 @@ const initialRecommendedStocks: Stock[] = [
   },
 ];
 
-const communityPosts = [
-  {
-    id: 1,
-    title: "삼성전자 실적 분석 및 전망",
-    author: "주식왕",
-    time: "10분 전",
-  },
-  {
-    id: 2,
-    title: "2024년 반도체 산업 전망",
-    author: "반도체전문가",
-    time: "15분 전",
-  },
-  {
-    id: 3,
-    title: "신규 상장 기업 분석",
-    author: "IPO연구소",
-    time: "30분 전",
-  },
-  {
-    id: 4,
-    title: "코스피 3000 돌파 전망",
-    author: "시장분석가",
-    time: "1시간 전",
-  },
-];
+interface CommunityPost {
+  id: number;
+  title: string;
+  author: string;
+  lastCommentTime: string;
+}
 
 interface Stock {
   ticker: string;
@@ -126,6 +107,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
 
   // 웹소켓 연결
   const {
@@ -297,6 +279,91 @@ export default function DashboardPage() {
       });
     }
   }, [stockData, holdings]);
+
+  // 현재 시간을 1분마다 업데이트
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, "0");
+      const minutes = now.getMinutes().toString().padStart(2, "0");
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+
+    updateCurrentTime(); // 초기 실행
+    const interval = setInterval(updateCurrentTime, 60000); // 1분마다 업데이트
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 시간 차이를 계산하는 함수
+  const getTimeAgo = (dateString: string) => {
+    try {
+      // ISO 8601 형식의 시간 문자열을 Date 객체로 변환
+      const date = new Date(dateString);
+      
+      // 유효하지 않은 날짜인 경우 예외 처리
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date:', dateString);
+        return '시간 정보 없음';
+      }
+
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      // 음수 시간차가 나오면 서버 시간과 클라이언트 시간 차이로 인한 것이므로 '방금 전'으로 표시
+      if (diffInSeconds < 0) return '방금 전';
+      
+      if (diffInSeconds < 60) return `${diffInSeconds}초 전`;
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
+      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}일 전`; // 7일 이내
+      
+      // 7일이 넘어가면 날짜로 표시
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${year}.${month}.${day}`;
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return '시간 정보 없음';
+    }
+  };
+
+  // 커뮤니티 게시글 조회
+  useEffect(() => {
+    const fetchCommunityPosts = async () => {
+      try {
+        const response = await getRecentActivePosts();
+        // 응답 데이터 로깅
+        console.log('Community posts response:', response);
+        
+        // 데이터 형식 확인 및 변환
+        const posts = response.data
+          .map((post: any) => ({
+            ...post,
+            lastCommentTime: post.lastCommentTime || post.createdAt // lastCommentTime이 없으면 createdAt 사용
+          }))
+          .sort((a: any, b: any) => {
+            // 최신 시간이 위로 오도록 내림차순 정렬
+            return new Date(b.lastCommentTime).getTime() - new Date(a.lastCommentTime).getTime();
+          });
+        
+        setCommunityPosts(posts);
+      } catch (error) {
+        console.error('Failed to fetch community posts:', error);
+        toast({
+          title: "오류",
+          description: "커뮤니티 게시글을 불러오는데 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchCommunityPosts();
+    const interval = setInterval(fetchCommunityPosts, 60000); // 1분마다 업데이트
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleToggleFavorite = async (stock: Stock) => {
     const token = localStorage.getItem("token");
@@ -539,22 +606,26 @@ export default function DashboardPage() {
 
             {/* 인기 급상승 커뮤니티 */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-baseline gap-4">
-                  <span>인기 급상승 커뮤니티</span>
-                  <span className="text-sm font-normal text-gray-500">
-                    오늘 17:28 기준
-                  </span>
-                </CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>인기 급상승 커뮤니티</CardTitle>
+                <span className="text-sm text-gray-500">
+                  오늘 {currentTime} 기준
+                </span>
               </CardHeader>
               <CardContent className="space-y-4">
                 {communityPosts.map((post) => (
-                  <div key={post.id}>
-                    <p className="font-semibold truncate">{post.title}</p>
-                    <p className="text-sm text-gray-500">
-                      {post.author} · {post.time}
-                    </p>
-                  </div>
+                  <Link href={`/community?postId=${post.id}`} key={post.id}>
+                    <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{post.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>{post.author}</span>
+                          <span>•</span>
+                          <span>{getTimeAgo(post.lastCommentTime)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>

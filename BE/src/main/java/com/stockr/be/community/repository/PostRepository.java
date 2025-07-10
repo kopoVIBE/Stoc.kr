@@ -30,4 +30,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     
     // 관심 종목의 게시글 + 종목 태그가 없는 게시글 조회
     Page<Post> findByStockCodeInOrStockCodeIsNullOrderByCreatedAtDesc(List<String> stockCodes, Pageable pageable);
+
+    List<Post> findTop4ByOrderByLastCommentTimeDesc();
 } 

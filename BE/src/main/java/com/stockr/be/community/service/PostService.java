@@ -36,8 +36,8 @@ public class PostService {
     private final UserRepository userRepository;
     private final FavoriteService favoriteService;
     
-    public PostResponseDto createPost(PostCreateRequestDto requestDto, Long userId) {
-        User author = userRepository.findById(userId)
+    public PostResponseDto createPost(PostCreateRequestDto requestDto, String email) {
+        User author = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         
         // 닉네임이 설정되지 않은 경우 예외 발생
@@ -46,7 +46,7 @@ public class PostService {
         }
         
         // 관심 종목이 없으면 글 작성 불가
-        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(userId);
+        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(author.getUserId());
         if (favoriteStocks.isEmpty()) {
             throw new BusinessException(ErrorCode.NO_FAVORITE_STOCKS);
         }
@@ -57,8 +57,6 @@ public class PostService {
                 .author(author)
                 .stockCode(requestDto.getStockCode())
                 .stockName(requestDto.getStockName())
-                .likes(0)
-                .commentCount(0)
                 .build();
         
         Post savedPost = postRepository.save(post);
@@ -199,5 +197,12 @@ public class PostService {
         log.info("응답 좋아요 상태: {}", newLikeStatus);
         
         return PostResponseDto.from(updatedPost, newLikeStatus);
+    }
+
+    public List<PostResponseDto> getRecentActivePosts() {
+        List<Post> posts = postRepository.findTop4ByOrderByLastCommentTimeDesc();
+        return posts.stream()
+            .map(PostResponseDto::from)
+            .collect(Collectors.toList());
     }
 } 

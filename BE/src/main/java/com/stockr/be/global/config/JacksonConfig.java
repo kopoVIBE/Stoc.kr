@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.util.StdDateFormat;
 
 @Configuration
 public class JacksonConfig {
-
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -23,7 +23,11 @@ public class JacksonConfig {
         mapper.registerModule(hibernateModule);
 
         // JavaTimeModule 설정
-        mapper.registerModule(new JavaTimeModule());
+        JavaTimeModule javaTimeModule = new JavaTimeModule();
+        mapper.registerModule(javaTimeModule);
+        
+        // ISO-8601 형식으로 날짜/시간 직렬화
+        mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
 
         return mapper;
     }
