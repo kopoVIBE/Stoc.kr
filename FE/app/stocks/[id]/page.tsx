@@ -930,6 +930,7 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   const [account, setAccount] = useState<any>(null);
   const [holdings, setHoldings] = useState<any[]>([]);
   const { toast } = useToast();
+  const router = useRouter();
 
   // 계좌 정보 조회
   useEffect(() => {
@@ -939,28 +940,26 @@ function OrderForm({ type, stockData }: OrderFormProps) {
         setAccount(data);
       } catch (error) {
         console.error("계좌 조회 실패:", error);
-        toast({
-          title: "계좌 조회 실패",
-          description: "계좌 정보를 불러오는데 실패했습니다.",
-          variant: "destructive",
-        });
+        setAccount(null);
       }
     };
     fetchAccount();
-  }, [toast]);
+  }, []);
 
   // 보유 주식 정보 조회
   useEffect(() => {
     const fetchHoldings = async () => {
       try {
-        const data = await getHoldings();
-        setHoldings(data);
+        if (account) {  // 계좌가 있을 때만 보유 주식 조회
+          const data = await getHoldings();
+          setHoldings(data);
+        }
       } catch (error) {
         console.error("보유 주식 조회 실패:", error);
       }
     };
     fetchHoldings();
-  }, []);
+  }, [account]);  // account가 변경될 때마다 실행
 
   // 현재 종목의 보유 수량 계산
   const currentHolding = holdings.find(
@@ -971,12 +970,11 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   // 실시간 가격 반영
   useEffect(() => {
     if (stockData?.price) {
-      console.log("실시간 가격 업데이트:", stockData.price);
       if (orderType === "market" || price === 0) {
         setPrice(stockData.price);
       }
     }
-  }, [stockData?.price, orderType]);
+  }, [stockData?.price, orderType, price]);
 
   // 가격 조정 함수
   const adjustPrice = (amount: number) => {
@@ -989,13 +987,34 @@ function OrderForm({ type, stockData }: OrderFormProps) {
   const adjustQuantity = (amount: number) => {
     setQuantity((prev) => {
       const newQuantity = Math.max(0, prev + amount);
-      // 매도의 경우 보유 수량을 초과하지 않도록 체크
       if (type === "sell") {
         return Math.min(newQuantity, holdingQuantity);
       }
       return newQuantity;
     });
   };
+
+  // 계좌가 없는 경우 안내 메시지와 계좌 생성 버튼을 보여줌
+  if (account === null) {
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 p-6">
+        <img 
+          src="/noAccount-image.png" 
+          alt="계좌 없음" 
+          className="w-32 h-32 object-contain"
+        />
+        <p className="text-center text-gray-600 font-medium">
+          계좌를 먼저 생성해주세요.
+        </p>
+        <Button 
+          onClick={() => router.push('/my-page')}
+          className="w-full max-w-xs"
+        >
+          계좌 생성하러 가기
+        </Button>
+      </div>
+    );
+  }
 
   // 총 주문 금액 계산
   const totalOrderAmount = price * quantity;
