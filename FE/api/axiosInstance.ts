@@ -40,5 +40,5 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
+console.log("AXIOS BASE URL:", process.env.NEXT_PUBLIC_BACKEND_URL);
 export default axiosInstance;

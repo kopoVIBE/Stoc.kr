@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
 # from tensorflow.keras.models import load_model  # 기존 방식 주석 처리
-from custom_model_loader import load_model_safely  # 커스텀 로더 사용
+from loadModel import load_model_safely  # 커스텀 로더 사용
 import requests
 import re
 import io
@@ -13,6 +13,7 @@ import yfinance as yf
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import json
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -255,7 +256,8 @@ def main():
             
             # 상승 예측 종목들 (확률 높은 순으로 정렬)
             up_stocks.sort(key=lambda x: x['probability'], reverse=True)
-            print(f"\n📈 상승 예측 종목 ({len(up_stocks)}개):")
+            up_prediction_text = get_prediction_text(1)
+            print(f"\n📈 {up_prediction_text} 종목 ({len(up_stocks)}개):")
             for i, stock in enumerate(up_stocks[:10], 1):  # 상위 10개만 표시
                 print(f"{i:2d}. {stock['stock_name']}({stock['stock_code']}): {stock['probability']:.3f} (신뢰도: {stock['confidence']:.3f})")
             
@@ -264,7 +266,8 @@ def main():
             
             # 하락 예측 종목들 (확률 낮은 순으로 정렬)
             down_stocks.sort(key=lambda x: x['probability'])
-            print(f"\n📉 하락 예측 종목 ({len(down_stocks)}개):")
+            down_prediction_text = get_prediction_text(0)
+            print(f"\n📉 {down_prediction_text} 종목 ({len(down_stocks)}개):")
             for i, stock in enumerate(down_stocks[:10], 1):  # 상위 10개만 표시
                 print(f"{i:2d}. {stock['stock_name']}({stock['stock_code']}): {stock['probability']:.3f} (신뢰도: {stock['confidence']:.3f})")
             
@@ -274,8 +277,8 @@ def main():
             # 결과 요약
             print(f"\n📊 예측 결과 요약:")
             print("-" * 60)
-            print(f"상승 예측: {len(up_stocks)}개 ({len(up_stocks)/len(results)*100:.1f}%)")
-            print(f"하락 예측: {len(down_stocks)}개 ({len(down_stocks)/len(results)*100:.1f}%)")
+            print(f"{up_prediction_text}: {len(up_stocks)}개 ({len(up_stocks)/len(results)*100:.1f}%)")
+            print(f"{down_prediction_text}: {len(down_stocks)}개 ({len(down_stocks)/len(results)*100:.1f}%)")
             print(f"예측 실패: {len(stock_name_list) - len(results)}개")
             
             # 결과를 JSON 파일로 저장 (DB 저장용)
@@ -289,11 +292,10 @@ def main():
                 })
             
             # JSON 파일로 저장
-            import json
-            with open('prediction_results.json', 'w', encoding='utf-8') as f:
+            with open(PREDICTION_RESULTS_PATH, 'w', encoding='utf-8') as f:
                 json.dump(db_results, f, ensure_ascii=False, indent=2)
             
-            print(f"\n💾 전체 결과가 'prediction_results.json' 파일로 저장되었습니다.")
+            print(f"\n💾 전체 결과가 '{PREDICTION_RESULTS_PATH}' 파일로 저장되었습니다.")
             print(f"📊 DB 저장용 형태: stock_code, prediction (1=상승, 0=하락)")
             
         else:

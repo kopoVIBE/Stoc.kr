@@ -28,7 +28,8 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "A003", "Insufficient Balance"),
 
     // Stock
-    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "Stock Not Found"),
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "해당 종목을 찾을 수 없습니다."),
+    PREDICTION_NOT_FOUND(HttpStatus.NOT_FOUND, "S008", "해당 종목의 예측 결과를 찾을 수 없습니다."),
     INVALID_TRADE_TYPE(HttpStatus.BAD_REQUEST, "S002", "Invalid Trade Type"),
     FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "S003", "Favorite Not Found"),
     DUPLICATE_FAVORITE(HttpStatus.BAD_REQUEST, "S004", "Duplicate Favorite"),

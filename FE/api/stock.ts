@@ -189,3 +189,14 @@ export const getPendingOrders = async (): Promise<LimitOrder[]> => {
     throw error;
   }
 };
+
+// 주식 예측 결과 가져오기
+export const getPredictionResults = async () => {
+  try {
+    const response = await axiosInstance.get('/api/predictions');
+    return response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch prediction results:', error);
+    throw error;
+  }
+};

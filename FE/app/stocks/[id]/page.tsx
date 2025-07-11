@@ -53,6 +53,7 @@ import {
   SimilarStock,
   subscribeToRealtimeStock,
   unsubscribeFromRealtimeStock,
+  getPredictionResults,
 } from "@/api/stock";
 import { getAccount, createOrder, getHoldings, type TradeRequest } from "@/api/account";
 import { useToast } from "@/components/ui/use-toast";
@@ -119,6 +120,19 @@ interface StockPrice {
   timestamp: number;
 }
 
+// prediction_results.json 파일의 결과를 가져오는 함수 수정
+const getPredictionResult = async (ticker: string) => {
+  try {
+    const data = await getPredictionResults();
+    const predictions = JSON.parse(data);
+    const stockPrediction = predictions.find((item: any) => item.stock_code === ticker);
+    return stockPrediction?.prediction === 1 ? "상승" : "하락";
+  } catch (error) {
+    console.error('Failed to fetch prediction result:', error);
+    return "예측 불가";
+  }
+};
+
 export default function StockDetailPage({
   params,
 }: {
@@ -130,6 +144,7 @@ export default function StockDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [prediction, setPrediction] = useState<string>("예측 중");  // 예측 결과 상태 추가
   const { toast } = useToast();
   const router = useRouter();
   const { setStock: setContextStock } = useStock();
@@ -200,6 +215,15 @@ export default function StockDetailPage({
       setContextStock(updatedStock);
     }
   }, [stockData, ticker, stock, setContextStock]);
+
+  // 예측 결과 가져오기
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      const result = await getPredictionResult(ticker);
+      setPrediction(result);
+    };
+    fetchPrediction();
+  }, [ticker]);
 
   const [activeTab, setActiveTab] = useState("price");
   const [underlineStyle, setUnderlineStyle] = useState({
@@ -365,8 +389,8 @@ export default function StockDetailPage({
                   )}
                 </p>
               </div>
-              <span className="text-sm px-2 py-1 bg-red-100 text-red-600 rounded-full font-medium whitespace-nowrap">
-                하락 예측
+              <span className={`text-sm px-2 py-1 ${prediction === "상승" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"} rounded-full font-medium whitespace-nowrap`}>
+                {prediction} 예측
               </span>
             </div>
           </div>

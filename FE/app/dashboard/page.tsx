@@ -418,7 +418,7 @@ export default function DashboardPage() {
         console.log('Received industry types:', types);
         // 업종 목록을 랜덤으로 섞고 6개만 선택
         const shuffled = types.sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, 6);
+        const selected = shuffled.slice(0, 10);
         setIndustryTypes(selected);
         if (selected.length > 0) {
           setSelectedIndustry(selected[0]);
