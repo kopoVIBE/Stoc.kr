@@ -13,6 +13,15 @@ export interface TradeRequest {
   price: number;
 }
 
+// 실제 API 요청 전에 stockId를 ticker로 변환하는 함수
+const convertToApiRequest = (request: TradeRequest) => {
+  const { stockId, ...rest } = request;
+  return {
+    ticker: stockId,  // stockId를 ticker로 변환
+    ...rest
+  };
+};
+
 export interface StockHolding {
   stockCode: string;
   stockName: string;

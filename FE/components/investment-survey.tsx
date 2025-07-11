@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { getMyInfo, updateInvestmentStyle } from "@/api/user";
+import { useToast } from "@/hooks/use-toast"
 
 interface SurveyOption {
   text: string;
@@ -134,6 +135,7 @@ export default function InvestmentSurvey({
   onClose,
   onSuccess,
 }: InvestmentSurveyProps) {
+  const { toast } = useToast()
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [showResult, setShowResult] = useState(false);
@@ -229,8 +231,11 @@ export default function InvestmentSurvey({
           onSuccess();
         }
       } catch (error) {
-        console.error("투자 성향 저장 실패:", error);
-        alert("투자 성향 저장에 실패했습니다.");
+        toast({
+          variant: "destructive",
+          title: "오류",
+          description: "투자 성향 저장에 실패했습니다."
+        });
       }
     }
     

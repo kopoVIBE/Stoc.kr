@@ -44,13 +44,19 @@ public class Post {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;  // 수정 시간
+
     @Column(name = "last_comment_time")
     private LocalDateTime lastCommentTime;
 
     @PrePersist
     void prePersist() {
-        this.createdAt = LocalDateTime.now();
-        this.lastCommentTime = this.createdAt;
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        this.lastCommentTime = now;
     }
 
     public void updateLastCommentTime() {

@@ -1,0 +1,265 @@
+2025-07-11 13:52:12,749 - INFO - 'ALL' 모드로 하이브리드 뉴스 크롤링 시작
+2025-07-11 13:52:20,168 - ERROR - 크롤링 중 심각한 오류 발생: BrowserType.launch: Executable doesn't exist at C:\Users\kopo\AppData\Local\ms-playwright\chromium_headless_shell-1179\chrome-win\headless_shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2025-07-11 13:52:20,170 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 13:52:20,184 - INFO - ============================================================
+2025-07-11 13:52:20,184 - INFO - 크롤링 완료! 총 0건의 뉴스 수집
+2025-07-11 13:52:20,184 - INFO - 총 소요 시간: 7.43초
+2025-07-11 13:52:20,184 - INFO - ============================================================
+2025-07-11 13:55:11,890 - INFO - 'ALL' 모드로 하이브리드 뉴스 크롤링 시작
+2025-07-11 13:55:11,891 - INFO - 진행상태를 progress.json에서 불러왔습니다.
+2025-07-11 13:55:19,115 - INFO - 새로운 브라우저 컨텍스트를 생성했습니다.
+2025-07-11 13:55:19,267 - INFO - HTTP 클라이언트 초기화 완료 (동시 연결 제한: 15)
+2025-07-11 13:55:19,267 - INFO - 주요 뉴스 크롤링 시작
+2025-07-11 13:55:19,267 - INFO - 주요 뉴스 링크 수집 시작
+2025-07-11 13:55:22,990 - INFO - 주요 뉴스 링크 5개 선택하여 수집 완료
+2025-07-11 13:55:23,066 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/215/0001215883 "HTTP/1.1 200 OK"
+2025-07-11 13:55:23,070 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/215/0001215883
+2025-07-11 13:55:23,119 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/417/0001088724 "HTTP/1.1 200 OK"
+2025-07-11 13:55:23,123 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/417/0001088724
+2025-07-11 13:55:23,169 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/366/0001091781 "HTTP/1.1 200 OK"
+2025-07-11 13:55:23,171 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/366/0001091781
+2025-07-11 13:55:23,450 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/277/0005621208 "HTTP/1.1 200 OK"
+2025-07-11 13:55:23,456 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/277/0005621208
+2025-07-11 13:55:23,503 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/015/0005156629 "HTTP/1.1 200 OK"
+2025-07-11 13:55:23,506 - INFO - Consumer 1 종료: 총 1건 처리
+2025-07-11 13:55:23,507 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/015/0005156629
+2025-07-11 13:55:23,671 - INFO - Consumer 0 종료: 총 2건 처리
+2025-07-11 13:55:23,749 - INFO - Consumer 2 종료: 총 2건 처리
+2025-07-11 13:55:24,012 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 13:55:24,012 - INFO - 주요 뉴스 총 5건 수집 완료
+2025-07-11 13:55:24,027 - INFO - 총 7개 종목 중 7개 종목이 남아있습니다.
+2025-07-11 13:55:24,027 - INFO - === 배치 1/1 시작 (종목 7개) ===
+2025-07-11 13:55:25,031 - INFO - 메모리 사용률: 69.2%, CPU 사용률: 8.6%
+2025-07-11 13:55:30,587 - INFO - 배치 1: 21개 기사 링크 수집 완료
+2025-07-11 13:55:30,645 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/030/0003328707 "HTTP/1.1 200 OK"
+2025-07-11 13:55:30,648 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/030/0003328707
+2025-07-11 13:55:31,085 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/366/0001090745 "HTTP/1.1 200 OK"
+2025-07-11 13:55:31,088 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/030/0003328413 "HTTP/1.1 200 OK"
+2025-07-11 13:55:31,090 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/366/0001090745
+2025-07-11 13:55:31,428 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/030/0003328413
+2025-07-11 13:55:31,797 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/214/0001434228 "HTTP/1.1 200 OK"
+2025-07-11 13:55:31,801 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/214/0001434228
+2025-07-11 13:55:32,287 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/243/0000080586 "HTTP/1.1 200 OK"
+2025-07-11 13:55:32,291 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/243/0000080586
+2025-07-11 13:55:32,660 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/008/0005220236 "HTTP/1.1 200 OK"
+2025-07-11 13:55:32,664 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/008/0005220236
+2025-07-11 13:55:33,006 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/241/0003450915 "HTTP/1.1 200 OK"
+2025-07-11 13:55:33,009 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/241/0003450915
+2025-07-11 13:55:33,357 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/030/0003330325 "HTTP/1.1 200 OK"
+2025-07-11 13:55:33,361 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/030/0003330325
+2025-07-11 13:55:33,668 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/243/0000081087 "HTTP/1.1 200 OK"
+2025-07-11 13:55:33,672 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/243/0000081087
+2025-07-11 13:55:34,042 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/014/0005375041 "HTTP/1.1 200 OK"
+2025-07-11 13:55:34,045 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/014/0005375041
+2025-07-11 13:55:34,374 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/014/0005375353 "HTTP/1.1 200 OK"
+2025-07-11 13:55:34,378 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/014/0005375353
+2025-07-11 13:55:34,752 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/001/0015500522 "HTTP/1.1 200 OK"
+2025-07-11 13:55:34,755 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/001/0015500522
+2025-07-11 13:55:35,075 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/366/0001091674 "HTTP/1.1 200 OK"
+2025-07-11 13:55:35,079 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/366/0001091674
+2025-07-11 13:55:35,438 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/003/0013355829 "HTTP/1.1 200 OK"
+2025-07-11 13:55:35,443 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/003/0013355829
+2025-07-11 13:55:35,767 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/366/0001091657 "HTTP/1.1 200 OK"
+2025-07-11 13:55:35,771 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/366/0001091657
+2025-07-11 13:55:36,154 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/008/0005220333 "HTTP/1.1 200 OK"
+2025-07-11 13:55:36,157 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/008/0005220333
+2025-07-11 13:55:36,484 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/011/0004507965 "HTTP/1.1 200 OK"
+2025-07-11 13:55:36,488 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/011/0004507965
+2025-07-11 13:55:36,848 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498242 "HTTP/1.1 200 OK"
+2025-07-11 13:55:36,851 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498242
+2025-07-11 13:55:37,179 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/648/0000037809 "HTTP/1.1 200 OK"
+2025-07-11 13:55:37,183 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/648/0000037809
+2025-07-11 13:55:37,759 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/031/0000947821 "HTTP/1.1 200 OK"
+2025-07-11 13:55:37,763 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/031/0000947821
+2025-07-11 13:55:38,089 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/001/0015501434 "HTTP/1.1 200 OK"
+2025-07-11 13:55:38,091 - INFO - Consumer 0 종료: 총 7건 처리
+2025-07-11 13:55:38,091 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/001/0015501434
+2025-07-11 13:55:38,412 - INFO - Consumer 1 종료: 총 6건 처리
+2025-07-11 13:55:38,564 - INFO - Consumer 2 종료: 총 8건 처리
+2025-07-11 13:55:38,565 - INFO - 배치 1: 21건 기사 수집 완료
+2025-07-11 13:55:38,574 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 13:55:38,727 - INFO - 결과가 'unified_news_20250711_135538.json' 파일에 저장되었습니다.
+2025-07-11 13:55:38,860 - INFO - MongoDB에 뉴스 26건 저장 완료.
+2025-07-11 13:55:38,862 - INFO - 크롤링이 성공적으로 종료되어 progress.json 파일을 삭제했습니다.
+2025-07-11 13:55:38,863 - INFO - ============================================================
+2025-07-11 13:55:38,863 - INFO - 크롤링 완료! 총 26건의 뉴스 수집
+2025-07-11 13:55:38,863 - INFO - 총 소요 시간: 26.97초
+2025-07-11 13:55:38,863 - INFO - ============================================================
+2025-07-11 14:02:10,995 - INFO - 'ALL' 모드로 하이브리드 뉴스 크롤링 시작
+2025-07-11 14:02:11,684 - INFO - 새로운 브라우저 컨텍스트를 생성했습니다.
+2025-07-11 14:02:11,784 - INFO - HTTP 클라이언트 초기화 완료 (동시 연결 제한: 15)
+2025-07-11 14:02:11,784 - INFO - 주요 뉴스 크롤링 시작
+2025-07-11 14:02:11,784 - INFO - 주요 뉴스 링크 수집 시작
+2025-07-11 14:02:15,176 - INFO - 주요 뉴스 링크 5개 선택하여 수집 완료
+2025-07-11 14:02:15,252 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498140 "HTTP/1.1 200 OK"
+2025-07-11 14:02:15,255 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498140
+2025-07-11 14:02:15,301 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/015/0005156613 "HTTP/1.1 200 OK"
+2025-07-11 14:02:15,304 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/015/0005156613
+2025-07-11 14:02:15,351 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/243/0000081110 "HTTP/1.1 200 OK"
+2025-07-11 14:02:15,353 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/243/0000081110
+2025-07-11 14:02:15,602 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/277/0005621156 "HTTP/1.1 200 OK"
+2025-07-11 14:02:15,614 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/277/0005621156
+2025-07-11 14:02:15,672 - INFO - Consumer 2 종료: 총 1건 처리
+2025-07-11 14:02:15,725 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498218 "HTTP/1.1 200 OK"
+2025-07-11 14:02:15,727 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498218
+2025-07-11 14:02:15,813 - INFO - Consumer 0 종료: 총 2건 처리
+2025-07-11 14:02:16,044 - INFO - Consumer 1 종료: 총 2건 처리
+2025-07-11 14:02:16,203 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 14:02:16,204 - INFO - 주요 뉴스 총 5건 수집 완료
+2025-07-11 14:02:16,206 - INFO - 총 8개 종목 중 8개 종목이 남아있습니다.
+2025-07-11 14:02:16,206 - INFO - === 배치 1/1 시작 (종목 8개) ===
+2025-07-11 14:02:17,210 - INFO - 메모리 사용률: 64.7%, CPU 사용률: 8.2%
+2025-07-11 14:02:22,732 - INFO - 배치 1: 24개 기사 링크 수집 완료
+2025-07-11 14:02:22,789 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/421/0008364202 "HTTP/1.1 200 OK"
+2025-07-11 14:02:22,792 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/421/0008364202
+2025-07-11 14:02:23,193 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/018/0006063178 "HTTP/1.1 200 OK"
+2025-07-11 14:02:23,195 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/417/0001088737 "HTTP/1.1 200 OK"
+2025-07-11 14:02:23,199 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/018/0006063178
+2025-07-11 14:02:23,515 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/417/0001088737
+2025-07-11 14:02:24,053 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/021/0002722027 "HTTP/1.1 200 OK"
+2025-07-11 14:02:24,056 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/021/0002722027
+2025-07-11 14:02:24,375 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/033/0000049130 "HTTP/1.1 200 OK"
+2025-07-11 14:02:24,378 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/033/0000049130
+2025-07-11 14:02:24,756 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498053 "HTTP/1.1 200 OK"
+2025-07-11 14:02:24,758 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498053
+2025-07-11 14:02:25,066 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/015/0005156559 "HTTP/1.1 200 OK"
+2025-07-11 14:02:25,069 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/015/0005156559
+2025-07-11 14:02:25,446 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/277/0005621273 "HTTP/1.1 200 OK"
+2025-07-11 14:02:25,450 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/277/0005621273
+2025-07-11 14:02:25,788 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/022/0004050889 "HTTP/1.1 200 OK"
+2025-07-11 14:02:25,793 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/022/0004050889
+2025-07-11 14:02:26,149 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/025/0003454501 "HTTP/1.1 200 OK"
+2025-07-11 14:02:26,159 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/025/0003454501
+2025-07-11 14:02:26,493 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/005/0001789153 "HTTP/1.1 200 OK"
+2025-07-11 14:02:26,495 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/005/0001789153
+2025-07-11 14:02:26,854 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/648/0000037806 "HTTP/1.1 200 OK"
+2025-07-11 14:02:26,857 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/648/0000037806
+2025-07-11 14:02:27,183 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/092/0002381698 "HTTP/1.1 200 OK"
+2025-07-11 14:02:27,186 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/092/0002381698
+2025-07-11 14:02:27,542 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/001/0015501288 "HTTP/1.1 200 OK"
+2025-07-11 14:02:27,545 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/001/0015501288
+2025-07-11 14:02:27,867 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/421/0008361953 "HTTP/1.1 200 OK"
+2025-07-11 14:02:27,871 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/421/0008361953
+2025-07-11 14:02:28,231 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498278 "HTTP/1.1 200 OK"
+2025-07-11 14:02:28,244 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498278
+2025-07-11 14:02:28,579 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498004 "HTTP/1.1 200 OK"
+2025-07-11 14:02:28,582 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498004
+2025-07-11 14:02:28,948 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/014/0005375757 "HTTP/1.1 200 OK"
+2025-07-11 14:02:28,951 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/014/0005375757
+2025-07-11 14:02:29,454 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/018/0006063120 "HTTP/1.1 200 OK"
+2025-07-11 14:02:29,457 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/018/0006063120
+2025-07-11 14:02:29,832 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/421/0008364176 "HTTP/1.1 200 OK"
+2025-07-11 14:02:29,834 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/421/0008364176
+2025-07-11 14:02:30,138 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/277/0005621110 "HTTP/1.1 200 OK"
+2025-07-11 14:02:30,141 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/277/0005621110
+2025-07-11 14:02:30,513 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/008/0005218623 "HTTP/1.1 200 OK"
+2025-07-11 14:02:30,516 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/008/0005218623
+2025-07-11 14:02:30,840 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/018/0006060837 "HTTP/1.1 200 OK"
+2025-07-11 14:02:30,842 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/018/0006060837
+2025-07-11 14:02:31,163 - INFO - Consumer 2 종료: 총 8건 처리
+2025-07-11 14:02:31,212 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/015/0005153757 "HTTP/1.1 200 OK"
+2025-07-11 14:02:31,215 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/015/0005153757
+2025-07-11 14:02:31,538 - INFO - Consumer 1 종료: 총 8건 처리
+2025-07-11 14:02:31,804 - INFO - Consumer 0 종료: 총 8건 처리
+2025-07-11 14:02:31,805 - INFO - 배치 1: 24건 기사 수집 완료
+2025-07-11 14:02:31,810 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 14:02:31,945 - INFO - 결과가 'unified_news_20250711_140231.json' 파일에 저장되었습니다.
+2025-07-11 14:02:31,988 - INFO - MongoDB에 뉴스 29건 저장 완료.
+2025-07-11 14:02:31,991 - INFO - 크롤링이 성공적으로 종료되어 progress.json 파일을 삭제했습니다.
+2025-07-11 14:02:31,991 - INFO - ============================================================
+2025-07-11 14:02:31,991 - INFO - 크롤링 완료! 총 29건의 뉴스 수집
+2025-07-11 14:02:31,991 - INFO - 총 소요 시간: 21.00초
+2025-07-11 14:02:31,991 - INFO - ============================================================
+2025-07-11 17:02:41,600 - INFO - 'ALL' 모드로 하이브리드 뉴스 크롤링 시작
+2025-07-11 17:02:45,468 - INFO - 새로운 브라우저 컨텍스트를 생성했습니다.
+2025-07-11 17:02:45,568 - INFO - HTTP 클라이언트 초기화 완료 (동시 연결 제한: 15)
+2025-07-11 17:02:45,568 - INFO - 주요 뉴스 크롤링 시작
+2025-07-11 17:02:45,569 - INFO - 주요 뉴스 링크 수집 시작
+2025-07-11 17:02:49,200 - INFO - 주요 뉴스 링크 5개 선택하여 수집 완료
+2025-07-11 17:02:49,282 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/021/0002722033 "HTTP/1.1 200 OK"
+2025-07-11 17:02:49,287 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/021/0002722033
+2025-07-11 17:02:49,343 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/417/0001088724 "HTTP/1.1 200 OK"
+2025-07-11 17:02:49,347 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/417/0001088724
+2025-07-11 17:02:49,404 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/366/0001091771 "HTTP/1.1 200 OK"
+2025-07-11 17:02:49,409 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/366/0001091771
+2025-07-11 17:02:49,610 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/215/0001215923 "HTTP/1.1 200 OK"
+2025-07-11 17:02:49,613 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/215/0001215923
+2025-07-11 17:02:49,689 - INFO - Consumer 1 종료: 총 1건 처리
+2025-07-11 17:02:49,734 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/243/0000081120 "HTTP/1.1 200 OK"
+2025-07-11 17:02:49,737 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/243/0000081120
+2025-07-11 17:02:49,872 - INFO - Consumer 2 종료: 총 2건 처리
+2025-07-11 17:02:50,072 - INFO - Consumer 0 종료: 총 2건 처리
+2025-07-11 17:02:50,212 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 17:02:50,212 - INFO - 주요 뉴스 총 5건 수집 완료
+2025-07-11 17:02:50,214 - INFO - 총 8개 종목 중 8개 종목이 남아있습니다.
+2025-07-11 17:02:50,215 - INFO - === 배치 1/1 시작 (종목 8개) ===
+2025-07-11 17:02:51,221 - INFO - 메모리 사용률: 65.0%, CPU 사용률: 19.0%
+2025-07-11 17:02:57,765 - INFO - 배치 1: 24개 기사 링크 수집 완료
+2025-07-11 17:02:57,820 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/417/0001088810 "HTTP/1.1 200 OK"
+2025-07-11 17:02:57,823 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/417/0001088810
+2025-07-11 17:02:58,242 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/001/0015502341 "HTTP/1.1 200 OK"
+2025-07-11 17:02:58,244 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498388 "HTTP/1.1 200 OK"
+2025-07-11 17:02:58,247 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/001/0015502341
+2025-07-11 17:02:58,585 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498388
+2025-07-11 17:02:59,146 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/047/0002480604 "HTTP/1.1 200 OK"
+2025-07-11 17:02:59,149 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/047/0002480604
+2025-07-11 17:02:59,487 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/092/0002381748 "HTTP/1.1 200 OK"
+2025-07-11 17:02:59,491 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/092/0002381748
+2025-07-11 17:02:59,863 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/016/0002498053 "HTTP/1.1 200 OK"
+2025-07-11 17:02:59,866 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/028/0002755552 "HTTP/1.1 200 OK"
+2025-07-11 17:02:59,870 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/028/0002755552
+2025-07-11 17:03:00,199 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/016/0002498053
+2025-07-11 17:03:00,580 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/032/0003382100 "HTTP/1.1 200 OK"
+2025-07-11 17:03:00,584 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/032/0003382100
+2025-07-11 17:03:00,922 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/022/0004050889 "HTTP/1.1 200 OK"
+2025-07-11 17:03:00,926 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/022/0004050889
+2025-07-11 17:03:01,373 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/018/0006063287 "HTTP/1.1 200 OK"
+2025-07-11 17:03:01,376 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/018/0006063287
+2025-07-11 17:03:01,702 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/448/0000541807 "HTTP/1.1 200 OK"
+2025-07-11 17:03:01,706 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/448/0000541807
+2025-07-11 17:03:02,104 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/421/0008361953 "HTTP/1.1 200 OK"
+2025-07-11 17:03:02,108 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/421/0008361953
+2025-07-11 17:03:02,455 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/057/0001896177 "HTTP/1.1 200 OK"
+2025-07-11 17:03:02,459 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/057/0001896177
+2025-07-11 17:03:02,822 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/092/0002381698 "HTTP/1.1 200 OK"
+2025-07-11 17:03:02,825 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/092/0002381698
+2025-07-11 17:03:03,151 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/001/0015501288 "HTTP/1.1 200 OK"
+2025-07-11 17:03:03,154 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/001/0015501288
+2025-07-11 17:03:03,539 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/031/0000948005 "HTTP/1.1 200 OK"
+2025-07-11 17:03:03,542 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/031/0000948005
+2025-07-11 17:03:03,905 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/092/0002381748 "HTTP/1.1 200 OK"
+2025-07-11 17:03:03,909 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/092/0002381748
+2025-07-11 17:03:04,296 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/031/0000948032 "HTTP/1.1 200 OK"
+2025-07-11 17:03:04,300 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/031/0000948032
+2025-07-11 17:03:04,848 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/031/0000947951 "HTTP/1.1 200 OK"
+2025-07-11 17:03:04,851 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/031/0000947951
+2025-07-11 17:03:05,255 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/417/0001088806 "HTTP/1.1 200 OK"
+2025-07-11 17:03:05,258 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/417/0001088806
+2025-07-11 17:03:05,617 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/031/0000947992 "HTTP/1.1 200 OK"
+2025-07-11 17:03:05,621 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/031/0000947992
+2025-07-11 17:03:06,004 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/008/0005218623 "HTTP/1.1 200 OK"
+2025-07-11 17:03:06,008 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/008/0005218623
+2025-07-11 17:03:06,338 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/018/0006060837 "HTTP/1.1 200 OK"
+2025-07-11 17:03:06,342 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/018/0006060837
+2025-07-11 17:03:06,702 - INFO - Consumer 1 종료: 총 7건 처리
+2025-07-11 17:03:06,751 - INFO - HTTP Request: GET https://n.news.naver.com/mnews/article/015/0005153757 "HTTP/1.1 200 OK"
+2025-07-11 17:03:06,755 - INFO - 최종 URL: https://n.news.naver.com/mnews/article/015/0005153757
+2025-07-11 17:03:07,084 - INFO - Consumer 2 종료: 총 8건 처리
+2025-07-11 17:03:07,186 - INFO - Consumer 0 종료: 총 9건 처리
+2025-07-11 17:03:07,187 - INFO - 배치 1: 24건 기사 수집 완료
+2025-07-11 17:03:07,198 - INFO - 진행상태가 progress.json에 저장되었습니다.
+2025-07-11 17:03:07,363 - INFO - 결과가 'unified_news_20250711_170307.json' 파일에 저장되었습니다.
+2025-07-11 17:03:07,471 - INFO - MongoDB에 뉴스 29건 저장 완료.
+2025-07-11 17:03:07,473 - INFO - 크롤링이 성공적으로 종료되어 progress.json 파일을 삭제했습니다.
+2025-07-11 17:03:07,474 - INFO - ============================================================
+2025-07-11 17:03:07,474 - INFO - 크롤링 완료! 총 29건의 뉴스 수집
+2025-07-11 17:03:07,474 - INFO - 총 소요 시간: 25.87초
+2025-07-11 17:03:07,474 - INFO - ============================================================

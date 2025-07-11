@@ -8,8 +8,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, Phone, User } from "lucide-react";
 import { signup, login } from "@/api/user";
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
+  const { toast } = useToast()
   const [isLogin, setIsLogin] = useState(true);
   const router = useRouter();
 
@@ -167,19 +169,31 @@ export default function LoginPage() {
     if (!isLogin) {
       // 회원가입 시 필수 필드 체크
       if (!form.email || !form.password || !form.name || !form.phone || !form.birth || !form.genderCode) {
-        alert("모든 필드를 입력해주세요.");
+        toast({
+          variant: "destructive",
+          title: "오류",
+          description: "모든 필드를 입력해주세요."
+        });
         return;
       }
     } else {
       // 로그인 시 필수 필드 체크
       if (!form.email || !form.password) {
-        alert("이메일과 비밀번호를 입력해주세요.");
+        toast({
+          variant: "destructive",
+          title: "오류",
+          description: "이메일과 비밀번호를 입력해주세요."
+        });
         return;
       }
     }
     
     if (Object.keys(errors).length > 0) {
-      alert("입력 형식을 확인해주세요.");
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "입력 형식을 확인해주세요."
+      });
       return;
     }
 
@@ -191,7 +205,10 @@ export default function LoginPage() {
         // 쿠키에도 토큰 저장 (middleware에서 사용)
         document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7일간 유지
         
-        alert("로그인이 완료되었습니다!");
+        toast({
+          title: "성공",
+          description: "로그인이 완료되었습니다!"
+        });
         router.push("/dashboard");
       } else {
         await signup({
@@ -206,7 +223,10 @@ export default function LoginPage() {
         });
         
         localStorage.removeItem("token");
-        alert("회원가입이 완료되었습니다! 로그인해주세요.");
+        toast({
+          title: "성공",
+          description: "회원가입이 완료되었습니다! 로그인해주세요."
+        });
         
         setIsLogin(true);
         setForm({
@@ -221,8 +241,11 @@ export default function LoginPage() {
         return;
       }
     } catch (err: any) {
-      // 이제 400 에러 없이 에러 메시지만 표시
-      alert(err.message || "처리에 실패했습니다.");
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: err.message || "처리에 실패했습니다."
+      });
     }
   };
 

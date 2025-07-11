@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Building2, CreditCard, Sparkles, CheckCircle } from "lucide-react"
 import { createAccount } from "@/api/account"
+import { useToast } from "@/hooks/use-toast"
 
 interface CreateAccountModalProps {
   isOpen: boolean
@@ -15,6 +16,7 @@ interface CreateAccountModalProps {
 }
 
 export default function CreateAccountModal({ isOpen, onClose, onSuccess }: CreateAccountModalProps) {
+  const { toast } = useToast()
   const bankName = "스톡 증권" // 고정값
   
   // 계좌번호 자동 생성 (218-XXXXXXXX-XX 형식)
@@ -34,7 +36,11 @@ export default function CreateAccountModal({ isOpen, onClose, onSuccess }: Creat
       onSuccess()
       onClose()
     } catch (error) {
-      alert("계좌 생성에 실패했습니다.")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "계좌 생성에 실패했습니다."
+      });
     }
   }
 

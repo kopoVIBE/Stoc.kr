@@ -21,6 +21,7 @@ import {
   Key
 } from "lucide-react"
 import { updateUserName, updateUserPhone, updateUserPassword, updateUserNickname, checkNicknameDuplicate } from "@/api/user"
+import { useToast } from "@/hooks/use-toast"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -30,6 +31,7 @@ interface EditProfileModalProps {
 }
 
 export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo }: EditProfileModalProps) {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("name")
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -153,11 +155,18 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
 
     try {
       await updateUserName(nameForm.name.trim())
-      alert("이름이 수정되었습니다.")
+      toast({
+        title: "성공",
+        description: "이름이 수정되었습니다."
+      })
       onSuccess()
       onClose()
     } catch (error: any) {
-      alert(error.message || "이름 수정에 실패했습니다.")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "이름 수정에 실패했습니다."
+      })
     }
   }
 
@@ -170,11 +179,18 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
 
     try {
       await updateUserPhone(phoneForm.phone)
-      alert("전화번호가 수정되었습니다.")
+      toast({
+        title: "성공",
+        description: "전화번호가 수정되었습니다."
+      })
       onSuccess()
       onClose()
     } catch (error: any) {
-      alert(error.message || "전화번호 수정에 실패했습니다.")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "전화번호 수정에 실패했습니다."
+      })
     }
   }
 
@@ -190,11 +206,18 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
 
     try {
       await updateUserPassword(passwordForm.currentPassword, passwordForm.newPassword)
-      alert("비밀번호가 수정되었습니다.")
+      toast({
+        title: "성공",
+        description: "비밀번호가 수정되었습니다."
+      })
       onSuccess()
       onClose()
     } catch (error: any) {
-      alert(error.message || "비밀번호 수정에 실패했습니다.")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "비밀번호 수정에 실패했습니다."
+      })
     }
   }
 
@@ -252,11 +275,18 @@ export default function EditProfileModal({ isOpen, onClose, onSuccess, userInfo 
 
     try {
       await updateUserNickname(nicknameForm.nickname.trim())
-      alert("닉네임이 수정되었습니다.")
+      toast({
+        title: "성공",
+        description: "닉네임이 수정되었습니다."
+      })
       onSuccess()
       onClose()
     } catch (error: any) {
-      alert(error.message || "닉네임 수정에 실패했습니다.")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "닉네임 수정에 실패했습니다."
+      })
     }
   }
 

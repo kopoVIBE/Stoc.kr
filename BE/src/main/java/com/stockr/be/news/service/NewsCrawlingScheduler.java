@@ -17,7 +17,7 @@ public class NewsCrawlingScheduler {
      * 현재 설정: 매 1시간마다 (정각 기준)
      */
 //    @Scheduled(cron = "0 33 * * * *", zone = "Asia/Seoul")
-    @Scheduled(cron = "0 55 09,11,17,23 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 2 09,14,17,23 * * *", zone = "Asia/Seoul")
     public void runCrawler() {
         try {
             log.info("🕒 뉴스 크롤러 실행 시작");
