@@ -86,11 +86,9 @@ public class LimitOrderService {
                 // 매수 주문 시 잔액 검증
                 BigDecimal totalAmount = request.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
                 if (account.getBalance().compareTo(totalAmount) < 0) {
-                    log.error("잔액 부족 - 계좌: {}, 주문금액: {}, 잔액: {}", 
-                        account.getId(), totalAmount, account.getBalance());
                     throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE, 
-                        String.format("주문 금액(%s원)이 계좌 잔액(%s원)을 초과합니다.", 
-                            totalAmount.toString(), account.getBalance().toString()));
+                        String.format("계좌 잔액(%d원)이 주문 금액(%d원)보다 적습니다.", 
+                            account.getBalance().longValue(), totalAmount.longValue()));
                 }
             } else {
                 // 매도: 지정가가 현재가보다 작거나 같으면 즉시 체결
@@ -108,7 +106,7 @@ public class LimitOrderService {
                     .orderType(request.getOrderType())
                     .quantity(request.getQuantity())
                     .price(request.getPrice())
-                    .status(TradingOrderStatus.PENDING)
+                    .status(shouldExecuteImmediately ? TradingOrderStatus.EXECUTING : TradingOrderStatus.PENDING)
                     .build();
 
             LimitOrder savedOrder = limitOrderRepository.save(order);

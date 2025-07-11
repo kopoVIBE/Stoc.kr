@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import com.stockr.be.account.domain.Account;
 import com.stockr.be.domain.stock.entity.Stock;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -45,6 +46,7 @@ public class LimitOrder {
     private BigDecimal price;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 20)
     private TradingOrderStatus status;
 
     private LocalDateTime createdAt;

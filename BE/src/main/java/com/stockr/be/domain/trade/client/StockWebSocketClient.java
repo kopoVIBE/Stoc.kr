@@ -120,22 +120,35 @@ public class StockWebSocketClient {
                 stockRepository.findById(stockCode).ifPresent(stock -> {
                     List<LimitOrder> pendingOrders = limitOrderRepository.findByStockAndStatus(stock,
                             TradingOrderStatus.PENDING);
-                    for (LimitOrder order : pendingOrders) {
+                    List<LimitOrder> executingOrders = limitOrderRepository.findByStockAndStatus(stock,
+                            TradingOrderStatus.EXECUTING);
+                    List<LimitOrder> allOrders = new ArrayList<>();
+                    allOrders.addAll(pendingOrders);
+                    allOrders.addAll(executingOrders);
+
+                    for (LimitOrder order : allOrders) {
                         boolean shouldProcess = false;
-                        if (order.getOrderType() == TradingOrderType.BUY
-                                && currentPrice.compareTo(order.getPrice()) <= 0) {
-                            shouldProcess = true;
-                        } else if (order.getOrderType() == TradingOrderType.SELL
-                                && currentPrice.compareTo(order.getPrice()) >= 0) {
-                            shouldProcess = true;
+                        if (order.getOrderType() == TradingOrderType.BUY) {
+                            // 매수: 현재가가 지정가 이하로 떨어졌을 때 체결
+                            shouldProcess = currentPrice.compareTo(order.getPrice()) <= 0;
+                            if (shouldProcess) {
+                                log.debug("매수 주문 체결 시도 - 주문번호: {}, 종목: {}, 지정가: {}, 현재가: {}", 
+                                    order.getId(), stock.getTicker(), order.getPrice(), currentPrice);
+                            }
+                        } else {
+                            // 매도: 현재가가 지정가 이상으로 올랐을 때 체결
+                            shouldProcess = currentPrice.compareTo(order.getPrice()) >= 0;
+                            if (shouldProcess) {
+                                log.debug("매도 주문 체결 시도 - 주문번호: {}, 종목: {}, 지정가: {}, 현재가: {}", 
+                                    order.getId(), stock.getTicker(), order.getPrice(), currentPrice);
+                            }
                         }
 
                         if (shouldProcess) {
                             try {
                                 internalTradeService.processOrder(order, currentPrice);
-                                log.info("Processed order {} for stock {}", order.getId(), stockCode);
                             } catch (Exception e) {
-                                log.error("Failed to process order {}: {}", order.getId(), e.getMessage());
+                                log.error("Failed to process order {}: {}", order.getId(), e.getMessage(), e);
                             }
                         }
                     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LimitOrder, getPendingOrders } from "@/api/stock";
+import { LimitOrder, getPendingOrders, cancelOrder } from "@/api/stock";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,25 @@ export function PendingOrdersTab() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: number) => {
+    try {
+      await cancelOrder(orderId);
+      toast({
+        title: "주문 취소 완료",
+        description: "주문이 성공적으로 취소되었습니다.",
+      });
+      // 주문 목록 새로고침
+      fetchPendingOrders();
+    } catch (error) {
+      console.error("주문 취소 실패:", error);
+      toast({
+        title: "주문 취소 실패",
+        description: "주문을 취소하는데 실패했습니다.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -90,13 +109,7 @@ export function PendingOrdersTab() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
-                    // TODO: 주문 취소 기능 구현
-                    toast({
-                      title: "주문 취소",
-                      description: "주문 취소 기능은 아직 구현되지 않았습니다.",
-                    });
-                  }}
+                  onClick={() => handleCancelOrder(order.id)}
                 >
                   취소
                 </Button>

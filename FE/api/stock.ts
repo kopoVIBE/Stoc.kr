@@ -190,6 +190,17 @@ export const getPendingOrders = async (): Promise<LimitOrder[]> => {
   }
 };
 
+export const cancelOrder = async (orderId: number): Promise<LimitOrder> => {
+  try {
+    const response = await axiosInstance.delete(`/api/trading/orders/${orderId}`);
+    console.log("주문 취소 응답:", response.data);
+    return response.data.data;
+  } catch (error) {
+    console.error("Failed to cancel order:", error);
+    throw error;
+  }
+};
+
 // 주식 예측 결과 가져오기
 export const getPredictionResults = async () => {
   try {
