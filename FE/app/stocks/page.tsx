@@ -147,8 +147,10 @@ export default function StocksPage() {
     const updateStockData = (prevStocks: Stock[]) =>
       prevStocks.map((stock) => {
         if (stock.ticker === stockData.ticker) {
-          const priceDiff = stockData.price - stock.closePrice;
-          const fluctuationRate = (priceDiff / stock.closePrice) * 100;
+          // 전일 종가를 기준으로 계산 (prevPrice가 있으면 사용, 없으면 closePrice 사용)
+          const basePrice = stock.prevPrice || stock.closePrice;
+          const priceDiff = stockData.price - basePrice;
+          const fluctuationRate = (priceDiff / basePrice) * 100;
 
           return {
             ...stock,
@@ -357,8 +359,24 @@ export default function StocksPage() {
                         ? "-"
                         : `${stock.currentPrice.toLocaleString()}원`}
                     </TableCell>
-                    <TableCell className="text-center">{"-"}</TableCell>
-                    <TableCell className="text-center">{"-"}</TableCell>
+                    <TableCell className="text-center">
+                      {!isConnected || stock.priceDiff === undefined
+                        ? "-"
+                        : (
+                            <span className={stock.priceDiff >= 0 ? "text-red-500" : "text-blue-500"}>
+                              {stock.priceDiff >= 0 ? "+" : ""}{stock.priceDiff.toLocaleString()}원
+                            </span>
+                          )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {!isConnected || stock.fluctuationRate === undefined
+                        ? "-"
+                        : (
+                            <span className={stock.fluctuationRate >= 0 ? "text-red-500" : "text-blue-500"}>
+                              {stock.fluctuationRate >= 0 ? "+" : ""}{stock.fluctuationRate.toFixed(2)}%
+                            </span>
+                          )}
+                    </TableCell>
                     <TableCell className="text-center">
                       {stock.volume?.toLocaleString() || "-"}
                     </TableCell>

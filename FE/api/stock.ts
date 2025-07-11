@@ -115,6 +115,10 @@ export const stockApi = {
     const response = await axiosInstance.get("/api/stocks/industry-types");
     return response.data;
   },
+  getRecommendedStocks: async (limit: number = 4): Promise<Stock[]> => {
+    const response = await axiosInstance.get(`/api/stocks/recommendations?limit=${limit}`);
+    return response.data.data;
+  },
 };
 
 // 즐겨찾기 관련 API

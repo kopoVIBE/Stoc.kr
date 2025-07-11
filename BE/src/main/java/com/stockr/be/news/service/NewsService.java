@@ -4,7 +4,9 @@ import com.stockr.be.news.domain.News;
 import com.stockr.be.news.dto.NewsResponseDto;
 import com.stockr.be.news.repository.NewsRepository;
 import com.stockr.be.domain.stock.entity.Stock;
+import com.stockr.be.domain.stock.dto.StockResponseDto;
 import com.stockr.be.domain.stock.service.FavoriteService;
+import com.stockr.be.domain.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,7 @@ public class NewsService {
 
     private final NewsRepository newsRepository;
     private final FavoriteService favoriteService;
+    private final StockService stockService;
 
     public List<NewsResponseDto> getAllNews() {
         // publishedAt이 null이 아닌 뉴스만 최신 순으로 정렬하여 20개 가져오기
@@ -42,7 +45,7 @@ public class NewsService {
 
     public List<NewsResponseDto> getPersonalizedNews(Long userId) {
         // 사용자의 즐겨찾기 종목 조회
-        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(userId);
+        List<StockResponseDto> favoriteStocks = favoriteService.getFavoriteStocks(userId);
         
         if (favoriteStocks.isEmpty()) {
             return List.of(); // 즐겨찾기 종목이 없으면 빈 리스트 반환

@@ -9,6 +9,7 @@ import com.stockr.be.community.repository.CommentRepository;
 import com.stockr.be.community.repository.PostLikeRepository;
 import com.stockr.be.community.repository.PostRepository;
 import com.stockr.be.domain.stock.entity.Stock;
+import com.stockr.be.domain.stock.dto.StockResponseDto;
 import com.stockr.be.domain.stock.service.FavoriteService;
 import com.stockr.be.global.exception.BusinessException;
 import com.stockr.be.global.exception.ErrorCode;
@@ -46,7 +47,7 @@ public class PostService {
         }
         
         // 관심 종목이 없으면 글 작성 불가
-        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(author.getUserId());
+        List<StockResponseDto> favoriteStocks = favoriteService.getFavoriteStocks(author.getUserId());
         if (favoriteStocks.isEmpty()) {
             throw new BusinessException(ErrorCode.NO_FAVORITE_STOCKS);
         }
@@ -95,18 +96,21 @@ public class PostService {
     
     @Transactional(readOnly = true)
     public List<FavoriteStockDto> getUserFavoriteStocks(Long userId) {
-        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(userId);
+        List<StockResponseDto> favoriteStocks = favoriteService.getFavoriteStocks(userId);
         return favoriteStocks.stream()
-                .map(FavoriteStockDto::from)
+                .map(stockDto -> FavoriteStockDto.builder()
+                        .code(stockDto.getTicker())
+                        .name(stockDto.getName())
+                        .build())
                 .collect(Collectors.toList());
     }
     
     @Transactional(readOnly = true)
     public Page<PostResponseDto> getPostsByUserFavoriteStocks(Pageable pageable, Long userId) {
         // 사용자의 관심 종목 코드 목록 조회
-        List<Stock> favoriteStocks = favoriteService.getFavoriteStocks(userId);
+        List<StockResponseDto> favoriteStocks = favoriteService.getFavoriteStocks(userId);
         List<String> stockCodes = favoriteStocks.stream()
-                .map(Stock::getTicker)
+                .map(StockResponseDto::getTicker)
                 .collect(Collectors.toList());
         
         // 관심 종목이 없으면 빈 페이지 반환

@@ -29,7 +29,7 @@ public class InternalTradeService {
 
     @Transactional
     public void processOrder(LimitOrder order, BigDecimal executionPrice) {
-        if (order.getStatus() != TradingOrderStatus.PENDING) {
+        if (order.getStatus() != TradingOrderStatus.PENDING && order.getStatus() != TradingOrderStatus.EXECUTING) {
             return;
         }
 

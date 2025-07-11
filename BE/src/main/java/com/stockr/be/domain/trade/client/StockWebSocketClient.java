@@ -118,15 +118,11 @@ public class StockWebSocketClient {
                 log.debug("Processing stock: {}, price: {}", stockCode, currentPrice);
                 // ---- Trade Execution Logic ----
                 stockRepository.findById(stockCode).ifPresent(stock -> {
+                    // PENDING 상태의 주문만 처리 (EXECUTING은 즉시 체결 시도 중이므로 제외)
                     List<LimitOrder> pendingOrders = limitOrderRepository.findByStockAndStatus(stock,
                             TradingOrderStatus.PENDING);
-                    List<LimitOrder> executingOrders = limitOrderRepository.findByStockAndStatus(stock,
-                            TradingOrderStatus.EXECUTING);
-                    List<LimitOrder> allOrders = new ArrayList<>();
-                    allOrders.addAll(pendingOrders);
-                    allOrders.addAll(executingOrders);
 
-                    for (LimitOrder order : allOrders) {
+                    for (LimitOrder order : pendingOrders) {
                         boolean shouldProcess = false;
                         if (order.getOrderType() == TradingOrderType.BUY) {
                             // 매수: 현재가가 지정가 이하로 떨어졌을 때 체결

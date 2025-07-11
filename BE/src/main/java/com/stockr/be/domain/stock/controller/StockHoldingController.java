@@ -20,7 +20,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/holdings")
+@RequestMapping("/api/accounts/holdings")
 @RequiredArgsConstructor
 public class StockHoldingController {
     private final StockHoldingService stockHoldingService;
@@ -28,21 +28,29 @@ public class StockHoldingController {
 
     @GetMapping
     public ApiResponse<List<StockHoldingResponseDto>> getStockHoldings() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
-            log.error("인증 정보가 없거나 잘못된 형식입니다. authentication: {}", authentication);
-            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                log.error("인증 정보가 없거나 잘못된 형식입니다. authentication: {}", authentication);
+                throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+            }
+
+            User user = (User) authentication.getPrincipal();
+            log.debug("StockHoldingController.getStockHoldings 호출됨 - user: {}", user);
+
+            AccountResponseDto accountDto = accountService.getAccountByUserId(user.getUserId());
+            log.debug("계좌 정보 조회 완료 - accountDto: {}", accountDto);
+
+            List<StockHoldingResponseDto> holdings = stockHoldingService.getStockHoldings(accountDto);
+            log.debug("주식 보유 정보 조회 완료 - holdings size: {}", holdings != null ? holdings.size() : 0);
+
+            return ApiResponse.success(holdings);
+        } catch (BusinessException e) {
+            log.error("보유 종목 조회 중 비즈니스 예외 발생: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("보유 종목 조회 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
-
-        User user = (User) authentication.getPrincipal();
-        log.debug("StockHoldingController.getStockHoldings 호출됨 - user: {}", user);
-
-        AccountResponseDto accountDto = accountService.getAccountByUserId(user.getUserId());
-        log.debug("계좌 정보 조회 완료 - accountDto: {}", accountDto);
-
-        List<StockHoldingResponseDto> holdings = stockHoldingService.getStockHoldings(accountDto);
-        log.debug("주식 보유 정보 조회 완료 - holdings size: {}", holdings != null ? holdings.size() : 0);
-
-        return ApiResponse.success(holdings);
     }
 }

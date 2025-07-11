@@ -1,6 +1,6 @@
 package com.stockr.be.domain.stock.controller;
 
-import com.stockr.be.domain.stock.entity.Stock;
+import com.stockr.be.domain.stock.dto.StockResponseDto;
 import com.stockr.be.domain.stock.service.FavoriteService;
 import com.stockr.be.global.common.ApiResponse;
 import com.stockr.be.user.domain.User;
@@ -20,9 +20,9 @@ public class FavoriteController {
     private final FavoriteService favoriteService;
 
     @GetMapping(produces = "application/json")
-    public ResponseEntity<ApiResponse<List<Stock>>> getFavorites(@AuthenticationPrincipal User user) {
+    public ResponseEntity<ApiResponse<List<StockResponseDto>>> getFavorites(@AuthenticationPrincipal User user) {
         log.info("Getting favorites for user: {}", user.getUserId());
-        List<Stock> favorites = favoriteService.getFavoriteStocks(user.getUserId());
+        List<StockResponseDto> favorites = favoriteService.getFavoriteStocks(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(favorites));
     }
 

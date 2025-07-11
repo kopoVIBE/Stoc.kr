@@ -3,6 +3,7 @@ package com.stockr.be.user.repository;
 import com.stockr.be.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -14,4 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // 닉네임 중복 확인
     boolean existsByNickname(String nickname);
+    
+    // 투자자 성향으로 사용자 목록 조회
+    List<User> findByInvestmentStyle(String investmentStyle);
 }

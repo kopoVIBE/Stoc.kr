@@ -1,5 +1,6 @@
 package com.stockr.be.domain.stock.service;
 
+import com.stockr.be.domain.stock.dto.StockResponseDto;
 import com.stockr.be.domain.stock.entity.Favorite;
 import com.stockr.be.domain.stock.entity.Stock;
 import com.stockr.be.domain.stock.repository.FavoriteRepository;
@@ -25,17 +26,20 @@ public class FavoriteService {
     private final FavoriteRepository favoriteRepository;
     private final StockRepository stockRepository;
     private final UserRepository userRepository;
+    private final StockService stockService;
 
-    public List<Stock> getFavoriteStocks(Long userId) {
+    public List<StockResponseDto> getFavoriteStocks(Long userId) {
         log.info("Getting favorites for user {}", userId);
         
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
         
-        return favoriteRepository.findAllByUser(user)
+        List<String> tickers = favoriteRepository.findAllByUser(user)
                 .stream()
-                .map(Favorite::getStock)
+                .map(favorite -> favorite.getStock().getTicker())
                 .collect(Collectors.toList());
+        
+        return stockService.getStocksWithRealtimePrice(tickers);
     }
 
     public boolean isFavorite(Long userId, String ticker) {

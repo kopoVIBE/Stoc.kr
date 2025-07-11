@@ -146,37 +146,70 @@ public class AccountService {
     }
 
     public List<TopPerformerDto> getTopPerformers() {
-        return accountRepository.findAll().stream()
-            .filter(account -> account.getUser().getNickname() != null)  // 닉네임이 있는 사용자만 필터링
-            .map(account -> {
-                // 계좌의 총 수익률 계산
-                List<StockHolding> holdings = stockHoldingRepository.findByAccount(account);
-                BigDecimal totalProfitRate = holdings.stream()
-                    .map(holding -> {
-                        RealtimeStockPriceDto realtimePrice = stockPriceService.getLatestPrice(holding.getStock().getTicker());
-                        BigDecimal currentPrice = realtimePrice != null ? 
-                            BigDecimal.valueOf(realtimePrice.getPrice()) : 
-                            BigDecimal.valueOf(holding.getStock().getClosePrice());
+        try {
+            return accountRepository.findAll().stream()
+                .filter(account -> account.getUser().getNickname() != null)  // 닉네임이 있는 사용자만 필터링
+                .map(account -> {
+                    try {
+                        // 계좌의 총 수익률 계산
+                        List<StockHolding> holdings = stockHoldingRepository.findByAccount(account);
                         
-                        BigDecimal totalPurchaseAmount = holding.getAveragePurchasePrice()
-                            .multiply(BigDecimal.valueOf(holding.getQuantity()));
-                        BigDecimal evaluationAmount = currentPrice
-                            .multiply(BigDecimal.valueOf(holding.getQuantity()));
-                        BigDecimal evaluationProfitLoss = evaluationAmount.subtract(totalPurchaseAmount);
+                        if (holdings.isEmpty()) {
+                            // 보유 종목이 없는 경우 0% 수익률
+                            return TopPerformerDto.builder()
+                                .nickname(account.getUser().getNickname())
+                                .profitRate(0.0)
+                                .build();
+                        }
                         
-                        return evaluationProfitLoss
-                            .divide(totalPurchaseAmount, 4, RoundingMode.HALF_UP)
-                            .multiply(BigDecimal.valueOf(100));
-                    })
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-                
-                return TopPerformerDto.builder()
-                    .nickname(account.getUser().getNickname())
-                    .profitRate(totalProfitRate.doubleValue())
-                    .build();
-            })
-            .sorted((a, b) -> b.getProfitRate().compareTo(a.getProfitRate()))  // 수익률 내림차순 정렬
-            .limit(2)  // 상위 2명만 선택
-            .collect(Collectors.toList());
+                        BigDecimal totalProfitRate = holdings.stream()
+                            .map(holding -> {
+                                try {
+                                    RealtimeStockPriceDto realtimePrice = stockPriceService.getLatestPrice(holding.getStock().getTicker());
+                                    BigDecimal currentPrice = realtimePrice != null ? 
+                                        BigDecimal.valueOf(realtimePrice.getPrice()) : 
+                                        BigDecimal.valueOf(holding.getStock().getClosePrice());
+                                    
+                                    BigDecimal totalPurchaseAmount = holding.getAveragePurchasePrice()
+                                        .multiply(BigDecimal.valueOf(holding.getQuantity()));
+                                    
+                                    // 0으로 나누기 방지
+                                    if (totalPurchaseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                                        return BigDecimal.ZERO;
+                                    }
+                                    
+                                    BigDecimal evaluationAmount = currentPrice
+                                        .multiply(BigDecimal.valueOf(holding.getQuantity()));
+                                    BigDecimal evaluationProfitLoss = evaluationAmount.subtract(totalPurchaseAmount);
+                                    
+                                    return evaluationProfitLoss
+                                        .divide(totalPurchaseAmount, 4, RoundingMode.HALF_UP)
+                                        .multiply(BigDecimal.valueOf(100));
+                                } catch (Exception e) {
+                                    log.warn("보유 종목 수익률 계산 중 오류 발생 - holding: {}, error: {}", holding.getStock().getTicker(), e.getMessage());
+                                    return BigDecimal.ZERO;
+                                }
+                            })
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        
+                        return TopPerformerDto.builder()
+                            .nickname(account.getUser().getNickname())
+                            .profitRate(totalProfitRate.doubleValue())
+                            .build();
+                    } catch (Exception e) {
+                        log.warn("사용자 수익률 계산 중 오류 발생 - userId: {}, error: {}", account.getUser().getUserId(), e.getMessage());
+                        return TopPerformerDto.builder()
+                            .nickname(account.getUser().getNickname())
+                            .profitRate(0.0)
+                            .build();
+                    }
+                })
+                .sorted((a, b) -> b.getProfitRate().compareTo(a.getProfitRate()))  // 수익률 내림차순 정렬
+                .limit(2)  // 상위 2명만 선택
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("상위 수익률 조회 중 오류 발생: {}", e.getMessage(), e);
+            return List.of(); // 오류 발생 시 빈 리스트 반환
+        }
     }
 }

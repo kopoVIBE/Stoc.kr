@@ -14,4 +14,7 @@ public interface StockHoldingRepository extends JpaRepository<StockHolding, Long
     Optional<StockHolding> findByAccountAndStock(Account account, Stock stock);
 
     boolean existsByAccountAndStock(Account account, Stock stock);
+    
+    // 사용자 ID로 보유 종목 조회
+    List<StockHolding> findByAccount_User_UserId(Long userId);
 }

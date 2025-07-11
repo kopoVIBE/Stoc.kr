@@ -246,15 +246,18 @@ export default function DashboardPage() {
       }
 
       try {
-        // 사용자 정보와 관심 종목을 병렬로 가져오기
-        const [userResponse, favoritesResponse] = await Promise.all([
+        // 사용자 정보, 관심 종목, 추천 종목을 병렬로 가져오기
+        const [userResponse, favoritesResponse, recommendedResponse] = await Promise.all([
           getMyInfo(),
           getFavorites(),
+          stockApi.getRecommendedStocks(4),
         ]);
 
         setUser(userResponse);
         setFavoriteStocks(favoritesResponse.data);
+        setRecommendedStocks(recommendedResponse);
       } catch (error) {
+        console.error("초기 데이터 로드 실패:", error);
         toast({
           title: "오류",
           description: "데이터를 불러오는데 실패했습니다.",
@@ -486,6 +489,24 @@ export default function DashboardPage() {
     }
   };
 
+  const handleRefreshRecommendations = async () => {
+    try {
+      const newRecommendations = await stockApi.getRecommendedStocks(4);
+      setRecommendedStocks(newRecommendations);
+      toast({
+        title: "추천 종목 새로고침",
+        description: "새로운 추천 종목을 가져왔습니다.",
+      });
+    } catch (error) {
+      console.error("추천 종목 새로고침 실패:", error);
+      toast({
+        title: "오류",
+        description: "추천 종목 새로고침에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="space-y-12">
@@ -511,8 +532,19 @@ export default function DashboardPage() {
 
           {/* 추천 종목 */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>추천 종목</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshRecommendations}
+                className="flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                새로고침
+              </Button>
             </CardHeader>
             <CardContent>
               <StockTable
@@ -867,14 +899,29 @@ function StockTable({
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
                   {!isConnected || !stock.currentPrice
-                    ? "-"
+                    ? stock.closePrice.toLocaleString()
                     : stock.currentPrice.toLocaleString()}
                 </TableCell>
                 <TableCell
                   className="text-right h-[55px] cursor-pointer"
                   onClick={() => router.push(`/stocks/${stock.ticker}`)}
                 >
-                  {"-"}
+                  {!isConnected || stock.fluctuationRate === undefined
+                    ? "-"
+                    : (
+                        <span
+                          className={
+                            stock.fluctuationRate > 0
+                              ? "text-red-500"
+                              : stock.fluctuationRate < 0
+                              ? "text-blue-500"
+                              : "text-gray-500"
+                          }
+                        >
+                          {stock.fluctuationRate > 0 ? "+" : ""}
+                          {stock.fluctuationRate.toFixed(2)}%
+                        </span>
+                      )}
                 </TableCell>
               </TableRow>
             ))}
